@@ -6,7 +6,7 @@
 import os
 import numpy as np
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from lse import LSE
 
@@ -32,10 +32,15 @@ class AssetData:
         end_date: date | None,
         ) -> tuple[date,date]:
 
-        end = end_date or date.today()
+        if end_date is not None:
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+            end = end_date
+        else:
+            end = date.today()
 
         if start_date is not None:
-            start = start_date
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+            start = start_date - timedelta(days = 1)
         else:
             periods = {
                 "1m": relativedelta(months=1),
@@ -60,23 +65,23 @@ class AssetData:
 
         return start, end
 
-    @staticmethod
-    def _stooq_ticker(ticker, exchange):
-        ticker = ticker.lower()
-        if type(ticker) != str or type(exchange) != str:
-            raise ValueError("input correct string format for stock ticker and exchange.")
+    # @staticmethod
+    # def _stooq_ticker(ticker, exchange):
+    #     ticker = ticker.lower()
+    #     if type(ticker) != str or type(exchange) != str:
+    #         raise ValueError("input correct string format for stock ticker and exchange.")
         
-        if "." in ticker:
-            raise ValueError("stock ticker should not have '.'. use '-' instead if reffering to share class. for example: BRK-B will refer to class B shares of Berkshire Hathaway")
+    #     if "." in ticker:
+    #         raise ValueError("stock ticker should not have '.'. use '-' instead if reffering to share class. for example: BRK-B will refer to class B shares of Berkshire Hathaway")
 
-        exchanges = {"us","l","to","ax","hk","de","pa","sz","ss","si"}
+    #     exchanges = {"us","l","to","ax","hk","de","pa","sz","ss","si"}
 
-        if not exchange.lower() in exchanges:
-            raise ValueError("stock exchange suffix does not exist")
+    #     if not exchange.lower() in exchanges:
+    #         raise ValueError("stock exchange suffix does not exist")
 
-        exchange = exchange.lower()
+    #     exchange = exchange.lower()
 
-        return f"{ticker}.{exchange}"
+    #     return f"{ticker}.{exchange}"
 
     @staticmethod
     def _interval_resolver(interval):
@@ -99,11 +104,103 @@ class AssetData:
         client = LSE(api_key=os.environ.get('LSE_API_KEY')) #User has to sign up for an account at https://londonstrategicedge.com/ and save their own api key in their system's environment variables under the name 'LSE_API_KEY'
         candles = client.candles(self.ticker, self.interval, self.start_date, self.end_date)
         df = pd.DataFrame(candles)
+
         df['timestamp'] = df['timestamp'].str[:10]
-        df = df[["timestamp","symbol","close"]]
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+        # Basic daily equity sanity checks
+        df = df[
+            (df["timestamp"].dt.dayofweek < 5) &
+            (df["volume"] > 0) &
+            (df["high"] >= df["low"]) &
+            (df["high"] >= df["open"]) &
+            (df["high"] >= df["close"]) &
+            (df["low"] <= df["open"]) &
+            (df["low"] <= df["close"])
+        ].copy()
+
+        df = df.sort_values("timestamp").reset_index(drop=True)
+
+
+
+        #calculating adjusted close instead of raw candle close
+
+        # --------------------------------------------------
+        # 2. Get dividends
+        # --------------------------------------------------
+
+        dividends = client.dividends(
+            symbol=self.ticker,
+            order="asc",
+            limit=5000
+        )
+
+        div_df = pd.DataFrame(dividends)
+        if not div_df.empty:
+            div_df["effective_date"] = pd.to_datetime(
+                div_df["effective_date"]
+            )
+        # --------------------------------------------------
+        # 3. Start with adjustment factor = 1
+        # --------------------------------------------------
+        df["adjustment_factor"] = 1.0
+
+        # --------------------------------------------------
+        # 4. Apply dividend adjustments backwards - a dividend payout artificially lowers the price of a stock; no real return loss, hence we need to adjust the raw closing price to reflect this. For example, price is $100 the day before dividend payout, and dividend is $1. the ex-dividend price is $99, so all prices before the dividend date and after the previous dividend date have to be multiplied by a factor of 99/100.
+        # --------------------------------------------------
+        if not div_df.empty:
+            for _, dividend in div_df.iterrows():
+                ex_date = dividend["effective_date"]
+                amount = float(dividend["dividend_amount"])
+
+                # Find the last trading day BEFORE ex-date
+                previous = df.loc[
+                    df["timestamp"] < ex_date,
+                    "close"
+                ]
+
+                if previous.empty:
+                    continue
+
+                previous_close = previous.iloc[-1]
+
+                if previous_close <= 0:
+                    continue
+
+                factor = (
+                    previous_close - amount
+                ) / previous_close
+
+                # Apply the dividend factor to all
+                # prices before the ex-date
+
+                # Dividend adjustment applies only to observations
+                # strictly BEFORE the ex-dividend date.
+                df.loc[
+                    df["timestamp"] < ex_date,
+                    "adjustment_factor"
+                ] *= factor
+
+        # --------------------------------------------------
+        # 5. LSE's Data is already adjusted for splits
+        # --------------------------------------------------
+
+        # --------------------------------------------------
+        # 6. Calculate adjusted close
+        # --------------------------------------------------
+        df["adjusted_close"] = (
+            df["close"] *
+            df["adjustment_factor"]
+        )
+
+
         return df
 
 
 if __name__ == "__main__":
-    apple = AssetData("aapl","2y","daily")
+    client = LSE(api_key=os.environ.get('LSE_API_KEY'))
+
+    apple = AssetData(ticker= "aapl", interval="daily", period="1y") 
     data = apple.get_prices()
+
+    print(data.head())
