@@ -1,11 +1,12 @@
 """
-    this module gathers past asset price data using the London Strategic Edge API
+    this module gathers past asset price data using the London Strategic Edge API. requires the user to use their own API key stored in their system environments
 
 """
 
 import os
+import numpy as np
 import pandas as pd
-from datetime import date
+from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from lse import LSE
 
@@ -51,7 +52,8 @@ class AssetData:
             if period not in periods:
                 raise ValueError(f"Unsupported period: {period}")
 
-            start = end - periods[period]
+            start = end - periods[period] - timedelta(days=1)
+            #start date is 1 day before the actual start date so pd df can calculate pct change for first day
 
         if start > end:
             raise ValueError("start_date cannot be after end_date")
@@ -87,23 +89,21 @@ class AssetData:
 
         if interval in interval_dict:
             return interval_dict[interval]
-        elif interval in interval_dict.items():
+        elif interval in interval_dict.values():
             return interval
         else:
             raise ValueError("interval is not of the correct format. options available: daily, weekly, monthly")
 
 
-    def download(self):
-        #client = LSE(api_key=os.environ["LSE_API_KEY"])
-        client = LSE(api_key="lse_live_75791dd28a53f1847dace64fae8840fc")
+    def get_prices(self):
+        client = LSE(api_key=os.environ.get('LSE_API_KEY')) #User has to sign up for an account at https://londonstrategicedge.com/ and save their own api key in their system's environment variables under the name 'LSE_API_KEY'
         candles = client.candles(self.ticker, self.interval, self.start_date, self.end_date)
         df = pd.DataFrame(candles)
+        df['timestamp'] = df['timestamp'].str[:10]
+        df = df[["timestamp","symbol","close"]]
         return df
 
 
-    def returns(self):
-        pass
-
-apple = AssetData("aapl","2y","daily")
-data = apple.download()
-print(data)
+if __name__ == "__main__":
+    apple = AssetData("aapl","2y","daily")
+    data = apple.get_prices()
