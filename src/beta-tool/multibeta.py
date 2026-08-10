@@ -49,7 +49,7 @@ class MultiBeta():
  
         self.intercept = float(results.params["const"])
         self.r_squared = float(results.rsquared)
-        self.observations = float(results.nobs)
+        self.observations = int(results.nobs)
         self.residual_vol = float(results.resid.std())
  
         # per-asset stats, keyed by ticker, mirroring Beta's single-asset attributes
@@ -70,7 +70,7 @@ class MultiBeta():
             "-" * 60,
             f"{'Intercept':<30}: {self.intercept:.5f}",
             f"{'R-squared':<30}: {self.r_squared:.5f}",
-            f"{'No. of observations':<30}: {self.observations:.5f}",
+            f"{'No. of observations':<30}: {self.observations}",
             f"{'Residual volatility':<30}: {self.residual_vol:.5f}",
             "",
         ]

@@ -57,7 +57,7 @@ class Beta():
         self.beta_std_error = float(stats["beta_std_error"])
         self.beta_ci_low = float(stats["beta_ci_low"])
         self.beta_ci_high = float(stats["beta_ci_high"])
-        self.observations = float(stats["n_obs"])
+        self.observations = int(stats["n_obs"])
         self.residual_vol = float(stats["residual_vol"])
 
     def summary(self) -> str:
@@ -73,7 +73,7 @@ class Beta():
             f"{'Beta std-error':<30}: {self.beta_std_error:.5f}",
             f"{'Beta Confidence Interval high':<30}: {self.beta_ci_high:.5f}",
             f"{'Beta Confidence Interval low':<30}: {self.beta_ci_low:.5f}",
-            f"{'No. of observations':<30}: {self.observations:.5f}",
+            f"{'No. of observations':<30}: {self.observations}",
             f"{'Residual volatility':<30}: {self.residual_vol:.5f}",
         ]
         return "\n".join(lines)
