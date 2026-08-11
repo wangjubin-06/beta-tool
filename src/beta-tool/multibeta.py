@@ -1,10 +1,11 @@
 import data, regression, returns
 from datetime import date
+import pandas as pd
  
  
-class MultiBeta():
+class MultiFactorRegression():
     """
-    Generic multi-asset beta tool: regresses one asset's returns against N
+    Generic multi-asset factor tool: regresses one asset's returns against N
     other assets' returns simultaneously. Same idea as Beta, just not limited
     to a single explanatory asset — the "factors" can be any tickers, not a
     fixed factor set like Fama-French.
@@ -20,13 +21,14 @@ class MultiBeta():
             end_date: date | None = None,
             return_type: str = "log"
             ):
+        
         if len(assets) < 1:
             raise ValueError("provide at least one factor asset")
         if return_type not in ("log", "simple"):
             raise ValueError("return_type = 'log' or return_type = 'simple' only.")
  
         self.asset1 = asset1.upper()
-        self.assets_tickers = [ticker.upper() for ticker in assets]
+        
         self.return_type = return_type
  
         returns_fn = returns.log_returns if return_type == "log" else returns.simple_returns
@@ -44,6 +46,10 @@ class MultiBeta():
             assets_returns,
             return_type=return_type
             )
+
+        self.assets = regress_obj.assets_names
+        self.start_date = regress_obj.merged_return_series['timestamp'].iloc[0]
+        self.end_date = regress_obj.merged_return_series['timestamp'].iloc[-1]
  
         results = regress_obj.ols()
         self.olsresults = results
@@ -66,6 +72,7 @@ class MultiBeta():
                 "ci_low": float(conf_int.loc[name, 0]),
                 "ci_high": float(conf_int.loc[name, 1]),
             }
+
  
     def summary(self) -> str:
         lines = [
@@ -92,7 +99,7 @@ class MultiBeta():
  
  
 if __name__ == "__main__":
-    my_multi_beta = MultiBeta(
+    my_multi_beta = MultiFactorRegression(
         asset1="tsla",
         assets=["aapl", "msft", "spy"],
         period="5y",

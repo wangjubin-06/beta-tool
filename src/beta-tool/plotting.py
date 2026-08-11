@@ -3,7 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from beta import Beta
+from multibeta import MultiFactorRegression
 from scipy.stats import norm, gaussian_kde, probplot
+from matplotlib.lines import Line2D
 
 def price_series_plot(data: pd.DataFrame) -> plt.plot:
     """
@@ -91,8 +93,6 @@ def returns_distribution_plot(data: pd.DataFrame, return_type:str) -> plt.plot:
     plt.tight_layout()
     plt.show()
 
-
-    
 
 
 def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log"):
@@ -264,25 +264,194 @@ def beta_obj_ols_plot(beta_obj: Beta):
     
     plt.show()
 
+def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True):
+
+    """
+
+    Plot factor loadings from a MultiFactorRegression with 95% confidence intervals.
+    
+    """
+
+    betas = multifac_obj.betas
+
+    assets = list(betas.keys())
+
+    if sort:
+        assets = sorted(
+            assets,
+            key=lambda x: betas[x]["beta"],
+            reverse=True,
+        )
+
+    beta = np.array([betas[x]["beta"] for x in assets])
+    ci_low = np.array([betas[x]["ci_low"] for x in assets])
+    ci_high = np.array([betas[x]["ci_high"] for x in assets])
+    p_values = np.array([betas[x]["p_value"] for x in assets])
+
+    y = np.arange(len(assets))
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # ---------------------------------------------------------
+    # Betas + confidence intervals
+    # ---------------------------------------------------------
+
+    errorbar = ax.errorbar(
+        beta,
+        y,
+        xerr=[
+            beta - ci_low,
+            ci_high - beta,
+        ],
+        fmt="o",
+        capsize=4,
+        label="Beta",
+    )
+
+
+    # ---------------------------------------------------------
+    # Axes
+    # ---------------------------------------------------------
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(assets)
+
+    ax.set_xlabel("Beta / Factor Loading")
+    ax.set_ylabel("Factor", labelpad=20)
+
+    ax.grid(
+        axis="x",
+        linestyle=":",
+        alpha=0.6,
+    )
+
+    ax.set_axisbelow(True)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    ax.tick_params(axis="y", length=0)
+
+    # ---------------------------------------------------------
+    # Title
+    # ---------------------------------------------------------
+
+    ax.set_title(
+        f"{multifac_obj.asset1} — Multi-Factor Beta",
+        fontsize=18,
+        pad=20,
+    )
+
+    # ---------------------------------------------------------
+    # Error-bar annotations
+    # ---------------------------------------------------------
+
+    for i, (b, low, high, p) in enumerate(
+        zip(beta, ci_low, ci_high, p_values)
+    ):
+        label = (
+            f"β = {b:.2f}\n"
+            f"95% CI [{low:.2f}, {high:.2f}]\n"
+            f"p = {p:.2e}"
+        )
+
+        ax.annotate(
+            label,
+            xy=(high, i),
+            xytext=(10, 0),
+            textcoords="offset points",
+            ha="left",
+            va="center",
+            fontsize=9,
+            alpha = 0.8,
+        )
+
+    # ---------------------------------------------------------
+    # Bottom information
+    # ---------------------------------------------------------
+
+    bottom_info = (
+        f"n = {multifac_obj.observations:,}    "
+        f"R² = {multifac_obj.r_squared:.2f}    "
+        f"Start date = {multifac_obj.start_date}    "
+        f"End date = {multifac_obj.end_date}"
+    )
+
+    fig.text(
+        0.5,
+        0.04,
+        bottom_info,
+        ha="center",
+        va="center",
+    )
+
+    # ---------------------------------------------------------
+    # Legend
+    # ---------------------------------------------------------
+
+    # Get the actual default color used by errorbar
+    beta_color = errorbar.lines[0].get_color()
+
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            linestyle="none",
+            color=beta_color,
+            label="Beta",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color=beta_color,
+            label="95% confidence interval",
+        ),
+    ]
+
+    ax.legend(
+        handles=legend_elements,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.13),
+        ncol=2,
+        frameon=True,
+    )
+
+    # Leave space for title and bottom information/legend
+    fig.subplots_adjust(
+        left=0.15,
+        right=0.85,
+        top=0.85,
+        bottom=0.2,
+    )
+
+    plt.show()
+
+
 
 if __name__ == "__main__":
     import data
     import returns
     import beta
+    import multibeta
 
     # my_reg = beta.Beta(asset1="aapl", asset2="msft", period="5y", end_date="2026-02-03", return_type="log", interval="daily")
 
     # beta_obj_ols_plot(my_reg)
 
-    apple = data.AssetData(ticker="aapl",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
-    msft = data.AssetData(ticker="msft",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
+    # apple = data.AssetData(ticker="aapl",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
+    # msft = data.AssetData(ticker="msft",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
     
-    aapleprices = apple.get_prices()
-    msftprices = msft.get_prices()
+    # aapleprices = apple.get_prices()
+    # msftprices = msft.get_prices()
 
-    aaplreturns = returns.log_returns(aapleprices)
-    msftreturns = returns.log_returns(msftprices)
+    # aaplreturns = returns.log_returns(aapleprices)
+    # msftreturns = returns.log_returns(msftprices)
 
     #two_asset_ols_plot(aaplreturns, msftreturns, "log")
 
-    returns_distribution_plot(aaplreturns,"log")
+    # returns_distribution_plot(aaplreturns,"log")
+
+    my_multi = multibeta.MultiFactorRegression(asset1="aapl", assets=["msft", "goog","nvda","ko","intc","spy","iwm"], period = "5y", end_date="2026-02-03", return_type="log", interval="daily")
+
+    mutlifac_ols_plot(my_multi)

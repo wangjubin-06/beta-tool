@@ -21,7 +21,7 @@ class OLSRegression():
         merged['timestamp'] = merged['timestamp'].dt.strftime('%Y-%m-%d')
 
 
-        self.merged_return_series = merged
+        self.merged_return_series = merged.copy()
 
         
         self.x = merged[f"{col}_2"]
@@ -44,15 +44,18 @@ class MultiFactorRegression():
  
         if len(assets) < 1:
             raise ValueError("at least one factor asset is required")
+
+        merged = asset1[["timestamp", col]].copy()
+        merged = merged.rename(columns = {col :'y'})
  
-        merged = asset1[["timestamp", col]].rename(columns={col: "y"})
         assets_names = []
  
         for asset_name, asset_df in assets.items():
             if col not in asset_df.columns:
                 raise ValueError(f"factor '{asset_name}' is missing column '{col}' — did you pass returns, not prices?")
-            renamed = asset_df[["timestamp", col]].rename(columns={col: asset_name})
-            merged = pd.merge(merged, renamed, on="timestamp", how="inner")
+            df = asset_df[["timestamp", col]].copy()
+            df = df.rename(columns={col: asset_name})
+            merged = pd.merge(merged, df, on="timestamp", how="inner")
             assets_names.append(asset_name)
         #inner-merging sequentially keeps only timestamps common to the dependent asset and every factor
  
@@ -62,6 +65,10 @@ class MultiFactorRegression():
         self.assets_names = assets_names
         self.y = merged["y"]
         self.x = merged[assets_names]
+
+        merged['timestamp'] = merged['timestamp'].dt.strftime('%Y-%m-%d')
+        
+        self.merged_return_series = merged.copy()
  
     def ols(self):
         x = sm.add_constant(self.x, has_constant="add")
