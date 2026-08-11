@@ -3,8 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from beta import Beta
+from scipy.stats import norm, gaussian_kde, probplot
 
 def price_series_plot(data: pd.DataFrame) -> plt.plot:
+    """
+    this function plots the time series of the asset price
+
+    function accepts a pandas dataframe object and plots the graph
+    
+    """
     df = data.copy()
 
     plt.figure(figsize=(14, 6))
@@ -24,6 +31,68 @@ def price_series_plot(data: pd.DataFrame) -> plt.plot:
     plt.legend()
     plt.grid(alpha=0.2)
     plt.show()
+
+def returns_distribution_plot(data: pd.DataFrame, return_type:str) -> plt.plot:
+    """
+    
+    this function plots the distribution histogram/KDE of the asset returns, compared to a normal distribution with the empirical data parameters, and also a Q-Q plot
+
+    it accepts a pandas dataframe object
+    
+    """
+    df = data.copy()
+    r = df[f"{return_type}-returns"]
+
+    fig, (ax1, ax2) = plt.subplots(1,2,figsize=(13, 5))
+
+    # Histogram as density
+    ax1.hist(
+        r,
+        bins="fd",
+        density=True,
+        alpha=0.35,
+        color="steelblue",
+        edgecolor="white",
+        label=f"Returns"
+    )
+
+    # KDE
+    x = np.linspace(r.min(), r.max(), 500)
+    kde = gaussian_kde(r)
+    ax1.plot(x, kde(x), color="steelblue", lw=2, label="KDE")
+
+    # Fitted normal distribution
+    mu, sigma = r.mean(), r.std()
+    ax1.plot(
+        x,
+        norm.pdf(x, mu, sigma),
+        color="crimson",
+        lw=1,
+        linestyle="--",
+        label=f"Normal ($\\mu$={mu:.4f}, $\\sigma$={sigma:.4f})"
+    )
+
+    ax1.set_xlabel(f"{return_type} Return")
+    ax1.set_ylabel("Density")
+    ax1.set_title(f"Distribution of {df["symbol"].iloc[0]} {return_type} Returns")
+    ax1.legend()
+    ax1.grid(alpha=0.2)
+
+    # --------------------
+    # Q-Q plot
+    # --------------------
+    probplot(r, dist="norm", plot=ax2)
+
+    ax2.set_title("Normal Q-Q Plot")
+    ax2.set_xlabel("Theoretical Quantiles")
+    ax2.set_ylabel("Sample Quantiles")
+    ax2.grid(alpha=0.2)
+
+    plt.tight_layout()
+    plt.show()
+
+
+    
 
 
 def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log"):
@@ -214,4 +283,6 @@ if __name__ == "__main__":
     aaplreturns = returns.log_returns(aapleprices)
     msftreturns = returns.log_returns(msftprices)
 
-    two_asset_ols_plot(aaplreturns, msftreturns, "log")
+    #two_asset_ols_plot(aaplreturns, msftreturns, "log")
+
+    returns_distribution_plot(aaplreturns,"log")
