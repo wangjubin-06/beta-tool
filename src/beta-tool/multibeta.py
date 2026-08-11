@@ -27,6 +27,7 @@ class MultiBeta():
  
         self.asset1 = asset1.upper()
         self.assets_tickers = [ticker.upper() for ticker in assets]
+        self.return_type = return_type
  
         returns_fn = returns.log_returns if return_type == "log" else returns.simple_returns
  
@@ -45,6 +46,8 @@ class MultiBeta():
             )
  
         results = regress_obj.ols()
+        self.olsresults = results
+
         conf_int = results.conf_int()
  
         self.intercept = float(results.params["const"])

@@ -8,6 +8,7 @@ class OLSRegression():
     def __init__(self, asset1: pd.DataFrame, asset2: pd.DataFrame, return_type: str ="log"):
         col = f"{return_type}-returns"
 
+        #merge the two df by timeframes with how=inner so that the returns series will start on the latest timestamps which both assets have
         merged = pd.merge(
             asset1,
             asset2,
@@ -15,7 +16,14 @@ class OLSRegression():
             how="inner",
             suffixes=("_1", "_2")
             )
-        #merge the two df by timeframes with how=inner so that the returns series will start on the latest timestamps which both assets have
+        
+        #hiding the time part of the pd datetime object
+        merged['timestamp'] = merged['timestamp'].dt.strftime('%Y-%m-%d')
+
+
+        self.merged_return_series = merged
+
+        
         self.x = merged[f"{col}_2"]
         self.y = merged[f"{col}_1"]
 

@@ -32,6 +32,21 @@ class AssetData:
         end_date: date | None,
         ) -> tuple[date,date]:
 
+        """
+
+        period logic:
+        if end date is provided, end of observation is the end date provided
+        if start date is provided, start of observation is the start date provided
+
+        if end date is not provided, end of observation is the date today
+        if start date is not provided, start date is end of observation minus the period provided
+        if period is NOT provided, it defaults to 1 year (1y)
+        
+        start date takes precendence over period provided.
+
+
+        """
+
         if end_date is not None:
             end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
             end = end_date
@@ -105,8 +120,9 @@ class AssetData:
         candles = client.candles(self.ticker, self.interval, self.start_date, self.end_date)
         df = pd.DataFrame(candles)
 
-        df['timestamp'] = df['timestamp'].str[:10]
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+        #cleaning up the timestamp strings provided by LSE api to become year-month-day format and converting them to pd datetime objects
+        df["timestamp"] = pd.to_datetime(df["timestamp"].str.split('T').str[0], format='%Y-%m-%d')
 
         # Basic daily equity sanity checks
         df = df[

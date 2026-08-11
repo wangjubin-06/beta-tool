@@ -19,6 +19,8 @@ class Beta():
 
         self.asset1 = asset1.upper()
         self.asset2 = asset2.upper()
+        self.return_type = return_type
+
 
         asset_1_prices = data.AssetData(asset1, period, interval, start_date, end_date).get_prices()
         asset_2_prices = data.AssetData(asset2, period, interval, start_date, end_date).get_prices()
@@ -28,13 +30,22 @@ class Beta():
         asset_1_returns = returns_fn(asset_1_prices)
         asset_2_returns = returns_fn(asset_2_prices)
 
+        self.asset_1_returns = asset_1_returns
+        self.asset_2_returns = asset_2_returns
+
+        #asset_1_returns is dependent variable (Y), asset_2_returns is independent variable (X)
+
         regress_obj = regression.OLSRegression(
             asset_1_returns,
             asset_2_returns,
             return_type=return_type
             )
+
+        self.start_date = regress_obj.merged_return_series["timestamp"].iloc[0]
+        self.end_date = regress_obj.merged_return_series["timestamp"].iloc[-1]
         
         results = regress_obj.ols()
+        self.olsresults = results
 
         stats = {
             "beta": results.params[f"{return_type}-returns_2"],
@@ -68,7 +79,7 @@ class Beta():
             f"{'Beta':<30}: {self.beta:.5f}",
             f"{'Intercept':<30}: {self.intercept:.5f}",
             f"{'R-squared':<30}: {self.rsquare:.5f}",
-            f"{'Beta p-value':<30}: {self.beta_p_value:.2e}",
+            f"{'Beta p-value':<30}: {self.beta_p_value:.4g}",
             f"{'Beta t-stat':<30}: {self.beta_tstat:.5f}",
             f"{'Beta std-error':<30}: {self.beta_std_error:.5f}",
             f"{'Beta Confidence Interval high':<30}: {self.beta_ci_high:.5f}",
@@ -80,6 +91,9 @@ class Beta():
 
     def __str__(self) -> str:
         return self.summary()
+
+
+
 
 if __name__ == "__main__":
     my_beta = Beta(asset1="msft", asset2="aapl", period="5y", interval="daily", return_type="log")

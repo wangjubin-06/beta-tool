@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from beta import Beta
 
 def price_series_plot(data: pd.DataFrame) -> plt.plot:
     df = data.copy()
@@ -24,9 +26,192 @@ def price_series_plot(data: pd.DataFrame) -> plt.plot:
     plt.show()
 
 
+def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log"):
+
+    """
+
+    input two return series objects and plot their points on a scatter plot with OLS regression line visualisation
+
+    """
+
+    df1 = asset1.copy()
+    df2 = asset2.copy()
+
+    #merge the two df by timeframes with how=inner so that the returns series will start on the latest timestamps which both assets have
+    merged = pd.merge(
+        df1,
+        df2,
+        on="timestamp",
+        how="inner",
+        suffixes=("_1", "_2")
+        )
+    
+    #hiding the time part of the pd datetime object
+    merged['timestamp'] = merged['timestamp'].dt.strftime('%Y-%m-%d')
+
+    y = merged[f'{return_type}-returns_1']
+    X = merged[f'{return_type}-returns_2']
+
+    #OLS: y = alpha + beta * X
+    X_with_constant = sm.add_constant(X, has_constant="add")
+    model = sm.OLS(y, X_with_constant).fit()
+
+    intercept, slope = model.params
+    r_squared = model.rsquared
+
+    #regression line
+    x_line = np.linspace(X.min(), X.max(),100)
+    y_line = intercept + slope * x_line
+
+    #plot
+    plt.figure(figsize=(14,6))
+
+    plt.scatter(
+        X,
+        y,
+        alpha = 0.7,
+        s=30,
+        label = f"Observed {return_type}-returns"
+    )
+
+    plt.plot(x_line, y_line, color = 'red', linewidth = "2", label = "OLS regression")
+
+    plt.title('Scatter plot of two asset return series with OLS regression line')
+    plt.legend()
+    plt.grid(alpha=0.25)
+    plt.xlabel(f"{df2['symbol'].iloc[1]} {return_type} returns")
+    plt.ylabel(f"{df1['symbol'].iloc[1]} {return_type} returns")
+
+    alpha = model.params['const']
+    beta = model.params[f"{return_type}-returns_2"]
+    beta_pvalue = model.pvalues[f"{return_type}-returns_2"]
+    beta_tstat = model.tvalues[f"{return_type}-returns_2"]
+    beta_std_error = model.bse[f"{return_type}-returns_2"]
+    beta_ci_low = model.conf_int().loc[f"{return_type}-returns_2", 0]
+    beta_ci_high = model.conf_int().loc[f"{return_type}-returns_2", 1]
+    n = int(model.nobs)
+
+    start_date = merged['timestamp'].iloc[0]
+    end_date = merged['timestamp'].iloc[-1]
+
+    stats_text = (
+        f"$y = {float(alpha):.4f} + {float(beta):.4f}x$\n"
+        f"$\\beta = {float(beta):.4f}$\n"
+        f"$R^2$ = {float(r_squared):.4f}\n"
+        f"$p(\\beta)$ = {float(beta_pvalue):.4g}\n"
+        f"$N$ = {n}\n"
+        f"$(\\beta)$ t-stat = {float(beta_tstat):.5f}\n"
+        f"$(\\beta)$ std-error = {float(beta_std_error):.5f}\n"
+        f"$(\\beta)$ confidence interval high = {float(beta_ci_high):.5f}\n"
+        f"$(\\beta)$ confidence interval low = {float(beta_ci_low):.5f}\n"
+        f"Start date: {start_date}\n"
+        f"End date: {end_date}"
+    )
+    plt.text(
+        0.05, 0.95,
+        stats_text,
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        bbox = dict(boxstyle = "round", facecolor="white", alpha=0.8)
+    )
+
+    plt.show()
+
+
+def beta_obj_ols_plot(beta_obj: Beta):
+    
+    """
+
+    input a Beta object and plot the points on a scatter plot with OLS regression line visualisation
+
+    """
+
+
+    model = beta_obj.olsresults
+    
+    intercept, slope = model.params
+
+    df1 = beta_obj.asset_1_returns.copy()
+    df2 = beta_obj.asset_2_returns.copy()
+    
+    #merge the two df by timeframes with how=inner so that the returns series will start on the latest timestamps which both assets have
+    merged = pd.merge(
+        df1,
+        df2,
+        on="timestamp",
+        how="inner",
+        suffixes=("_1", "_2")
+        )
+        
+    
+    y = merged[f'{beta_obj.return_type}-returns_1']
+    X = merged[f'{beta_obj.return_type}-returns_2']
+    
+    #regression line
+    x_line = np.linspace(X.min(), X.max(),100)
+    y_line = intercept + slope * x_line
+    
+    #plot
+    plt.figure(figsize=(14,6))
+    
+    plt.scatter(
+        X,
+        y,
+        alpha = 0.7,
+        s=30,
+        label = f"Observed {beta_obj.return_type}-returns"
+        )
+    
+    plt.plot(x_line, y_line, color = "red", linewidth = "2", label = "OLS regression")
+    
+    plt.title('Scatter plot of two asset return series with OLS regression line')
+    plt.legend()
+    plt.grid(alpha=0.25)
+    plt.xlabel(f"{df2['symbol'].iloc[1]} {beta_obj.return_type} returns")
+    plt.ylabel(f"{df1['symbol'].iloc[1]} {beta_obj.return_type} returns")
+
+    
+    stats_text = (
+        f"$y = {beta_obj.intercept:.4f} + {beta_obj.beta:.4f}x$\n"
+        f"$\\beta = {float(beta_obj.beta):.4f}$\n"
+        f"$R^2$ = {beta_obj.rsquare:.4f}\n"
+        f"$p(\\beta)$ = {beta_obj.beta_p_value:.4g}\n"
+        f"$N$ = {beta_obj.observations}\n"
+        f"$(\\beta)$ t-stat = {beta_obj.beta_tstat:.5f}\n"
+        f"$(\\beta)$ std-error = {beta_obj.beta_std_error:.5f}\n"
+        f"$(\\beta)$ confidence interval high = {beta_obj.beta_ci_high:.5f}\n"
+        f"$(\\beta)$ confidence interval low = {beta_obj.beta_ci_low:.5f}\n"
+        f"Start date: {beta_obj.start_date}\n"
+        f"End date: {beta_obj.end_date}"
+    )
+
+    plt.text(
+        0.05, 0.95,
+        stats_text,
+        transform=plt.gca().transAxes,
+        verticalalignment="top",
+        bbox = dict(boxstyle = "round", facecolor="white", alpha=0.8)
+    )
+    
+    plt.show()
+
+
 if __name__ == "__main__":
     import data
-    apple = data.AssetData(ticker="aapl",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
-    data = apple.get_prices()
+    import returns
+    import beta
 
-    price_series_plot(data=data)
+    # my_reg = beta.Beta(asset1="aapl", asset2="msft", period="5y", end_date="2026-02-03", return_type="log", interval="daily")
+
+    # beta_obj_ols_plot(my_reg)
+
+    apple = data.AssetData(ticker="aapl",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
+    msft = data.AssetData(ticker="msft",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
+    
+    aapleprices = apple.get_prices()
+    msftprices = msft.get_prices()
+
+    aaplreturns = returns.log_returns(aapleprices)
+    msftreturns = returns.log_returns(msftprices)
+
+    two_asset_ols_plot(aaplreturns, msftreturns, "log")
