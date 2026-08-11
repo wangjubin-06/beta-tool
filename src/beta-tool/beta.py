@@ -1,5 +1,6 @@
-import data, regression, returns
+import data, regression, returns, plotting
 from datetime import date
+import matplotlib.pyplot as plt
 
 
 class Beta():
@@ -24,6 +25,9 @@ class Beta():
 
         asset_1_prices = data.AssetData(asset1, period, interval, start_date, end_date).get_prices()
         asset_2_prices = data.AssetData(asset2, period, interval, start_date, end_date).get_prices()
+
+        self.asset_1_prices = asset_1_prices
+        self.asset_2_prices = asset_2_prices
 
         returns_fn = returns.log_returns if return_type == "log" else returns.simple_returns
 
@@ -92,9 +96,37 @@ class Beta():
     def __str__(self) -> str:
         return self.summary()
 
+    def plot_results(self):
+        fig = plt.figure(figsize=(20,16), layout="constrained")
+
+        gs = fig.add_gridspec(
+            nrows=4,
+            ncols=4,
+            height_ratios=[1.1, 1.0, 1.4, 1.4],
+        )
+
+        ax_asset_1_price = fig.add_subplot(gs[0, :2])
+        ax_asset_2_price = fig.add_subplot(gs[0, 2:4])
+        ax_asset_1_dist = fig.add_subplot(gs[1, 0])
+        ax_asset_1_qq = fig.add_subplot(gs[1, 1])
+        ax_asset_2_dist = fig.add_subplot(gs[1, 2])
+        ax_asset_2_qq = fig.add_subplot(gs[1, 3])
+        
+        ax_ols = fig.add_subplot(gs[2:4, :])
+
+        plotting.price_series_plot(data=self.asset_1_prices, ax = ax_asset_1_price)
+        plotting.price_series_plot(data=self.asset_2_prices, ax = ax_asset_2_price)
+
+        plotting.returns_distribution_plot(data=self.asset_1_returns, axes = (ax_asset_1_dist, ax_asset_1_qq), return_type=self.return_type)
+        plotting.returns_distribution_plot(data=self.asset_2_returns, axes = (ax_asset_2_dist, ax_asset_2_qq), return_type=self.return_type)
+
+        plotting.beta_obj_ols_plot(beta_obj=self, ax=ax_ols)
+
+        return fig
 
 
 
 if __name__ == "__main__":
     my_beta = Beta(asset1="msft", asset2="aapl", period="5y", interval="daily", return_type="log")
-    print(my_beta.summary())
+    fig = my_beta.plot_results()
+    plt.show()

@@ -7,34 +7,39 @@ from multibeta import MultiFactorRegression
 from scipy.stats import norm, gaussian_kde, probplot
 from matplotlib.lines import Line2D
 
-def price_series_plot(data: pd.DataFrame) -> plt.plot:
+def price_series_plot(data: pd.DataFrame, ax = None):
     """
     this function plots the time series of the asset price
 
     function accepts a pandas dataframe object and plots the graph
     
     """
+
     df = data.copy()
 
-    plt.figure(figsize=(14, 6))
+    if ax is None:
+        _, ax = plt.subplots(figsize=(14, 6))
 
-    plt.plot(
+
+
+    ax.plot(
         df["timestamp"],
         df["adjusted_close"],
         label="adjusted-close price"
     )
 
-    plt.title(
+    ax.set_title(
         f"Price series of {df['symbol'].loc[1]}",
         fontsize=16,
         pad = 15
         )
     
-    plt.legend()
-    plt.grid(alpha=0.2)
-    plt.show()
+    ax.legend()
+    ax.grid(alpha=0.2)
 
-def returns_distribution_plot(data: pd.DataFrame, return_type:str) -> plt.plot:
+    return ax
+
+def returns_distribution_plot(data: pd.DataFrame, return_type:str, axes = None):
     """
     
     this function plots the distribution histogram/KDE of the asset returns, compared to a normal distribution with the empirical data parameters, and also a Q-Q plot
@@ -45,7 +50,10 @@ def returns_distribution_plot(data: pd.DataFrame, return_type:str) -> plt.plot:
     df = data.copy()
     r = df[f"{return_type}-returns"]
 
-    fig, (ax1, ax2) = plt.subplots(1,2,figsize=(13, 5))
+    if axes is None:
+        fig, axes = plt.subplots(1,2,figsize=(13, 5))
+
+    ax1, ax2 = axes
 
     # Histogram as density
     ax1.hist(
@@ -71,13 +79,13 @@ def returns_distribution_plot(data: pd.DataFrame, return_type:str) -> plt.plot:
         color="crimson",
         lw=1,
         linestyle="--",
-        label=f"Normal ($\\mu$={mu:.4f}, $\\sigma$={sigma:.4f})"
+        label=f"Normal\n($\\mu$={mu:.4f},\n$\\sigma$={sigma:.4f})"
     )
 
     ax1.set_xlabel(f"{return_type} Return")
     ax1.set_ylabel("Density")
     ax1.set_title(f"Distribution of {df["symbol"].iloc[0]} {return_type} Returns")
-    ax1.legend()
+    ax1.legend(fontsize=8)
     ax1.grid(alpha=0.2)
 
     # --------------------
@@ -90,12 +98,11 @@ def returns_distribution_plot(data: pd.DataFrame, return_type:str) -> plt.plot:
     ax2.set_ylabel("Sample Quantiles")
     ax2.grid(alpha=0.2)
 
-    plt.tight_layout()
-    plt.show()
+    return axes
 
 
 
-def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log"):
+def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log", ax = None):
 
     """
 
@@ -133,9 +140,11 @@ def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:s
     y_line = intercept + slope * x_line
 
     #plot
-    plt.figure(figsize=(14,6))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(14, 6))
+    
 
-    plt.scatter(
+    ax.scatter(
         X,
         y,
         alpha = 0.7,
@@ -143,13 +152,13 @@ def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:s
         label = f"Observed {return_type}-returns"
     )
 
-    plt.plot(x_line, y_line, color = 'red', linewidth = "2", label = "OLS regression")
+    ax.plot(x_line, y_line, color = 'red', linewidth = 2, label = "OLS regression")
 
-    plt.title('Scatter plot of two asset return series with OLS regression line')
-    plt.legend()
-    plt.grid(alpha=0.25)
-    plt.xlabel(f"{df2['symbol'].iloc[1]} {return_type} returns")
-    plt.ylabel(f"{df1['symbol'].iloc[1]} {return_type} returns")
+    ax.set_title('Scatter plot of two asset return series with OLS regression line')
+    ax.legend()
+    ax.grid(alpha=0.25)
+    ax.set_xlabel(f"{df2['symbol'].iloc[1]} {return_type} returns")
+    ax.set_ylabel(f"{df1['symbol'].iloc[1]} {return_type} returns")
 
     alpha = model.params['const']
     beta = model.params[f"{return_type}-returns_2"]
@@ -176,18 +185,18 @@ def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:s
         f"Start date: {start_date}\n"
         f"End date: {end_date}"
     )
-    plt.text(
+    ax.text(
         0.05, 0.95,
         stats_text,
-        transform=plt.gca().transAxes,
+        transform=ax.transAxes,
         verticalalignment="top",
         bbox = dict(boxstyle = "round", facecolor="white", alpha=0.8)
     )
 
-    plt.show()
+    return ax
 
 
-def beta_obj_ols_plot(beta_obj: Beta):
+def beta_obj_ols_plot(beta_obj: Beta, ax=None):
     
     """
 
@@ -221,9 +230,10 @@ def beta_obj_ols_plot(beta_obj: Beta):
     y_line = intercept + slope * x_line
     
     #plot
-    plt.figure(figsize=(14,6))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(14, 6))
     
-    plt.scatter(
+    ax.scatter(
         X,
         y,
         alpha = 0.7,
@@ -231,13 +241,13 @@ def beta_obj_ols_plot(beta_obj: Beta):
         label = f"Observed {beta_obj.return_type}-returns"
         )
     
-    plt.plot(x_line, y_line, color = "red", linewidth = "2", label = "OLS regression")
+    ax.plot(x_line, y_line, color = "red", linewidth = "2", label = "OLS regression")
     
-    plt.title('Scatter plot of two asset return series with OLS regression line')
-    plt.legend()
-    plt.grid(alpha=0.25)
-    plt.xlabel(f"{df2['symbol'].iloc[1]} {beta_obj.return_type} returns")
-    plt.ylabel(f"{df1['symbol'].iloc[1]} {beta_obj.return_type} returns")
+    ax.set_title('Scatter plot of two asset return series with OLS regression line')
+    ax.legend()
+    ax.grid(alpha=0.25)
+    ax.set_xlabel(f"{df2['symbol'].iloc[1]} {beta_obj.return_type} returns")
+    ax.set_ylabel(f"{df1['symbol'].iloc[1]} {beta_obj.return_type} returns")
 
     
     stats_text = (
@@ -254,17 +264,19 @@ def beta_obj_ols_plot(beta_obj: Beta):
         f"End date: {beta_obj.end_date}"
     )
 
-    plt.text(
+    ax.text(
         0.05, 0.95,
         stats_text,
-        transform=plt.gca().transAxes,
+        transform=ax.transAxes,
         verticalalignment="top",
         bbox = dict(boxstyle = "round", facecolor="white", alpha=0.8)
     )
     
-    plt.show()
+    return ax
 
-def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True):
+
+
+def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True, ax=None):
 
     """
 
@@ -290,7 +302,8 @@ def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True):
 
     y = np.arange(len(assets))
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 6))
 
     # ---------------------------------------------------------
     # Betas + confidence intervals
@@ -377,7 +390,7 @@ def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True):
         f"End date = {multifac_obj.end_date}"
     )
 
-    fig.text(
+    ax.text(
         0.5,
         0.04,
         bottom_info,
@@ -418,14 +431,14 @@ def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True):
     )
 
     # Leave space for title and bottom information/legend
-    fig.subplots_adjust(
-        left=0.15,
-        right=0.85,
-        top=0.85,
-        bottom=0.2,
-    )
+    # fig.subplots_adjust(
+    #     left=0.15,
+    #     right=0.85,
+    #     top=0.85,
+    #     bottom=0.2,
+    # )
 
-    plt.show()
+    return ax
 
 
 
