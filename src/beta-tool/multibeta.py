@@ -1,4 +1,4 @@
-import data, regression, returns
+import data, regression, returns, beta, plotting
 from datetime import date
 import pandas as pd
  
@@ -28,6 +28,7 @@ class MultiFactorRegression():
             raise ValueError("return_type = 'log' or return_type = 'simple' only.")
  
         self.asset1 = asset1.upper()
+        self.interval = interval
         
         self.return_type = return_type
  
@@ -35,11 +36,23 @@ class MultiFactorRegression():
  
         asset_1_prices = data.AssetData(asset1, period, interval, start_date, end_date).get_prices()
         asset_1_returns = returns_fn(asset_1_prices)
- 
-        assets_returns = {}
+
+        self.asset_1_prices = asset_1_prices
+        self.asset_1_returns = asset_1_returns
+
+        assets_prices = {}
         for ticker in assets:
             prices = data.AssetData(ticker, period, interval, start_date, end_date).get_prices()
+            assets_prices[ticker.upper()] = prices
+
+        self.assets_prices = assets_prices
+
+        assets_returns = {}
+        for ticker in assets:
+            prices = assets_prices[ticker.upper()]
             assets_returns[ticker.upper()] = returns_fn(prices)
+
+        self.assets_returns = assets_returns
  
         regress_obj = regression.MultiFactorRegression(
             asset_1_returns,
@@ -47,9 +60,11 @@ class MultiFactorRegression():
             return_type=return_type
             )
 
-        self.assets = regress_obj.assets_names
+        self.merged_assets_names = regress_obj.assets_names #this is a list of names of assets that are actually used in the end for the factor regression of asset1 against asset(s) after combining common timestamps available in the return series
+
         self.start_date = regress_obj.merged_return_series['timestamp'].iloc[0]
         self.end_date = regress_obj.merged_return_series['timestamp'].iloc[-1]
+        #these are the start and end dates which includes all available data for all assets.
  
         results = regress_obj.ols()
         self.olsresults = results
@@ -96,6 +111,11 @@ class MultiFactorRegression():
  
     def __str__(self) -> str:
         return self.summary()
+
+    def plot_results(self):
+        factor_beta_and_ci_ax = plotting.multifac_ols_plot(self)
+
+
  
  
 if __name__ == "__main__":

@@ -16,9 +16,16 @@ class OLSRegression():
             how="inner",
             suffixes=("_1", "_2")
             )
+
+        merged = merged.dropna(
+            subset=[f"{col}_1", f"{col}_2"]
+            ).reset_index(drop=True)
         
         #hiding the time part of the pd datetime object
-        merged['timestamp'] = merged['timestamp'].dt.strftime('%Y-%m-%d')
+        merged = merged.sort_values('timestamp').reset_index(drop=True)
+        merged.style.format({
+            'timestamp': '%Y-%m-%d'
+            })
 
 
         self.merged_return_series = merged.copy()
@@ -66,7 +73,12 @@ class MultiFactorRegression():
         self.y = merged["y"]
         self.x = merged[assets_names]
 
-        merged['timestamp'] = merged['timestamp'].dt.strftime('%Y-%m-%d')
+        #hiding the time part of the pd datetime object
+        merged = merged.sort_values('timestamp').reset_index(drop=True)
+        merged.style.format({
+            'timestamp': '%Y-%m-%d'
+        })
+
         
         self.merged_return_series = merged.copy()
  

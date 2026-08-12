@@ -39,17 +39,19 @@ def price_series_plot(data: pd.DataFrame, ax = None):
 
     return ax
 
-def returns_distribution_plot(data: pd.DataFrame, return_type:str, axes = None):
+def returns_distribution_plot(data: pd.DataFrame, return_type:str="log", axes = None):
     """
     
     this function plots the distribution histogram/KDE of the asset returns, compared to a normal distribution with the empirical data parameters, and also a Q-Q plot
 
-    it accepts a pandas dataframe object
+    it accepts a beta object or a pandas dataframe object
     
     """
+    
+    
     df = data.copy()
     r = df[f"{return_type}-returns"]
-
+    
     if axes is None:
         fig, axes = plt.subplots(1,2,figsize=(13, 5))
 
