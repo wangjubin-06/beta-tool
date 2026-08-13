@@ -63,6 +63,7 @@ class AssetData:
                 "6m": relativedelta(months=6),
                 "1y": relativedelta(years=1),
                 "2y": relativedelta(years=2),
+                "3y": relativedelta(years=3),
                 "5y": relativedelta(years=5),
                 "10y": relativedelta(years=10),
                 "20y": relativedelta(years=20),
@@ -122,7 +123,7 @@ class AssetData:
 
 
         #cleaning up the timestamp strings provided by LSE api to become year-month-day format and converting them to pd datetime objects
-        df["timestamp"] = pd.to_datetime(df["timestamp"].str.split('T').str[0], format='%Y-%m-%d')
+        df["timestamp"] = pd.to_datetime(df["timestamp"].str.split('T').str[0], format='%Y-%m-%d', errors = "coerce")
 
         # Basic daily equity sanity checks
         df = df[
@@ -209,8 +210,19 @@ class AssetData:
             df["adjustment_factor"]
         )
 
+        ret_df = df.copy()
+        ret_df["timestamp"] = pd.to_datetime(ret_df["timestamp"], errors="coerce")
 
-        return df
+        ret_df = (
+                ret_df.dropna(subset=["timestamp", "adjusted_close"])
+                .sort_values("timestamp")
+                .drop_duplicates(subset=["timestamp"], keep="last")
+                .reset_index(drop=True)
+            )
+
+
+
+        return ret_df
 
 
 if __name__ == "__main__":

@@ -1,9 +1,10 @@
 import data, regression, returns, beta, plotting
 from datetime import date
 import pandas as pd
+import matplotlib.pyplot as plt
  
  
-class MultiFactorRegression():
+class MultiAssetsRegression():
     """
     Generic multi-asset factor tool: regresses one asset's returns against N
     other assets' returns simultaneously. Same idea as Beta, just not limited
@@ -114,12 +115,13 @@ class MultiFactorRegression():
 
     def plot_results(self):
         factor_beta_and_ci_ax = plotting.multifac_ols_plot(self)
+        plt.show()
 
 
  
  
 if __name__ == "__main__":
-    my_multi_beta = MultiFactorRegression(
+    my_multi_beta = MultiAssetsRegression(
         asset1="tsla",
         assets=["aapl", "msft", "spy"],
         period="5y",
