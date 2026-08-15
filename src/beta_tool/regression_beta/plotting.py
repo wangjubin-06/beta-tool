@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-from beta import Beta
-from multibeta import MultiFactorRegression
+from beta_tool.regression_beta.beta import Beta
+from beta_tool.regression_beta.multibeta import MultiFactorRegression
 from scipy.stats import norm, gaussian_kde, probplot
 from matplotlib.lines import Line2D
 
@@ -446,9 +446,9 @@ def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True, ax=None):
 
 if __name__ == "__main__":
     import data
-    import returns
-    import beta
-    import multibeta
+    import beta_tool.regression_beta.returns as returns
+    import beta_tool.regression_beta.beta as beta
+    import beta_tool.regression_beta.multibeta as multibeta
 
     # my_reg = beta.Beta(asset1="aapl", asset2="msft", period="5y", end_date="2026-02-03", return_type="log", interval="daily")
 

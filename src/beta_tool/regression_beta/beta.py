@@ -1,7 +1,7 @@
-import data, regression, returns, plotting
+import data, beta_tool.regression_beta.regression as regression, beta_tool.regression_beta.returns as returns, beta_tool.regression_beta.plotting as plotting
 from datetime import date
 import matplotlib.pyplot as plt
-from rolling import historical_rolling_beta, historical_rolling_beta_plot
+from beta_tool.regression_beta.rolling import historical_rolling_beta, historical_rolling_beta_plot
 
 
 class Beta():

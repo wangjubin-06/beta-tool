@@ -1,4 +1,4 @@
-import data, regression, returns, beta, plotting
+import data, beta_tool.regression_beta.regression as regression, beta_tool.regression_beta.returns as returns, beta_tool.regression_beta.beta as beta, beta_tool.regression_beta.plotting as plotting
 from datetime import date
 import pandas as pd
 import matplotlib.pyplot as plt

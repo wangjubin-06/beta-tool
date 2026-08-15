@@ -1,4 +1,4 @@
-import regression
+import beta_tool.regression_beta.regression as regression
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

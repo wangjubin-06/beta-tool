@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-import data, returns
+import data, beta_tool.regression_beta.returns as returns
 
 class OLSRegression():
 
