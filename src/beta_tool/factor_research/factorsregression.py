@@ -15,6 +15,7 @@ from regression_beta.returns import simple_returns, log_returns
 import requests
 from io import BytesIO, StringIO
 import zipfile
+from pprint import pprint
 
 
 class EquityFactorsRegression():
@@ -120,9 +121,6 @@ class EquityFactorsRegression():
             if self.freq not in {'daily','monthly','annually'}:
                 raise ValueError("using french factor data is only available in input frequency: 'daily', OR 'monthly' OR 'annually'; otherwise use 'etf' as factor_source")
 
-
-            #ticker = self.ticker
-
             if self.freq == 'daily':
                 french_factor_df = self._load_french('daily').copy()
             elif self.freq == 'monthly':
@@ -140,16 +138,7 @@ class EquityFactorsRegression():
                 assets_df_dic[ticker] = asset_returns_df
 
                 grand_results['assets_data'][ticker] = asset_returns_df
-
-
-
-                #######
-
-                print(ticker, "\n", asset_returns_df.tail())
                 
-                #######
-                
-
 
             if self.return_type == 'log':
                 # the french factor date is calculated with simple returns
@@ -180,9 +169,6 @@ class EquityFactorsRegression():
 
 
           
-            ######
-            print(french_factor_df.tail())
-            ######
 
             grand_results['merged_data'] = {}
 
@@ -350,16 +336,13 @@ class EquityFactorsRegression():
 
 
 
-            ### TESTING
-            for ticker, df in merged_df_dic.items():
-                print(ticker,'\n\n', df.head())
-            ###
-
 
             # OLS regression
 
             factor_cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA"]
             results = {}
+
+            grand_results['regression_results'] = {}
 
             for ticker, df in merged_df_dic.items():
                 # Dependent variable: asset excess return
@@ -383,7 +366,7 @@ class EquityFactorsRegression():
 
                 results[ticker] = model
 
-                grand_results['merged_data'][ticker]['regression_results'] = {
+                grand_results['regression_results'][ticker] = {
                     "model": {
                         "name": "Fama-French 5 Factor",
                         "type": "OLS",
@@ -398,13 +381,7 @@ class EquityFactorsRegression():
                     },
                     "specification": {
                         "dependent_variable": f"{ticker}-RF",
-                        "independent_variables": [
-                            "Mkt-RF",
-                            "SMB",
-                            "HML",
-                            "RMW",
-                            "CMA",
-                        ],
+                        "independent_variables": ["Mkt-RF", "SMB", "HML", "RMW","CMA"],
                         "intercept": True,
                     },
                     "inference": {
@@ -449,10 +426,10 @@ class EquityFactorsRegression():
                     },
                 }
 
-            for model in results.values():
-                print(model.summary())
+            # for model in results.values():
+            #     print(model.summary())
 
-            print(grand_results)
+            return grand_results
 
     def _get_tiingo_df(self, ticker):
         tiingo_api_key = os.getenv('TIINGO_API_KEY')
@@ -776,5 +753,9 @@ class EquityFactorsRegression():
 
 if __name__ == "__main__":
     fac = EquityFactorsRegression(factor_source='french', frequency='daily')
-    fac.asset_list('aapl','goog')
-    fac.regress()
+    asset_list = ['msft','nvda']
+    fac.asset_list(*asset_list)
+    data = fac.regress()
+
+    for asset in asset_list:
+        pprint(data['regression_results'][asset], sort_dicts=False, width=1, indent=4)
