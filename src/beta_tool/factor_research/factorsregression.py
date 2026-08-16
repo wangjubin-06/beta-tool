@@ -8,7 +8,7 @@ import statsmodels.api as sm
 from datetime import date
 
 import os
-from data_collection.tiingo_api import TiingoApi
+from data_collection.tiingo_api1 import TiingoApi
 from data_collection.fred_api import FredApi
 from data_collection.ff_factors_api import FrenchApi
 from regression_beta.returns import simple_returns, log_returns
@@ -16,6 +16,7 @@ import requests
 from io import BytesIO, StringIO
 import zipfile
 from pprint import pprint
+from functools import reduce
 
 
 class EquityFactorsRegression():
@@ -111,11 +112,158 @@ class EquityFactorsRegression():
         
 
         if self.factor_source == 'etf':
-            excess_df = self._get_asset_excess_returns()
+            
+            asset_excess_returns_dic = {}
+            for asset in self.assets:
+                df = self._get_asset_excess_returns(asset)
+                asset_excess_returns_dic[asset] = df.copy()
+            
+            grand_results['assets_data'] = asset_excess_returns_dic
 
             market_fac, smb_fac, hml_fac, mtum_fac, rmw_fac = self._get_factor_returns()
+            
+            merged_df_dic = {}
+            grand_results['merged_data'] = {}
 
-            self._merge_factors()
+            for asset in self.assets:
+                asset_df = asset_excess_returns_dic[asset]
+                
+                
+                merged_df = self._merge_factors(asset,asset_df,market_fac,smb_fac,hml_fac,mtum_fac,rmw_fac)
+                
+                merged_df_dic[asset] = merged_df
+                
+                # alert users which date rows are collapsed due to the inner merging
+                asset_start = asset_df["date"].min()
+                asset_end = asset_df["date"].max()
+                f_start = merged_df['date'].min()
+                f_end = merged_df['date'].max()                
+                actual_start = merged_df['date'].min()
+                actual_end = merged_df['date'].max()
+
+                if actual_start > asset_start:
+                    print(f'Start date of {asset} observation window has been\n',
+                            f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
+                            f'due to data range overlap compatibility.\n'
+                    )
+                if actual_end < asset_end:
+                    print(f'End date of {asset} observation window has been\n',
+                            f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
+                            f'due to data range overlap compatibility.\n'
+                    )
+                print(f'{asset} observation window is from\n',
+                        f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n\n'
+                )
+                grand_results["merged_data"][asset] = {
+                    "data": merged_df,
+                    "asset_data_window": f"{asset_start} to {asset_end}",
+                    "factor_data_window": f"{f_start} to {f_end}",
+                    "regression_data_window": f"{actual_start} to {actual_end}",
+                }
+                
+            grand_results['regression_results'] = {}
+            
+            
+            # OLS Regression
+            for asset in self.assets:
+                if self.return_type == 'simple':
+                    y_col = f'{asset}_excess_simple_return'
+                    x_col = ['spy_excess_simple_return', 'smb_simple_return', 'hml_simple_return', 'mtum_simple_return', 'rmw_simple_return']
+                elif self.return_type == 'log':
+                    y_col = f'{asset}_excess_log_return'
+                    x_col = ['spy_excess_log_return', 'smb_log_return', 'hml_log_return', 'mtum_log_return', 'rmw_log_return']
+                
+                df = merged_df_dic[asset].copy()
+                
+                actual_start = df['date'].min()
+                actual_end = df['date'].max()
+                                
+                # Dependent variable: asset excess return
+                y = df[y_col]
+                
+                # Independent variables: Fama-French factors
+                X = df[x_col]
+                
+                results = {}
+
+                # Add intercept (alpha)
+                X = sm.add_constant(df[x_col])
+
+                if self.hac_lags is None:
+                    model = sm.OLS(y, X, missing="drop").fit()
+                else:
+                    model = sm.OLS(y, X, missing="drop").fit(
+                        cov_type="HAC",
+                        cov_kwds={"maxlags": self.hac_lags}
+                    )
+
+                results[asset] = model
+
+                grand_results['regression_results'][asset] = {
+                    "model": {
+                        "name": "ETF Proxy Factor Regression",
+                        "type": "OLS",
+                        "dependent_variable": f"{asset}-RF",
+                        "factors": x_col,
+                    },
+                    "sample": {
+                        "frequency": f"{self.freq}",
+                        "start_date": f"{actual_start}",
+                        "end_date": f"{actual_end}",
+                        "n_observations": int(model.nobs),
+                    },
+                    "specification": {
+                        "dependent_variable": f"{asset}-RF",
+                        "independent_variables": ["Mkt-RF", "SMB", "HML", "MTUM","RMW"],
+                        "intercept": True,
+                    },
+                    "inference": {
+                        "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
+                        "hac_maxlags": f'{self.hac_lags}',
+                        "hac_selection": "frequency_default"
+                    },
+                    "coefficients": {
+                        "const (alpha)": model.params['const'].item(),
+                        "Mkt-RF (market-beta)": model.params[x_col[0]].item(),
+                        "SMB (size-exposure)": model.params[x_col[1]].item(),
+                        "HML (value vs growth)": model.params[x_col[2]].item(),
+                        "MTUM (momentum-exposure)": model.params[x_col[3]].item(),
+                        "RMW (profitability-exposure)": model.params[x_col[4]].item(),
+                    },
+
+                    "standard_errors": {
+                        "const": model.bse['const'].item(),
+                        "Mkt-RF": model.bse[x_col[0]].item(),
+                        "SMB": model.bse[x_col[1]].item(),
+                        "HML": model.bse[x_col[2]].item(),
+                        "MTUM": model.bse[x_col[3]].item(),
+                        "RMW": model.bse[x_col[4]].item(),
+                    },
+
+                    "t_statistics": {
+                        "const": model.tvalues['const'].item(),
+                        "Mkt-RF": model.tvalues[x_col[0]].item(),
+                        "SMB": model.tvalues[x_col[1]].item(),
+                        "HML": model.tvalues[x_col[2]].item(),
+                        "MTUM": model.tvalues[x_col[3]].item(),
+                        "RMW": model.tvalues[x_col[4]].item(),
+                    },
+
+                    "p_values": {
+                        "const": model.pvalues['const'].item(),
+                        "Mkt-RF": model.pvalues[x_col[0]].item(),
+                        "SMB": model.pvalues[x_col[1]].item(),
+                        "HML": model.pvalues[x_col[2]].item(),
+                        "MTUM": model.pvalues[x_col[3]].item(),
+                        "RMW": model.pvalues[x_col[4]].item(),
+                    },
+                }
+
+            for model in results.values():
+                print(model.summary())
+
+            return grand_results
+                
 
         if self.factor_source == 'french':
             if self.freq not in {'daily','monthly','annually'}:
@@ -348,6 +496,9 @@ class EquityFactorsRegression():
             grand_results['regression_results'] = {}
 
             for ticker, df in merged_df_dic.items():
+                actual_start = df["date"].min()
+                actual_end = df["date"].max()
+                
                 # Dependent variable: asset excess return
                 y = df[f'{ticker}-RF']
 
@@ -438,6 +589,17 @@ class EquityFactorsRegression():
         tiingo_api_key = os.getenv('TIINGO_API_KEY')
         tiingo_obj = TiingoApi(tiingo_api_key, self.tiingo_freq, True)
         df = tiingo_obj.get_data(ticker, self.start, self.end).copy()
+        
+
+        if df.empty:
+            return pd.DataFrame(
+                columns=[
+                    "date",
+                    f"{ticker}_log_returns",
+                    f"{ticker}_simple_returns"
+                ]
+            )
+        
 
         df[f'{ticker}_simple_returns'] = (df['adjClose'] / df['adjClose'].shift(1)) - 1
         df[f'{ticker}_log_returns'] = np.log(df['adjClose'] / df['adjClose'].shift(1))
@@ -448,6 +610,10 @@ class EquityFactorsRegression():
         return df
 
     def _get_rf_df(self):
+        # THIS IS FOR GETTING RF RATE FROM FRED API 3MONTH TREASURY PROXY]
+        #
+        # NOT USING FRENCH RF
+                
         rf_ticker = "dgs3mo"
         fred_api_key = os.getenv('FRED_API_KEY')
         fred_obj = FredApi(fred_api_key, self.fred_freq)
@@ -478,93 +644,98 @@ class EquityFactorsRegression():
             / 365
         )
         rf_df["rf_log_returns"] = np.log1p(rf_df["rf_simple_returns"])
+        
+        rf_df.dropna(ignore_index=True, inplace=True)
 
         return rf_df
         
-    def _get_asset_excess_returns(self):
+    def _get_asset_excess_returns(self, asset):
         
-        # tiingo_api_key = os.getenv('TIINGO_API_KEY')
-        # tiingo_obj = TiingoApi(tiingo_api_key, self.tiingo_freq, True)
-        # asset_df = tiingo_obj.get_data(self.asset, self.start, self.end)
-
-        # rf_ticker = "dgs3mo"
-        # fred_api_key = os.getenv('FRED_API_KEY')
-        # fred_obj = FredApi(fred_api_key, self.fred_freq)
-        # rf_df = fred_obj.get_data(rf_ticker,self.start, self.end)
+        # THIS IS FOR GETTING ASSET EXCESS FOR TIINGO ASSET DF MINUS FRED 3MONTH TREASURY PROXY]
+        #
+        # NOT USING FRENCH RF
         
-
-        
-        # asset_df[f'{self.asset}_simple_returns'] = (asset_df['adjClose'] / asset_df['adjClose'].shift(1)) - 1
-        # asset_df[f'{self.asset}_log_returns'] = np.log(asset_df['adjClose'] / asset_df['adjClose'].shift(1))
-        # asset_df = asset_df[['date', f'{self.asset}_log_returns', f'{self.asset}_simple_returns']]
-
-        asset_df = self._get_tiingo_df(self.asset)
+        asset_df = self._get_tiingo_df(asset)
         rf_df = self._get_rf_df()
         
-        # You have three calendar days between observations. If you're calculating the risk-free return from
-        # Friday close → Monday close, you should account for 3 calendar days, not just one trading day.
-        # 
-        #
-        # previous day's annualized yield
-        #         ↓
-        #    divide by 100
-        #         ↓
-        #    annual decimal rate
-        #         ↓
-        #   × number of days
-        #         ↓
-        #       / 365
-        #         ↓
-        #  period risk-free return
-        #
-
-        # rf_df["days"] = rf_df["date"].diff().dt.days
-
-        # rf_df["rf_simple_returns"] = (
-        #     rf_df["value"].shift(1) / 100
-        #     * rf_df["days"]
-        #     / 365
-        # )
-        # rf_df["rf_log_returns"] = np.log1p(rf_df["rf_simple_returns"])
-
-
         
-        # #rf_return_df = rf_return_df.dropna().reset_index(drop=True)
-
         excess_df = asset_df.merge(
             rf_df[["date", "rf_log_returns", "rf_simple_returns"]],
             on="date",
             how="inner"
         )
 
-        excess_df[f"{self.asset}_excess_simple_return"] = (
-            excess_df[f'{self.asset}_simple_returns'] - excess_df["rf_simple_returns"]
+        excess_df[f"{asset}_excess_simple_return"] = (
+            excess_df[f'{asset}_simple_returns'] - excess_df["rf_simple_returns"]
         )
 
-        excess_df[f"{self.asset}_excess_log_return"] = (
-            excess_df[f'{self.asset}_log_returns'] - excess_df["rf_log_returns"]
+        excess_df[f"{asset}_excess_log_return"] = (
+            excess_df[f'{asset}_log_returns'] - excess_df["rf_log_returns"]
         )
 
-        excess_df = excess_df[['date',f'{self.asset}_excess_simple_return',f'{self.asset}_excess_log_return']]
+        excess_df = excess_df[['date',f'{asset}_excess_simple_return',f'{asset}_excess_log_return']]
 
-        excess_df.dropna().reset_index(drop=True)
+        excess_df.dropna(ignore_index=True, inplace=True)
 
         return excess_df
 
-    def _merge(df1, df2):
-        df = df1.merge(
-            df2,
-            on="date",
-            how="inner"
-        )
-
-        return df
-
     def _get_factor_returns(self):
 
+        # THIS METHOD IS FOR GETTING FACTOR RETURNS THROUGH ETF PROXY
+        #
+        # NOT THROUGH FRENCH DATA
+        #
+        
+        
         #market excess
         market_df = self._get_tiingo_df("spy")
         rf_df = self._get_rf_df()
+        
+        
+        
+        
+        # print("\n========== MARKET / RF DEBUG ==========")
+
+        # print(
+        #     "MARKET:",
+        #     len(market_df),
+        #     market_df["date"].min(),
+        #     market_df["date"].max()
+        # )
+
+        # print(
+        #     "RF:",
+        #     len(rf_df),
+        #     rf_df["date"].min(),
+        #     rf_df["date"].max()
+        # )
+
+        # print("MARKET DATE TYPE:", market_df["date"].dtype)
+        # print("RF DATE TYPE:", rf_df["date"].dtype)
+
+        # print("MARKET SAMPLE:")
+        # print(market_df["date"].head())
+
+        # print("RF SAMPLE:")
+        # print(rf_df["date"].head())
+
+        # common_dates = market_df["date"].isin(rf_df["date"])
+
+        # print(
+        #     "SPY dates matching RF:",
+        #     common_dates.sum(),
+        #     "out of",
+        #     len(market_df)
+        # )
+
+        # print("SPY dates NOT matching:")
+        # print(market_df.loc[~common_dates, "date"].head(20))
+
+        # print("=======================================\n")
+
+
+
+
 
         market_excess = market_df.merge(
             rf_df[["date", "rf_log_returns", "rf_simple_returns"]],
@@ -582,7 +753,7 @@ class EquityFactorsRegression():
         
         market_excess = market_excess[['date',f'spy_excess_simple_return',f'spy_excess_log_return']]
         
-        market_excess.dropna().reset_index(drop=True)
+        market_excess = market_excess.dropna().reset_index(drop=True)
         
 
         #smb
@@ -598,7 +769,7 @@ class EquityFactorsRegression():
                     smb['iwm_log_returns'] - smb['spy_log_returns']
                 )
         smb = smb[['date','smb_simple_return','smb_log_return']]
-        smb.dropna().reset_index(drop=True)
+        smb = smb.dropna().reset_index(drop=True)
 
         #hml
         value_df = self._get_tiingo_df("iwd")
@@ -613,7 +784,7 @@ class EquityFactorsRegression():
             hml['iwd_log_returns'] - hml['iwf_log_returns']
         )
         hml = hml[['date','hml_simple_return','hml_log_return']]
-        hml.dropna().reset_index(drop=True)
+        hml = hml.dropna().reset_index(drop=True)
 
 
         #momentum
@@ -629,7 +800,7 @@ class EquityFactorsRegression():
             mtum['mtum_log_returns'] - mtum['spy_log_returns']
         )
         mtum = mtum[['date','mtum_simple_return','mtum_log_return']]
-        mtum.dropna().reset_index(drop=True)
+        mtum = mtum.dropna().reset_index(drop=True)
 
         #RMW
         robust_df = self._get_tiingo_df("qual")
@@ -642,79 +813,47 @@ class EquityFactorsRegression():
         rmw['rmw_log_return'] = (
             rmw['qual_log_returns'] - rmw['spy_log_returns']
         )
-        rmw = rmw[['date','mtum_simple_return','mtum_log_return']]
-        rmw.dropna().reset_index(drop=True)
+        rmw = rmw[['date','rmw_simple_return','rmw_log_return']]
+        rmw = rmw.dropna().reset_index(drop=True)
+        
+        # _debug_df("market", market_excess)
+        # _debug_df("smb", smb)
+        # _debug_df("hml", hml)
+        # _debug_df("mtum", mtum)
+        # _debug_df("rmw", rmw)
 
         return market_excess, smb, hml, mtum, rmw
         
-
-
-
+    def _merge_factors(self, asset_name, asset_excess_return_df, market_df, smb_df, hml_df, mtum_df, rmw_df):
         
-
+        if self.return_type == 'simple':
+            assetdf = asset_excess_return_df[['date', f'{asset_name}_excess_simple_return']]
+            marketdf = market_df[['date', 'spy_excess_simple_return']]
+            smbdf = smb_df[['date', 'smb_simple_return']]
+            hmldf = hml_df[['date', 'hml_simple_return']]
+            mtumdf = mtum_df[['date', 'mtum_simple_return']]
+            rmwdf = rmw_df[['date','rmw_simple_return']]
+        elif self.return_type == 'log':
+            assetdf = asset_excess_return_df[['date', f'{asset_name}_excess_log_return']]
+            marketdf = market_df[['date', 'spy_excess_log_return']]
+            smbdf = smb_df[['date', 'smb_log_return']]
+            hmldf = hml_df[['date', 'hml_log_return']]
+            mtumdf = mtum_df[['date', 'mtum_log_return']]
+            rmwdf = rmw_df[['date','rmw_log_return']]
         
-        rf_ticker = "dgs3mo"
-        fred_api_key = os.getenv('FRED_API_KEY')
-        fred_obj = FredApi(fred_api_key, self.fred_freq)
-        rf_df = fred_obj.get_data(rf_ticker,self.start, self.end)
+        dfs = [marketdf, smbdf, hmldf, mtumdf, rmwdf]
+
+        # Merge them sequentially on the 'date' column using an inner join
+        merged_df = reduce(lambda left, right: pd.merge(left, right, on='date', how='inner'), dfs)
         
-
-        market_df[f'{self.asset}_simple_returns'] = (market_df['adjClose'] / asset_df['adjClose'].shift(1)) - 1
-        asset_df[f'{self.asset}_log_returns'] = np.log(asset_df['adjClose'] / asset_df['adjClose'].shift(1))
-        asset_df = asset_df[['date', f'{self.asset}_log_returns', f'{self.asset}_simple_returns']]
+        merged_df = pd.merge(assetdf, merged_df, on='date', how='inner').copy()
+        merged_df.dropna(ignore_index=True, inplace=True)
         
-        # You have three calendar days between observations. If you're calculating the risk-free return from
-        # Friday close → Monday close, you should account for 3 calendar days, not just one trading day.
-        # 
-        #
-        # previous day's annualized yield
-        #         ↓
-        #    divide by 100
-        #         ↓
-        #    annual decimal rate
-        #         ↓
-        #   × number of days
-        #         ↓
-        #       / 365
-        #         ↓
-        #  period risk-free return
-        #
-
-        rf_df["days"] = rf_df["date"].diff().dt.days
-
-        rf_df["rf_simple_returns"] = (
-            rf_df["value"].shift(1) / 100
-            * rf_df["days"]
-            / 365
-        )
-        rf_df["rf_log_returns"] = np.log1p(rf_df["rf_simple_returns"])
-
-
+        return merged_df
+    
+    
         
-        #rf_return_df = rf_return_df.dropna().reset_index(drop=True)
-
-        excess_df = asset_df.merge(
-            rf_df[["date", "rf_log_returns", "rf_simple_returns"]],
-            on="date",
-            how="inner"
-        )
-
-        excess_df[f"{self.asset}_excess_simple_return"] = (
-            excess_df[f'{self.asset}_simple_returns'] - excess_df["rf_simple_returns"]
-        )
-
-        excess_df[f"{self.asset}_excess_log_return"] = (
-            excess_df[f'{self.asset}_log_returns'] - excess_df["rf_log_returns"]
-        )
-
-        excess_df = excess_df[['date',f'{self.asset}_excess_simple_return',f'{self.asset}_excess_log_return']]
-
-        excess_df.dropna().reset_index(drop=True)
-
-        return excess_df
         
-    def _merge_factors(self, asset, market, smb, hml, mtum, rmw):
-        pass
 
     def _load_french(self, frequency):
 
@@ -753,12 +892,36 @@ class EquityFactorsRegression():
 
         return defaults[self.freq]
 
+    def _merge(self, df1, df2):
+        df = df1.merge(
+            df2,
+            on="date",
+            how="inner"
+        )
+
+        return df
+
+def _debug_df(name, df):
+    print(
+        f"{name}: "
+        f"rows={len(df)}, "
+        f"start={df['date'].min()}, "
+        f"end={df['date'].max()}"
+    )
 
 if __name__ == "__main__":
-    fac = EquityFactorsRegression(factor_source='french', frequency='daily')
-    asset_list = ['msft','nvda']
-    fac.asset_list(*asset_list)
-    data = fac.regress()
+    # fac = EquityFactorsRegression(factor_source='french', frequency='daily')
+    # asset_list = ['msft','nvda']
+    # fac.asset_list(*asset_list)
+    # data = fac.regress()
 
+    # for asset in asset_list:
+    #     pprint(data['regression_results'][asset], sort_dicts=False, width=1, indent=4)
+    
+    fac1 = EquityFactorsRegression(factor_source="etf", frequency='daily')
+    asset_list = ['msft','nvda']
+    fac1.asset_list(*asset_list)
+    data = fac1.regress()
+    
     for asset in asset_list:
         pprint(data['regression_results'][asset], sort_dicts=False, width=1, indent=4)

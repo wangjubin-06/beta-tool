@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import os
 from pathlib import Path
+from datetime import datetime, timedelta, date
 
 
 
@@ -75,61 +76,72 @@ class FredApi:
         params = {
                 "api_key": self.api_key,
                 "file_type": "json",
-                "series_id": f"{ticker.upper()}",
+                "series_id": ticker.upper(),
                 "frequency": self.freq
             }
         
-        if start_date is None and end_date is None:
-            params = params  
-        elif start_date is None and end_date is not None:
-            params["observation_end"] = end_date
-        elif end_date is None and start_date is not None:
+        if start_date is not None:
             params["observation_start"] = start_date
-        else:
-            params["observation_end"] = end_date
-            params["observation_start"] = start_date
-        
 
+        if end_date is not None:
+            params["observation_end"] = end_date
+            
         response = requests.get(url, params=params)
 
-    
         response.raise_for_status()
 
-        df = pd.DataFrame(response.json()['observations'])
+        data = response.json()
 
+        if "observations" not in data:
+            raise RuntimeError(
+                f"Unexpected FRED response:\n{data}"
+            )
+
+        observations = data["observations"]
+
+        if not observations:
+            return pd.DataFrame(columns=["date", "value"])
     
+
+        df = pd.DataFrame(observations)
+        df = df[["date", "value"]]
+
+         
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
-        df = df[['date', 'value']]
         df["date"] = pd.to_datetime(df["date"])
-
-
+        
         return df
 
 
 
-    def get_data(self, ticker, start_date, end_date = None):
+    def get_data(self, ticker, start_date=None, end_date = None):
         
         CACHE_DIR = Path("../../data/fred")
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
     
         cache_file = CACHE_DIR / f"{ticker}_{self.freq}.parquet"
-    
+        
+        if start_date is None:
+            requested_start = pd.Timestamp("1800-01-01")
+        else:
+            requested_start = pd.Timestamp(start_date)
+
+        if end_date is None:
+            requested_end = pd.Timestamp.today().normalize()
+        else:
+            requested_end = pd.Timestamp(end_date)
+                    
         # -------------------------
         # 1. Load existing cache
         # -------------------------
         if cache_file.exists():
             cached = pd.read_parquet(cache_file)
-            cached["date"] = pd.to_datetime(cached["date"])
+            if not cached.empty:
+                cached["date"] = pd.to_datetime(cached["date"])
         else:
             cached = pd.DataFrame()
 
-        requested_start = pd.Timestamp(start_date)
-
-        # If no end date supplied, use today
-        if end_date is None:
-            requested_end = pd.Timestamp.today().normalize()
-        else:
-            requested_end = pd.Timestamp(end_date)
+        
     
         # -------------------------
         # 2. If cache is empty,
@@ -140,12 +152,15 @@ class FredApi:
     
             df["date"] = pd.to_datetime(df["date"])
     
-            df.to_parquet(
-                cache_file,
-                engine="pyarrow",
-                index=False,
-            )
-    
+            if not df.empty:
+                df["date"] = pd.to_datetime(df["date"])
+
+                df.to_parquet(
+                    cache_file,
+                    engine="pyarrow",
+                    index=False,
+                )
+
             return df
     
         # -------------------------
@@ -166,9 +181,15 @@ class FredApi:
             old_end = fetch_end.strftime("%Y-%m-%d")
     
             older = self._get_history(ticker, old_start, old_end)
-            older["date"] = pd.to_datetime(older["date"])
-    
-            pieces.append(older)
+            
+            # ensure that append only if older has actual values
+            #
+            # because requested dates may not be a trading day/may be beyond the date range in FRED,
+            # so requested data may be empty
+            #
+            if not older.empty:
+                older["date"] = pd.to_datetime(older["date"])
+                pieces.append(older)
     
         # Missing data AFTER cache
         if requested_end > cached_end:
@@ -178,11 +199,15 @@ class FredApi:
             new_end = requested_end.strftime("%Y-%m-%d")
     
             newer = self._get_history(ticker, new_start, new_end)
-    
-            newer["date"] = pd.to_datetime(newer["date"])
-    
-            pieces.append(newer)
-    
+            
+            # ensure that append only if newer has actual values
+            #
+            # because requested dates may not be a trading day/may be beyond the date range in FRED,
+            # so requested data may be empty
+            #
+            if not newer.empty:
+                newer["date"] = pd.to_datetime(newer["date"])
+                pieces.append(newer)
     
         # -------------------------
         # 4. Merge + save cache
@@ -209,7 +234,6 @@ class FredApi:
 if __name__ == "__main__":
     api_key = os.getenv('FRED_API_KEY')
     ticker = "dgs3mo"
-    fred_obj = FredApi(api_key, "m")
-
+    fred_obj = FredApi(api_key, "d")
     data = fred_obj.get_data(ticker, "2026-01-01")
     print(data.head())

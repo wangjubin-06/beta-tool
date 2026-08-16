@@ -86,68 +86,86 @@ class TiingoApi():
             'Content-Type': 'application/json',
             'Authorization' : f'Token {self.api_key}'
             }
-
-        if start_date is not None and end_date is None:
-            today = date.today().isoformat()
-            params = {
-                "startDate": start_date,
-                "endDate": today,
-                "resampleFreq": self.freq,
-                "sort": "date",
-                "format": "csv"
-            }
-        elif start_date is None and end_date is not None:
-            params = {
-                "startDate": "1800-01-01",
-                "endDate": end_date,
-                "resampleFreq": self.freq,
-                "sort": "date",
-                "format": "csv"
-            }
-        elif start_date is not None and end_date is not None:
-            params = {
-                "startDate": start_date,
-                "endDate": end_date,
-                "resampleFreq": self.freq,
-                "sort": "date",
-                "format": "csv"
-            }
-        else:
-            today = date.today().isoformat()
-            params = {
-                "startDate": "1800-01-01",
-                "endDate": today,
-                "resampleFreq": self.freq,
-                "sort": "date",
-                "format": "csv"
-            }
-
-
-
-        if self.simplified == True:
-            params["columns"] = ["date","adjClose"]
-
-        try:
-            requestResponse = requests.get(url, headers=headers, params=params)
         
-            requestResponse.raise_for_status()
+        start_date = start_date or "1960-01-01"
+        end_date = end_date or date.today().isoformat()
 
-        except requests.exceptions.HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")  # e.g., 404 Client Error
-        except requests.exceptions.ConnectionError as conn_err:
-            print(f"Connection error occurred: {conn_err}")
-        except requests.exceptions.Timeout as timeout_err:
-            print(f"Timeout error occurred: {timeout_err}")
-        except requests.exceptions.RequestException as err:
-            print(f"An unexpected error occurred: {err}")
+        params = {
+            "startDate": start_date,
+            "endDate": end_date,
+            "resampleFreq": self.freq,
+            "sort": "date",
+            "format": "csv",
+        }
+        
+        # if start_date is not None and end_date is None:
+        #     today = date.today().isoformat()
+        #     params = {
+        #         "startDate": start_date,
+        #         "endDate": today,
+        #         "resampleFreq": self.freq,
+        #         "sort": "date",
+        #         "format": "csv"
+        #     }
+        # elif start_date is None and end_date is not None:
+        #     params = {
+        #         "startDate": "1800-01-01",
+        #         "endDate": end_date,
+        #         "resampleFreq": self.freq,
+        #         "sort": "date",
+        #         "format": "csv"
+        #     }
+        # elif start_date is not None and end_date is not None:
+        #     params = {
+        #         "startDate": start_date,
+        #         "endDate": end_date,
+        #         "resampleFreq": self.freq,
+        #         "sort": "date",
+        #         "format": "csv"
+        #     }
+        # else:
+        #     today = date.today().isoformat()
+        #     params = {
+        #         "startDate": "1800-01-01",
+        #         "endDate": today,
+        #         "resampleFreq": self.freq,
+        #         "sort": "date",
+        #         "format": "csv"
+        #     }
 
-        df = pd.read_csv(io.BytesIO(requestResponse.content), encoding="utf-8")
+
+        
+        if self.simplified == True:
+            params["columns"] = "date,adjClose"
+
+
+
+
+
+        response = requests.get(url, headers=headers, params=params)
+        
+        # TESTINGGG
+        print("STATUS:", response.status_code)
+        print("URL:", response.url)
+        print("CONTENT LENGTH:", len(response.content))
+        print("TEXT:", response.text[:500])
+        
+        
+        response.raise_for_status()
+        
+        if not response.content.strip():
+            return self._empty_dataframe()
+
+        df = pd.read_csv(io.BytesIO(response.content), encoding="utf-8")
+        
+        if df.empty:
+            return self._empty_dataframe()
 
         df["adjClose"] = pd.to_numeric(df["adjClose"], errors="coerce")
-        df['date'] = pd.to_datetime(df['date'])
-        
+        df["date"] = pd.to_datetime(df["date"])
 
         return df
+
 
     def get_data(self, ticker, start_date = None, end_date = None):
 
@@ -168,20 +186,14 @@ class TiingoApi():
         # 1. Load existing cache
         # -------------------------
         if cache_file.exists():
-            modified_time = datetime.fromtimestamp(cache_file.stat().st_mtime)
-
-            if datetime.now() - modified_time < CACHE_MAX_AGE:
-                # Cache is still fresh
-                cached = pd.read_parquet(cache_file)
-                cached["date"] = pd.to_datetime(cached["date"])
-            else:
-                # Cache has expired
-                cached = pd.DataFrame()
+            cached = pd.read_parquet(cache_file)
+            cached["date"] = pd.to_datetime(cached["date"]).dt.normalize()
         else:
             cached = pd.DataFrame()
 
+
         if start_date is None:
-            requested_start = None
+            requested_start = pd.to_datetime("1800-01-01")
         else:
             requested_start = pd.Timestamp(start_date)
 
@@ -196,104 +208,118 @@ class TiingoApi():
         #    fetch everything
         # -------------------------
         if cached.empty:
-            df = self._get_full_history(ticker)
+            df = self._get_history(ticker, start_date, end_date)
+            
+            if df.empty:
+                raise ValueError(
+                    f"Tiingo returned no data for {ticker.upper()} "
+                    f"for {start_date} → {end_date}"
+                )
+            
+            df["date"] = pd.to_datetime(df["date"]).dt.normalize()
 
             df.to_parquet(
                 cache_file,
                 engine="pyarrow",
                 index=False,
             )
+            
+            return df
 
-            if requested_start is not None:
-                return df[(df['date'] >= requested_start) & (df['date'] <= requested_end)]
-            else:
-                return df[(df['date'] <= requested_end)]
-
-        if requested_start is not None:
-            return cached[(cached['date'] >= requested_start) & (cached['date'] <= requested_end)]
-        else:
-            return cached[(cached['date'] <= requested_end)]
-
-        # # -------------------------
-        # # 3. Figure out what's missing
-        # # -------------------------
+        # -------------------------
+        # 3. Figure out what's missing
+        # -------------------------
         
         
-        # cached_start = cached["date"].min()
-        # cached_end = cached["date"].max()
+        cached_start = cached["date"].min()
+        cached_end = cached["date"].max()
 
-        # pieces = [cached]
+        pieces = [cached]
 
-        # # Missing data BEFORE cache
-        # if requested_start < cached_start:
-        #     fetch_end = cached_start - pd.Timedelta(days=1)
+        # Missing data BEFORE cache
+        if requested_start < cached_start:
+            fetch_end = cached_start - pd.Timedelta(days=1)
 
-        #     old_start = requested_start.strftime("%Y-%m-%d")
-        #     old_end = fetch_end.strftime("%Y-%m-%d")
+            old_start = requested_start.strftime("%Y-%m-%d")
+            old_end = fetch_end.strftime("%Y-%m-%d")
 
-        #     older = self._get_history(ticker, old_start, old_end)
-        #     older["date"] = pd.to_datetime(older["date"])
+            older = self._get_history(ticker, old_start, old_end)
+            
+            if not older.empty:
+                older["date"] = pd.to_datetime(older["date"])
+                pieces.append(older)
 
-        #     pieces.append(older)
+        # Missing data AFTER cache
+        if requested_end > cached_end:
+            fetch_start = cached_end + pd.Timedelta(days=1)
 
-        # # Missing data AFTER cache
-        # if requested_end > cached_end:
-        #     fetch_start = cached_end + pd.Timedelta(days=1)
+            new_start = fetch_start.strftime("%Y-%m-%d")
+            new_end = requested_end.strftime("%Y-%m-%d")
 
-        #     new_start = fetch_start.strftime("%Y-%m-%d")
-        #     new_end = requested_end.strftime("%Y-%m-%d")
+            newer = self._get_history(ticker, new_start, new_end)
+            
+            if not newer.empty:
+                newer["date"] = pd.to_datetime(newer["date"])
+                pieces.append(newer)
 
-        #     newer = self._get_history(ticker, new_start, new_end)
+        # -------------------------
+        # 4. Merge + save cache
+        # -------------------------
+        result = (
+            pd.concat(pieces, ignore_index=True)
+            .drop_duplicates(subset=["date"])
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
 
-        #     newer["date"] = pd.to_datetime(newer["date"])
-
-        #     pieces.append(newer)
-
-
-        # # -------------------------
-        # # 4. Merge + save cache
-        # # -------------------------
-        # result = (
-        #     pd.concat(pieces, ignore_index=True)
-        #     .drop_duplicates(subset=["date"])
-        #     .sort_values("date")
-        #     .reset_index(drop=True)
-        # )
-
-        # result.to_parquet(
-        #     cache_file,
-        #     engine="pyarrow",
-        #     index=False,
-        # )
+        result.to_parquet(
+            cache_file,
+            engine="pyarrow",
+            index=False,
+        )
 
         # Return only what caller requested
-        # return result[
-        #     (result["date"] >= requested_start)
-        #     & (result["date"] <= requested_end)
-        # ]
+        return result[
+            (result["date"] >= requested_start)
+            & (result["date"] <= requested_end)
+        ]
+    
+    def _empty_dataframe(self):
+        if self.simplified:
+            return pd.DataFrame(columns=["date", "adjClose"])
+
+        return pd.DataFrame(columns=[
+            "date",
+            "close",
+            "high",
+            "low",
+            "open",
+            "volume",
+            "adjClose",
+            "adjHigh",
+            "adjLow",
+            "adjOpen",
+            "adjVolume",
+            "divCash",
+            "splitFactor"
+        ])
 
 
 if __name__ == "__main__":
-    api_key = os.getenv('TIINGO_API_KEY')
-    ticker1 = "aapl"
-    ticker2 = "aapl"
-    t_obj_1 = TiingoApi(api_key, "monthly", True)
-    t_obj_2 = TiingoApi(api_key, "daily", False)
+    api_key = os.getenv("TIINGO_API_KEY")
 
+    obj = TiingoApi(api_key, "daily", True)
 
-    # data1 = t_obj_1.get_data(ticker1, "2026-01-01")
-    # data2 = t_obj_2.get_data(ticker2, "2025-12-21", "2026-01-03")
-    # print(data1.tail())
-    # #print("\n"*5)
-    # #print(data2.head())
+    tiingo_obj = TiingoApi(
+        os.getenv("TIINGO_API_KEY"),
+        "daily",
+        True
+    )
 
-    # print(data1.head())
-    # print(data2.head())
+    df = tiingo_obj.get_data("spy", "2020-01-01")
 
-    # data1[f'{ticker1}_simple_returns'] = (data1['adjClose'] / data1['adjClose'].shift(1)) - 1
-    # data1[f'{ticker1}_log_returns'] = np.log(data1['adjClose'] / data1['adjClose'].shift(1))
-    # df = data1[['date', f'{ticker1}_log_returns', f'{ticker1}_simple_returns']]
-    # print(df.head())
+    print(df)
+    print(df.shape)
 
 
 
