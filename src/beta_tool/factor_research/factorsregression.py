@@ -10,6 +10,7 @@ from datetime import date
 import os
 from data_collection.tiingo_api import TiingoApi
 from data_collection.fred_api import FredApi
+from data_collection.ff_factors_api import FrenchApi
 from regression_beta.returns import simple_returns, log_returns
 import requests
 from io import BytesIO, StringIO
@@ -33,7 +34,7 @@ class EquityFactorsRegression():
     
     """
 
-    def __init__(self, factor_source: str = "french", start_date = None, end_date = None, return_type:str = 'simple', frequency:str = 'daily'):
+    def __init__(self, factor_source: str = "french", start_date = None, end_date = None, return_type:str = 'simple', frequency:str = 'daily', hac="auto"):
 
         #if start date is None, API will pull from the oldest date possible of all data sources
         #if end date is None, API will pull till the latest possible date of all data sources
@@ -54,6 +55,9 @@ class EquityFactorsRegression():
             "annually": "a"
         }
 
+        
+       
+
         #self.asset = asset.lower()
         self.return_type = return_type
         self.factor_source = factor_source
@@ -64,6 +68,12 @@ class EquityFactorsRegression():
 
         self.start = start_date
         self.end = end_date
+        # hac : heteroscedasticity and autocorrelation robust (HAC) using n lags
+        #
+        # this is for the regression;
+        #
+        # users can override their hac lag number, but default will be automatic
+        self.hac_lags = self._resolve_hac_lags(hac)
 
     def asset_list(self, *args:str):
 
@@ -74,7 +84,6 @@ class EquityFactorsRegression():
             self.assets.append(ticker.lower())
 
         return
-
 
     def regress(self):
         #the actual API the user uses
@@ -89,6 +98,17 @@ class EquityFactorsRegression():
         # step4: for each merged_df in merged_df_dic, do the OLS regression of excess asset against the five factors returns with statsmodel with the set HAC maxlags and store the model results in results dic
 
 
+        # this dic will store all relevant information and regression results
+        grand_results = {}
+        grand_results['basic_information'] = {
+            'observations_frequency': self.freq,
+            'return_convention': self.return_type,
+            'factor_data_source': self.factor_source,
+            'HAC_lags': self.hac_lags,
+            'asset_list': self.assets.copy()
+        }
+        
+
         if self.factor_source == 'etf':
             excess_df = self._get_asset_excess_returns()
 
@@ -96,7 +116,7 @@ class EquityFactorsRegression():
 
             self._merge_factors()
 
-        elif self.factor_source == 'french':
+        if self.factor_source == 'french':
             if self.freq not in {'daily','monthly','annually'}:
                 raise ValueError("using french factor data is only available in input frequency: 'daily', OR 'monthly' OR 'annually'; otherwise use 'etf' as factor_source")
 
@@ -104,17 +124,22 @@ class EquityFactorsRegression():
             #ticker = self.ticker
 
             if self.freq == 'daily':
-                french_factor_df = self._load_french('daily')
+                french_factor_df = self._load_french('daily').copy()
             elif self.freq == 'monthly':
-                french_factor_df = self._load_french('monthly')
+                french_factor_df = self._load_french('monthly').copy()
             else:
-                french_factor_df = self._load_french('annually')
+                french_factor_df = self._load_french('annually').copy()
+
+            grand_results['french_data'] = french_factor_df
+            grand_results['assets_data'] = {}
 
             assets_df_dic = {}
 
             for ticker in self.assets:
-                asset_returns_df = self._get_tiingo_df(ticker)
+                asset_returns_df = self._get_tiingo_df(ticker).copy()
                 assets_df_dic[ticker] = asset_returns_df
+
+                grand_results['assets_data'][ticker] = asset_returns_df
 
 
 
@@ -146,22 +171,20 @@ class EquityFactorsRegression():
                 french_factor_df[cols] = np.log1p(french_factor_df[cols])
 
                 for ticker, df in assets_df_dic.items():
-                    assets_df_dic[ticker] = df[['date', f'{ticker}_log_returns']]
+                    assets_df_dic[ticker] = df[['date', f'{ticker}_log_returns']].copy()
 
 
             else:
                 for ticker, df in assets_df_dic.items():
-                    assets_df_dic[ticker] = df[['date', f'{ticker}_simple_returns']]
+                    assets_df_dic[ticker] = df[['date', f'{ticker}_simple_returns']].copy()
 
-                #asset_returns_df = asset_returns_df[['date', f'{ticker}_simple_returns']]
 
           
-
             ######
             print(french_factor_df.tail())
             ######
 
-
+            grand_results['merged_data'] = {}
 
             if self.freq == 'daily':
                 
@@ -177,21 +200,37 @@ class EquityFactorsRegression():
                     )
                     merged_df_dic[ticker] = merged_df
 
+                    
+
                     # alert users which date rows are collapsed due to the inner merging
                     asset_start = df["date"].min()
                     asset_end = df["date"].max()
-                    
+
                     ff_start = french_factor_df["date"].min()
                     ff_end = french_factor_df["date"].max()
-
+                    
                     actual_start = merged_df['date'].min()
                     actual_end = merged_df['date'].max()
-                    print(
-                        f"{ticker}: asset data {asset_start:%Y-%m-%d} → "
-                        f"{asset_end:%Y-%m-%d};\n"
-                        f"FF data {ff_start:%Y-%m-%d} → {ff_end:%Y-%m-%d};\n"
-                        f"regression observations: {actual_start:%Y-%m-%d} → {actual_end:%Y-%m-%d};\n"
+
+                    if actual_start > asset_start:
+                        print(f'Start date of {ticker} observation window has been\n',
+                              f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
+                              f'due to data range overlap compatibility.\n'
+                        )
+                    if actual_end < asset_end:
+                        print(f'End date of {ticker} observation window has been\n',
+                              f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
+                              f'due to data range overlap compatibility.\n'
+                        )
+                    print(f'{ticker} observation window is from\n',
+                          f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n\n'
                     )
+
+                    grand_results['merged_data'][ticker] = {
+                        f'{ticker} data window': f'{asset_start} to {asset_end}',
+                        f'french factor data window': f'{ff_start} to {ff_end}',
+                        f'regression data window': f'{actual_start} to {actual_end}'
+                    }
 
                 
             elif self.freq == 'monthly':
@@ -214,6 +253,37 @@ class EquityFactorsRegression():
                     )
                     merged_df = merged_df.drop(columns = ['__period','date_ff'])
                     merged_df_dic[ticker] = merged_df
+
+                    # alert users which date rows are collapsed due to the inner merging
+                    asset_start = df["date"].min()
+                    asset_end = df["date"].max()
+
+                    ff_start = french_factor_df["date"].min()
+                    ff_end = french_factor_df["date"].max()
+                
+                    actual_start = merged_df['date'].min()
+                    actual_end = merged_df['date'].max()
+
+                    if actual_start > asset_start:
+                        print(f'Start date of {ticker} observation window has been\n',
+                              f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
+                              f'due to data range overlap compatibility.\n'
+                        )
+                    if actual_end < asset_end:
+                        print(f'End date of {ticker} observation window has been\n',
+                              f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
+                              f'due to data range overlap compatibility.\n'
+                        )
+                    print(f'{ticker} observation window is from\n',
+                          f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
+                    )
+
+                    grand_results['merged_data'][ticker] = {
+                        f'{ticker} data window': f'{asset_start} to {asset_end}',
+                        f'french factor data window': f'{ff_start} to {ff_end}',
+                        f'regression data window': f'{actual_start} to {actual_end}'
+                    }
+                
                 
             elif self.freq == 'annually':
 
@@ -237,8 +307,32 @@ class EquityFactorsRegression():
                     merged_df = merged_df.drop(columns = ['__period','date_ff'])
                     merged_df_dic[ticker] = merged_df
 
+                    ff_start = french_factor_df["date"].min()
+                    ff_end = french_factor_df["date"].max()
 
-          
+                    actual_start = merged_df['date'].min()
+                    actual_end = merged_df['date'].max()
+                    
+                    if actual_start > asset_start:
+                        print(f'Start date of {ticker} observation window has been\n',
+                              f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
+                              f'due to data range overlap compatibility.\n'
+                        )
+                    if actual_end < asset_end:
+                        print(f'End date of {ticker} observation window has been\n',
+                              f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
+                              f'due to data range overlap compatibility.\n'
+                        )
+                        print(f'{ticker} observation window is from\n',
+                              f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
+                        )
+
+                    grand_results['merged_data'][ticker] = {
+                        f'{ticker} data window': f'{asset_start} to {asset_end}',
+                        f'french factor data window': f'{ff_start} to {ff_end}',
+                        f'regression data window': f'{actual_start} to {actual_end}'
+                    }
+
 
 
             #   creating a column for asset excess returns
@@ -246,9 +340,13 @@ class EquityFactorsRegression():
 
                 for ticker, df in merged_df_dic.items():
                     df[f'{ticker}-RF'] = df[f'{ticker}_simple_returns'] - df['RF']
+
+                    grand_results['merged_data'][ticker]['merged_data_dataframe'] = df.copy()
             else:
                 for ticker, df in merged_df_dic.items():
                     df[f'{ticker}-RF'] = df[f'{ticker}_log_returns'] - df['RF']
+
+                    grand_results['merged_data'][ticker]['merged_data_dataframe'] = df.copy()
 
 
 
@@ -275,21 +373,91 @@ class EquityFactorsRegression():
                 # Add intercept (alpha)
                 X = sm.add_constant(df[factor_cols])
 
-                model = sm.OLS(y, X, missing="drop").fit(
-                    cov_type="HAC",
-                    cov_kwds={"maxlags": 3}
-                )
+                if self.hac_lags is None:
+                    model = sm.OLS(y, X, missing="drop").fit()
+                else:
+                    model = sm.OLS(y, X, missing="drop").fit(
+                        cov_type="HAC",
+                        cov_kwds={"maxlags": self.hac_lags}
+                    )
 
                 results[ticker] = model
+
+                grand_results['merged_data'][ticker]['regression_results'] = {
+                    "model": {
+                        "name": "Fama-French 5 Factor",
+                        "type": "OLS",
+                        "dependent_variable": f"{ticker}-RF",
+                        "factors": ["Mkt-RF", "SMB", "HML", "RMW", "CMA"],
+                    },
+                    "sample": {
+                        "frequency": f"{self.freq}",
+                        "start_date": f"{actual_start}",
+                        "end_date": f"{actual_end}",
+                        "n_observations": int(model.nobs),
+                    },
+                    "specification": {
+                        "dependent_variable": f"{ticker}-RF",
+                        "independent_variables": [
+                            "Mkt-RF",
+                            "SMB",
+                            "HML",
+                            "RMW",
+                            "CMA",
+                        ],
+                        "intercept": True,
+                    },
+                    "inference": {
+                        "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
+                        "hac_maxlags": f'{self.hac_lags}',
+                        "hac_selection": "frequency_default"
+                    },
+                    "coefficients": {
+                        "const (alpha)": model.params['const'].item(),
+                        "Mkt-RF (market-beta)": model.params['Mkt-RF'].item(),
+                        "SMB (size-exposure)": model.params["SMB"].item(),
+                        "HML (value vs growth)": model.params["HML"].item(),
+                        "RMW (profitability-exposure)": model.params["RMW"].item(),
+                        "CMA (conservative vs aggressive investment)": model.params["CMA"].item(),
+                    },
+
+                    "standard_errors": {
+                        "const": model.bse['const'].item(),
+                        "Mkt-RF": model.bse['Mkt-RF'].item(),
+                        "SMB": model.bse['SMB'].item(),
+                        "HML": model.bse['HML'].item(),
+                        "RMW": model.bse['RMW'].item(),
+                        "CMA": model.bse['CMA'].item(),
+                    },
+
+                    "t_statistics": {
+                        "const": model.tvalues['const'].item(),
+                        "Mkt-RF": model.tvalues['Mkt-RF'].item(),
+                        "SMB": model.tvalues['SMB'].item(),
+                        "HML": model.tvalues['HML'].item(),
+                        "RMW": model.tvalues['RMW'].item(),
+                        "CMA": model.tvalues['CMA'].item(),
+                    },
+
+                    "p_values": {
+                        "const": model.pvalues['const'].item(),
+                        "Mkt-RF": model.pvalues['Mkt-RF'].item(),
+                        "SMB": model.pvalues['SMB'].item(),
+                        "HML": model.pvalues['HML'].item(),
+                        "RMW": model.pvalues['RMW'].item(),
+                        "CMA": model.pvalues['CMA'].item(),
+                    },
+                }
 
             for model in results.values():
                 print(model.summary())
 
+            print(grand_results)
 
     def _get_tiingo_df(self, ticker):
         tiingo_api_key = os.getenv('TIINGO_API_KEY')
         tiingo_obj = TiingoApi(tiingo_api_key, self.tiingo_freq, True)
-        df = tiingo_obj.get_data(ticker, self.start, self.end)
+        df = tiingo_obj.get_data(ticker, self.start, self.end).copy()
 
         df[f'{ticker}_simple_returns'] = (df['adjClose'] / df['adjClose'].shift(1)) - 1
         df[f'{ticker}_log_returns'] = np.log(df['adjClose'] / df['adjClose'].shift(1))
@@ -570,355 +738,43 @@ class EquityFactorsRegression():
 
     def _load_french(self, frequency):
 
+        french_obj = FrenchApi('US', frequency)
+        df = french_obj.get_data().copy()
+        return df
+
         # WARNING: THE default dataset here is US factor data
         #
         # only use US factor data for regressing US equities
         #
         # for OTHER regions, get factor data for other regions (important!) (coming soon!)
         #
-        #
+        # 
 
-        url = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_5_Factors_2x3_daily_CSV.zip" if frequency == 'daily' else "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_5_Factors_2x3_CSV.zip"
+    def _resolve_hac_lags(self, hac="auto"):
+        if hac is None:
+            return None
 
-        if frequency == 'daily':
-            response = requests.get(url)
-            response.raise_for_status()
+        if isinstance(hac, int):
+            if hac < 0:
+                raise ValueError("HAC lags must be non-negative.")
+            return hac
 
-            with zipfile.ZipFile(BytesIO(response.content)) as z:
-                filename = "F-F_Research_Data_5_Factors_2x3_daily.csv"
-
-                with z.open(filename) as f:
-                    df = pd.read_csv(
-                        f,
-                        skiprows=3,
-                        skipfooter=1,
-                        engine="python"
-                    )
-
-            df = df.rename(columns={df.columns[0]: "date"})
-
-            # Convert Date to datetime
-            df["date"] = pd.to_datetime(
-                df["date"].astype(str),
-                format="%Y%m%d"
+        if hac != "auto":
+            raise ValueError(
+                "hac must be 'auto', None, or a non-negative integer."
             )
 
-            # Fama-French returns are in percent; convert to decimals
-            factor_cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
-            df[factor_cols] /= 100
+        defaults = {
+            "daily": 3,
+            "weekly": 3,
+            "monthly": 3,
+            "annually": 1,
+        }
 
-            return df
-        
-        elif frequency == 'monthly':
-            response = requests.get(url)
-            response.raise_for_status()
-
-            with zipfile.ZipFile(BytesIO(response.content)) as z:
-                filename = "F-F_Research_Data_5_Factors_2x3.csv"
-
-                with z.open(filename) as f:
-                    text = f.read().decode("utf-8")
-
-            # Keep only the monthly section
-            monthly_text = text.split("Annual Factors:", 1)[0]
-
-            df = pd.read_csv(
-                StringIO(monthly_text),
-                skiprows=3
-            )
-
-            df = df.rename(columns={df.columns[0]: "date"})
-
-            # Convert Date to datetime
-            df["date"] = (
-                pd.to_datetime(df["date"].astype(str), format="%Y%m")
-                + pd.offsets.BMonthEnd(0)
-            )
-
-            # Fama-French returns are in percent; convert to decimals
-            factor_cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
-            df[factor_cols] /= 100
-
-            return df
-        else:
-            response = requests.get(url)
-            response.raise_for_status()
-        
-            with zipfile.ZipFile(BytesIO(response.content)) as z:
-                filename = "F-F_Research_Data_5_Factors_2x3.csv"
-        
-                with z.open(filename) as f:
-                    text = f.read().decode("utf-8")
-        
-            # Keep only the annual section
-            annual_text = text.split("Annual Factors:", 1)[1]
-        
-            df = pd.read_csv(
-                StringIO(annual_text),
-                skiprows=1,
-                skipfooter=2
-            )
-        
-            df = df.rename(columns={df.columns[0]: "date"})
-        
-            # Convert Date to datetime
-            df["date"] = (
-                pd.to_datetime(df["date"].astype(str).str.strip(), format="%Y")
-                + pd.offsets.BYearEnd(0)
-            )
-        
-            # Fama-French returns are in percent; convert to decimals
-            factor_cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
-            df[factor_cols] /= 100
-        
-            return df
-
-
-
-    # def _excess_asset_returns_df(self):
-    #     asset_returns = self._get_returns_df(
-    #         self.asset,
-    #         self._get_prices_df(self.asset, self.start_date, self.interval),
-    #         self.return_type
-    #     )
-
-    #     asset_excess = asset_returns.merge(
-    #         self.risk_free_df,
-    #         on="timestamp",
-    #         how="inner",
-    #         suffixes=("_asset", "_market")
-    #         )
-        
-    #     asset_excess["asset-excess-returns"] = asset_excess[f"{self.asset} adjusted_close_asset"] - asset_excess[f'daily-rf-{self.return_type}-returns_rf']
-    #     asset_excess = asset_excess[["timestamp", "asset-excess-returns"]]
-
-        
-    #     self.asset_excess_returns_df = asset_excess.copy()
-
-
-        
-
-    # @staticmethod
-    # def start_date_from_today_lookback(lookback:str):
-    #     lookback_dict ={
-    #         '1y': 1,
-    #         '2y': 2,
-    #         '3y': 3,
-    #         '5y': 5,
-    #         '10y': 10,
-    #         '20y': 20,
-    #         '30y': 30
-    #     }
-    #     # Get today's date
-    #     today = date.today()
-
-    #     try:
-    #         past_date = today.replace(year=today.year - lookback_dict[lookback])
-    #     except ValueError:
-    #         # Handle the edge case if today is Feb 29 and 5 years ago wasn't a leap year
-    #         past_date = today.replace(year=today.year - lookback_dict[lookback], day=28)
-
-    #     # Convert to 'yyyy-mm-dd' string format
-    #     result_string = past_date.isoformat()
-    #     return result_string
-
-
-
-
-    # @staticmethod
-    # def _get_returns_df(ticker, price_df, return_type:str = "log"):
-    #     """
-    #     this method returns a cleaned-up df of asset returns; used for asset and factor etfs returns
-
-    #     """
-    #     if return_type == "log":
-    #         return_df = log_returns(price_df)
-    #     else:
-    #         return_df = simple_returns(price_df)
-
-    #     return_df = return_df.loc[:, ['timestamp', 'adjusted_close']].copy()
-    #     return_df.rename(columns={'adjusted_close': f"{ticker} adjusted_close"}, inplace=True)
-
-    #     return return_df
-
-    # @staticmethod
-    # def _get_prices_df(ticker:str, start_date, interval):
-    #     """
-    #     this method returns df of asset prices; used for asset and factor etfs
-        
-    #     """
-    #     df = AssetData(ticker=ticker, start_date=start_date, interval=interval).get_prices()
-    #     return df
-
-
-    # def _get_factor_etf_df(self):
-    #     self.market_return_df = self._get_returns_df(
-    #         "spy",
-    #         self._get_prices_df("spy", self.start_date, self.interval),
-    #         self.return_type
-    #     )
-
-    #     self.smallcap_return_df = self._get_returns_df(
-    #         "iwm",
-    #         self._get_prices_df("iwm", self.start_date, self.interval),
-    #         self.return_type
-    #     )
-
-    #     self.value_return_df = self._get_returns_df(
-    #         "iwd",
-    #         self._get_prices_df("iwd", self.start_date, self.interval),
-    #         self.return_type
-    #     )
-
-    #     self.growth_return_df = self._get_returns_df(
-    #         "iwf",
-    #         self._get_prices_df("iwf", self.start_date, self.interval),
-    #         self.return_type
-    #     )
-
-    #     self.quality_return_df = self._get_returns_df(
-    #         "qual",
-    #         self._get_prices_df("qual", self.start_date, self.interval),
-    #         self.return_type
-    #     )
-
-    #     self.momentum_return_df = self._get_returns_df(
-    #         "mtum",
-    #         self._get_prices_df("mtum", self.start_date, self.interval),
-    #         self.return_type
-    #     )
-
-
-
-    # def _excess_factor_returns_df(self):
-
-    #     market_excess = self.market_return_df.merge(
-    #         self.risk_free_df,
-    #         on="timestamp",
-    #         how="inner",
-    #         suffixes=("_market", "_rf")
-    #         )
-
-    #     market_excess["market-excess-returns"] = market_excess["spy adjusted_close_market"] - market_excess[f'daily-rf-{self.return_type}-returns_rf']
-    #     market_excess = market_excess[["timestamp", "market-excess-returns"]]
-
-    #     self.market_excess_returns_df = market_excess.copy()
-
-    #     smb = self.smallcap_return_df.merge(
-    #         self.market_return_df,
-    #         on="timestamp",
-    #         how="inner",
-    #         suffixes=("_small", "_market")
-    #         )
-        
-    #     smb["SMB"] = smb["iwm adjusted_close_small"] - smb["spy adjusted_close_market"]
-    #     smb = smb[["timestamp", "SMB"]]
-        
-    #     self.smb_returns_df = smb.copy()
-        
-
-    #     hml = self.value_return_df.merge(
-    #         self.growth_return_df,
-    #         on="timestamp",
-    #         how="inner",
-    #         suffixes=("_value", "_growth")
-    #         )
-
-    #     hml["HML-returns"] = hml["iwd adjusted_close_value"] - hml["iwf adjusted_close_growth"]
-    #     hml = hml[["timestamp", "HML"]]
-
-    #     self.hml_returns_df = hml.copy()
-
-
-    #     qual = self.quality_return_df.merge(
-    #         self.market_return_df,
-    #         on="timestamp",
-    #         how="inner",
-    #         suffixes=("_qual", "_market")
-    #         )
-        
-    #     qual["RMW"] = qual["qual adjusted_close_qual"] - qual["spy adjusted_close_market"]
-    #     qual = qual[["timestamp", "RMW"]]
-        
-    #     self.rmw_returns_df = qual.copy()
-
-    #     mtum = self.momentum_return_df.merge(
-    #         self.market_return_df,
-    #         on="timestamp",
-    #         how="inner",
-    #         suffixes=("_mtum", "_market")
-    #         )
-        
-    #     mtum["momentum"] = mtum["mtum adjusted_close_mtum"] - mtum["spy adjusted_close_market"]
-    #     mtum = mtum[["timestamp", "momentum"]]
-        
-    #     self.mtum_returns_df = mtum.copy()
-
-
-
-    # def _merge_df(self):
-    #     dfs = [
-    #         self.asset_excess_returns_df,
-    #         self.market_excess_returns_df,
-    #         self.smb_returns_df,
-    #         self.hml_returns_df,
-    #         self.rmw_returns_df,
-    #         self.mtum_returns_df
-    #     ]
-
-    #     merged = dfs[0].copy()
-    #     for df in dfs[1:]:
-    #         merged = merged.merge(df, on="timestamp", how="inner")
-
-    #     merged = merged.sort_values("timestamp").reset_index(drop=True)
-
-    #     self.summary = merged
-        
+        return defaults[self.freq]
 
 
 if __name__ == "__main__":
-    # asset_prices = AssetData(ticker="spy",start_date="1999-01-01",interval="daily").get_prices()
-    # return_fn = log_returns
-    # asset_returns = return_fn(asset_prices)
-    # asset_returns = asset_returns.loc[:, ['timestamp', 'adjusted_close']].copy()
-    # asset_returns.rename(columns={'adjusted_close': "SPY adjusted_close"}, inplace=True)
-    # print(asset_returns.head())
-
-    # my_fac_obj = EquityFactorsRegression("aapl")
-    # print(my_fac_obj.summary.head())
-
-    # url = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_5_Factors_2x3_CSV.zip"
-    # response = requests.get(url)
-    # response.raise_for_status()
-
-    # with zipfile.ZipFile(BytesIO(response.content)) as z:
-    #     filename = "F-F_Research_Data_5_Factors_2x3.csv"
-
-    #     with z.open(filename) as f:
-    #         text = f.read().decode("utf-8")
-
-    # # Keep only the monthly section
-    # monthly_text = text.split("Annual Factors:", 1)[1]
-
-    # df = pd.read_csv(
-    #     StringIO(monthly_text),
-    #     skiprows=1,
-    #     skipfooter=2
-    # )
-
-    # df = df.rename(columns={df.columns[0]: "date"})
-
-    # # Convert Date to datetime
-    # df["date"] = (
-    #     pd.to_datetime(df["date"].astype(str).str.strip(), format="%Y")
-    #     + pd.offsets.BYearEnd(0)
-    # )
-
-    # # Fama-French returns are in percent; convert to decimals
-    # factor_cols = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
-    # df[factor_cols] /= 100
-    #print(df.head())
-
-    fac = EquityFactorsRegression('french','2025-01-01')
+    fac = EquityFactorsRegression(factor_source='french', frequency='daily')
     fac.asset_list('aapl','goog')
     fac.regress()

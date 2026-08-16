@@ -7,7 +7,7 @@ from pathlib import Path
 
 class FredApi:
 
-     #----------------------------------------------------------
+        #----------------------------------------------------------
         #       FRED API
         #
         # DOCUMENTATION:
@@ -109,7 +109,7 @@ class FredApi:
 
     def get_data(self, ticker, start_date, end_date = None):
         
-        CACHE_DIR = Path("data/fred")
+        CACHE_DIR = Path("../../data/fred")
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
     
         cache_file = CACHE_DIR / f"{ticker}_{self.freq}.parquet"
