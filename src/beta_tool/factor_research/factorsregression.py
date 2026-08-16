@@ -293,6 +293,9 @@ class EquityFactorsRegression():
                     merged_df = merged_df.drop(columns = ['__period','date_ff'])
                     merged_df_dic[ticker] = merged_df
 
+                    asset_start = df["date"].min()
+                    asset_end = df["date"].max()
+
                     ff_start = french_factor_df["date"].min()
                     ff_end = french_factor_df["date"].max()
 
