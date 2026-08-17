@@ -292,16 +292,12 @@ class TiingoApi:
         if start_date is None:
             start_date = "1960-01-01"
         else:
-            start_date = pd.Timestamp(start_date).strftime(
-                "%Y-%m-%d"
-            )
+            start_date = pd.Timestamp(start_date).strftime("%Y-%m-%d")
 
         if end_date is None:
             end_date = date.today().isoformat()
         else:
-            end_date = pd.Timestamp(end_date).strftime(
-                "%Y-%m-%d"
-            )
+            end_date = pd.Timestamp(end_date).strftime("%Y-%m-%d")
 
         # ------------------------------------------------------
         # Request parameters
@@ -448,7 +444,7 @@ class TiingoApi:
 
         df = (
             df
-            .dropna(subset=["date", "adjClose"])
+            .dropna()
             .drop_duplicates(subset=["date"])
             .sort_values("date")
             .reset_index(drop=True)
