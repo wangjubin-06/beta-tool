@@ -7,17 +7,16 @@ from datetime import datetime, timedelta, date
 
 
 class FredApi:
-
-        #----------------------------------------------------------
-        #       FRED API
-        #
-        # DOCUMENTATION:
-        # https://fred.stlouisfed.org/docs/api/fred/series_observations.html
-        #
-        #
-        # the api here returns data with column 'date' in the form of a pd df datetime object, and 'value' in the form of floats that are the actual time series data
-        #
-        #----------------------------------------------------------
+    #----------------------------------------------------------
+    #       FRED API
+    #
+    # DOCUMENTATION:
+    # https://fred.stlouisfed.org/docs/api/fred/series_observations.html
+    #
+    #
+    # the api here returns data with column 'date' in the form of a pd df datetime object, and 'value' in the form of floats that are the actual time series data
+    #
+    #----------------------------------------------------------
     
 
     def __init__(self, api_key, frequency):
@@ -46,7 +45,6 @@ class FredApi:
         # q = Quarterly
         # sa = Semiannual
         # a = Annual
-
 
     def _get_full_history(self, ticker):
         """
@@ -111,8 +109,6 @@ class FredApi:
         df["date"] = pd.to_datetime(df["date"])
         
         return df
-
-
 
     def get_data(self, ticker, start_date=None, end_date = None):
         
