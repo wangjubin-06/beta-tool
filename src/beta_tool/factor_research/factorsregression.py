@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import os
-from beta_tool.data_collection.tiingo_api import TiingoApi
+from data_collection.tiingo_api import TiingoApi
 from data_collection.fred_api import FredApi
 from data_collection.ff_factors_api import FrenchApi
 from pprint import pprint
@@ -235,6 +235,8 @@ class EquityFactorsRegression:
             )
             
             merged_df_dic[asset] = final_merged_df
+            
+            grand_results["merged_data"] = {}
 
             # alert users which date rows are collapsed due to the inner merging
             asset_start = self._get_tiingo_df(asset)["date"].min()
@@ -243,25 +245,37 @@ class EquityFactorsRegression:
             # f_end = merged_df['period'].max()           
             actual_start = merged_df['period'].min()
             actual_end = merged_df['period'].max()
+            
+            if self.freq == 'daily':
+                actual_start_str = actual_start.strftime('%Y-%m-%d')
+                actual_end_str = actual_end.strftime('%Y-%m-%d')
+            
+            if self.freq == 'monthly':
+                actual_start_str = actual_start.strftime('%Y-%m')
+                actual_end_str = actual_end.strftime('%Y-%m')
+            
+            if self.freq == 'annually':
+                actual_start_str = actual_start.strftime('%Y')
+                actual_end_str = actual_end.strftime('%Y')
 
             if actual_start > asset_start:
                 print(f'Start date of {asset} observation window has been\n',
-                        f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.astype(str)}\n',
+                        f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start_str}\n',
                         f'due to data range overlap compatibility.\n'
                 )
             if actual_end < asset_end:
                 print(f'End date of {asset} observation window has been\n',
-                        f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.astype(str)}\n',
+                        f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end_str}\n',
                         f'due to data range overlap compatibility.\n'
                 )
             print(f'{asset} observation window is from\n',
-                    f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.astype(str)}\n\n'
+                    f'{actual_start_str} to {actual_end_str}\n\n'
             )
 
             grand_results["merged_data"][asset] = {
-                "data": merged_df,
+                "data": final_merged_df,
                 "asset_data_window": f"{asset_start.strftime('%Y-%m-%d')} to {asset_end.strftime('%Y-%m-%d')}",
-                "regression_data_window": f"{actual_start.astype(str)} to {actual_end.astype(str)}",
+                "regression_data_window": f"{actual_start_str} to {actual_end_str}",
             }
 
             
@@ -1187,13 +1201,13 @@ class EquityFactorsRegression:
 # -----------------------
 
 if __name__ == "__main__":
-    fac = EquityFactorsRegression(factor_source='french', frequency='daily')
-    asset_list = ['msft','nvda']
-    fac.asset_list(*asset_list)
-    data = fac.regress()
+    # fac = EquityFactorsRegression(factor_source='french', frequency='daily')
+    # asset_list = ['msft','nvda']
+    # fac.asset_list(*asset_list)
+    # data = fac.regress()
 
-    for asset in asset_list:
-        pprint(data['regression_results'][asset], sort_dicts=False, width=1, indent=4)
+    # for asset in asset_list:
+    #     pprint(data['regression_results'][asset], sort_dicts=False, width=1, indent=4)
     
     fac1 = EquityFactorsRegression(factor_source="etf", frequency='daily')
     asset_list = ['goog','ko']
