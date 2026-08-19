@@ -128,6 +128,7 @@ class EquityFactorsRegression:
         #
         # users can override their hac lag number, but default will be automatic
         self.hac_lags = self._resolve_hac_lags(hac)
+        self.hac_auto = True if hac == 'auto' else False
 
     def asset_list(self, *args:str):
         """
@@ -152,7 +153,7 @@ class EquityFactorsRegression:
 
     # ------------------------------
     # 
-    # the actual API the user uses
+    # the actual APIs the user uses
     #
     # ------------------------------
 
@@ -190,6 +191,22 @@ class EquityFactorsRegression:
             return self._french_regress()
 
 
+    def results(self):
+        return_str = ''
+        
+        if self.factor_source == 'etf':
+            for asset, dic in self._grand_results_dic['regression_results'].items():
+                window = f'From {dic['sample']['start_date']} to {dic['sample']['end_date']}'
+                frequency = f'Frequency of observations: {dic['sample']['frequency']}'
+                obs = f'{dic['sample']['n_observations']}'
+            
+    
+    def advanced_results(self):
+        for model in self._model_results_dic:
+            print(model.summary())
+
+
+
     # ----------------
     # private methods
     # ----------------
@@ -201,7 +218,7 @@ class EquityFactorsRegression:
         grand_results['basic_information'] = {
             'observations_frequency': self.freq,
             'return_convention': self.return_type,
-            'factor_data_source': self.factor_source,
+            'factor_data_source': f"non standard etf-proxies",
             'HAC_lags': self.hac_lags,
             'asset_list': self.assets.copy()
         }
@@ -217,6 +234,8 @@ class EquityFactorsRegression:
         market_fac, smb_fac, hml_fac, mtum_fac, rmw_fac = self._get_factor_returns()
 
         merged_df_dic = {}
+        
+        grand_results["merged_data"] = {}
 
         for asset, asset_excess_returns_df in asset_excess_returns_dic.items():
             merged_df = self._merge_factors(
@@ -236,15 +255,70 @@ class EquityFactorsRegression:
             
             merged_df_dic[asset] = final_merged_df
             
-            grand_results["merged_data"] = {}
+            
 
             # alert users which date rows are collapsed due to the inner merging
             asset_start = self._get_tiingo_df(asset)["date"].min()
             asset_end = self._get_tiingo_df(asset)["date"].max()
-            # f_start = merged_df['period'].min()
-            # f_end = merged_df['period'].max()           
-            actual_start = merged_df['period'].min()
-            actual_end = merged_df['period'].max()
+            f_start = merged_df['period'].min()
+            f_end = merged_df['period'].max()           
+            actual_start = final_merged_df['period'].min()
+            actual_end = final_merged_df['period'].max()
+            
+            if self.freq == 'daily':
+                asset_start_str = asset_start.strftime('%Y-%m-%d')
+                asset_end_str = asset_end.strftime('%Y-%m-%d')
+                f_start_str = f_start.strftime('%Y-%m-%d')
+                f_end_str = f_end.strftime('%Y-%m-%d')
+                actual_start_str = actual_start.strftime('%Y-%m-%d')
+                actual_end_str = actual_end.strftime('%Y-%m-%d')
+            
+            if self.freq == 'monthly':
+                asset_start_str = asset_start.strftime('%Y-%m')
+                asset_end_str = asset_end.strftime('%Y-%m')
+                f_start_str = f_start.strftime('%Y-%m')
+                f_end_str = f_end.strftime('%Y-%m')
+                actual_start_str = actual_start.strftime('%Y-%m')
+                actual_end_str = actual_end.strftime('%Y-%m')
+            
+            if self.freq == 'annually':
+                asset_start_str = asset_start.strftime('%Y')
+                asset_end_str = asset_end.strftime('%Y')
+                f_start_str = f_start.strftime('%Y')
+                f_end_str = f_end.strftime('%Y')
+                actual_start_str = actual_start.strftime('%Y')
+                actual_end_str = actual_end.strftime('%Y')
+
+            if actual_start > asset_start:
+                print(f'Start date of {asset} observation window has been\n',
+                        f'pushed forward from {asset_start_str} to {actual_start_str}\n',
+                        f'due to data range overlap compatibility.\n'
+                )
+            if actual_end < asset_end:
+                print(f'End date of {asset} observation window has been\n',
+                        f'pushed back from {asset_end_str} to {actual_end_str}\n',
+                        f'due to data range overlap compatibility.\n'
+                )
+            print(f'{asset} observation window is from\n',
+                    f'{actual_start_str} to {actual_end_str}\n\n'
+            )
+
+            grand_results["merged_data"][asset] = {
+                "dataframe": final_merged_df,
+                f"{asset}_data_window": f"{asset_start_str} to {asset_end_str}",
+                "factor_data_window": f"{f_start_str} to {f_end_str}",
+                "regression_data_window": f"{actual_start_str} to {actual_end_str}",
+            }
+
+            
+        grand_results['regression_results'] = {}
+
+        model_results = {}
+
+        for asset, df in merged_df_dic.items():
+
+            actual_start = df["period"].min()
+            actual_end = df["period"].max()
             
             if self.freq == 'daily':
                 actual_start_str = actual_start.strftime('%Y-%m-%d')
@@ -258,36 +332,6 @@ class EquityFactorsRegression:
                 actual_start_str = actual_start.strftime('%Y')
                 actual_end_str = actual_end.strftime('%Y')
 
-            if actual_start > asset_start:
-                print(f'Start date of {asset} observation window has been\n',
-                        f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start_str}\n',
-                        f'due to data range overlap compatibility.\n'
-                )
-            if actual_end < asset_end:
-                print(f'End date of {asset} observation window has been\n',
-                        f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end_str}\n',
-                        f'due to data range overlap compatibility.\n'
-                )
-            print(f'{asset} observation window is from\n',
-                    f'{actual_start_str} to {actual_end_str}\n\n'
-            )
-
-            grand_results["merged_data"][asset] = {
-                "data": final_merged_df,
-                "asset_data_window": f"{asset_start.strftime('%Y-%m-%d')} to {asset_end.strftime('%Y-%m-%d')}",
-                "regression_data_window": f"{actual_start_str} to {actual_end_str}",
-            }
-
-            
-        grand_results['regression_results'] = {}
-
-        model_results = {}
-
-        for asset, df in merged_df_dic.items():
-
-            actual_start = df["period"].min()
-            actual_end = df["period"].max()
-
 
             y_col = f'{asset}_excess_simple_return' if self.return_type == 'simple' else f'{asset}_excess_log_return'
             x_col = self.MERGED_DF_COLS_SIMPLE if self.return_type == 'simple' else self.MERGED_DF_COLS_LOG
@@ -300,69 +344,89 @@ class EquityFactorsRegression:
             model_results[asset] = model
 
             grand_results['regression_results'][asset] = {
-                "model": {
+                "summary": {
                     "name": "ETF Proxy Factor Regression",
                     "type": "OLS",
-                    "dependent_variable": f"{asset}-RF",
+                    "dependent_variable": f"{asset}-excess-returns",
                     "factors": x_col,
                 },
-                "sample": {
+                "model": {
                     "frequency": f"{self.freq}",
-                    "start_date": f"{actual_start}",
-                    "end_date": f"{actual_end}",
+                    "start_date": f"{actual_start_str}",
+                    "end_date": f"{actual_end_str}",
                     "n_observations": int(model.nobs),
+                    "r_squared": model.rsquared.item(),
+                    "adjusted_r_squared": model.rsquared_adj.item()
                 },
                 "specification": {
-                    "dependent_variable": f"{asset}-RF",
-                    "independent_variables": ["Mkt-RF", "SMB", "HML", "MTUM","RMW"],
+                    "dependent_variable": f"{asset}-spy",
+                    "independent_variables": ["SPY excess return", "ETF size proxy", "ETF value/growth proxy", "momentum ETF proxy","profitability ETF proxy"],
                     "intercept": True,
                 },
                 "inference": {
                     "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
                     "hac_maxlags": f'{self.hac_lags}',
-                    "hac_selection": "frequency_default"
+                    "hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
                 },
-                "coefficients": {
-                    "const (alpha)": model.params['const'].item(),
-                    "Mkt-RF (market-beta)": model.params[x_col[0]].item(),
-                    "SMB (size-exposure)": model.params[x_col[1]].item(),
-                    "HML (value vs growth)": model.params[x_col[2]].item(),
-                    "MTUM (momentum-exposure)": model.params[x_col[3]].item(),
-                    "RMW (profitability-exposure)": model.params[x_col[4]].item(),
+                "alpha":{
+                    "amount": model.params['const'].item(),
+                    "standard_error": model.bse['const'].item(),
+                    "t-stat": model.tvalues['const'].item(),
+                    "p-value":model.pvalues['const'].item(),
+                    "ci_lower": model.conf_int().loc['const', 0].item(),
+                    "ci_upper": model.conf_int().loc['const', 1].item(),
                 },
-
-                "standard_errors": {
-                    "const": model.bse['const'].item(),
-                    "Mkt-RF": model.bse[x_col[0]].item(),
-                    "SMB": model.bse[x_col[1]].item(),
-                    "HML": model.bse[x_col[2]].item(),
-                    "MTUM": model.bse[x_col[3]].item(),
-                    "RMW": model.bse[x_col[4]].item(),
-                },
-
-                "t_statistics": {
-                    "const": model.tvalues['const'].item(),
-                    "Mkt-RF": model.tvalues[x_col[0]].item(),
-                    "SMB": model.tvalues[x_col[1]].item(),
-                    "HML": model.tvalues[x_col[2]].item(),
-                    "MTUM": model.tvalues[x_col[3]].item(),
-                    "RMW": model.tvalues[x_col[4]].item(),
-                },
-
-                "p_values": {
-                    "const": model.pvalues['const'].item(),
-                    "Mkt-RF": model.pvalues[x_col[0]].item(),
-                    "SMB": model.pvalues[x_col[1]].item(),
-                    "HML": model.pvalues[x_col[2]].item(),
-                    "MTUM": model.pvalues[x_col[3]].item(),
-                    "RMW": model.pvalues[x_col[4]].item(),
-                },
+                "exposures":{
+                    "market":{
+                        "beta": model.params[x_col[0]].item(),
+                        "standard_error": model.bse[x_col[0]].item(),
+                        "t-stat": model.tvalues[x_col[0]].item(),
+                        "p-value": model.pvalues[x_col[0]].item(),
+                        "ci_lower": model.conf_int().loc[x_col[0], 0].item(),
+                        "ci_upper": model.conf_int().loc[x_col[0], 1].item(),
+                    },
+                    "size":{
+                        "beta": model.params[x_col[1]].item(),
+                        "standard_error": model.bse[x_col[1]].item(),
+                        "t-stat": model.tvalues[x_col[1]].item(),
+                        "p-value": model.pvalues[x_col[1]].item(),
+                        "ci_lower": model.conf_int().loc[x_col[1], 0].item(),
+                        "ci_upper": model.conf_int().loc[x_col[1], 1].item(),
+                    },
+                    "value":{
+                        "beta": model.params[x_col[2]].item(),
+                        "standard_error": model.bse[x_col[2]].item(),
+                        "t-stat": model.tvalues[x_col[2]].item(),
+                        "p-value": model.pvalues[x_col[2]].item(),
+                        "ci_lower": model.conf_int().loc[x_col[2], 0].item(),
+                        "ci_upper": model.conf_int().loc[x_col[2], 1].item(),
+                    },
+                    "momentum":{
+                        "beta": model.params[x_col[3]].item(),
+                        "standard_error": model.bse[x_col[3]].item(),
+                        "t-stat": model.tvalues[x_col[3]].item(),
+                        "p-value": model.pvalues[x_col[3]].item(),
+                        "ci_lower": model.conf_int().loc[x_col[3], 0].item(),
+                        "ci_upper": model.conf_int().loc[x_col[3], 1].item(),
+                    },
+                    "profitability":{
+                        "beta": model.params[x_col[4]].item(),
+                        "standard_error": model.bse[x_col[4]].item(),
+                        "t-stat": model.tvalues[x_col[4]].item(),
+                        "p-value": model.pvalues[x_col[4]].item(),
+                        "ci_lower": model.conf_int().loc[x_col[4], 0].item(),
+                        "ci_upper": model.conf_int().loc[x_col[4], 1].item(),
+                    }
+                }
             }
 
-        for model in model_results.values():
-            print(model.summary())
+        self._model_results_dic = model_results
+        self._grand_results_dic = grand_results
+                
+        # for model in model_results.values():
+        #     print(model.summary())
 
-        return grand_results
+        # return grand_results
 
     def _french_regress(self):
         if self.freq not in {'daily','monthly','annually'}:
@@ -386,8 +450,8 @@ class EquityFactorsRegression:
         else:
             french_factor_df = self._load_french('annually').copy()
 
-        grand_results['french_data'] = french_factor_df
-        grand_results['assets_data'] = {}
+        # grand_results['french_data'] = french_factor_df
+        # grand_results['assets_data'] = {}
 
 
         assets_df_dic = {}
@@ -398,7 +462,7 @@ class EquityFactorsRegression:
             if not asset_returns_df.empty:
                 assets_df_dic[ticker] = asset_returns_df
 
-                grand_results['assets_data'][ticker] = asset_returns_df
+                # grand_results['assets_data'][ticker] = asset_returns_df
 
 
         assets_returns_df_dic = {}
@@ -483,9 +547,10 @@ class EquityFactorsRegression:
                 )
 
                 grand_results['merged_data'][ticker] = {
-                    f'{ticker} data window': f'{asset_start} to {asset_end}',
-                    f'french factor data window': f'{ff_start} to {ff_end}',
-                    f'regression data window': f'{actual_start} to {actual_end}'
+                    "dataframe": merged_df,
+                    f'{ticker}_data_window': f'{asset_start.strftime('%Y-%m-%d')} to {asset_end.strftime('%Y-%m-%d')}',
+                    f'factor_data_window': f'{ff_start.strftime('%Y-%m-%d')} to {ff_end.strftime('%Y-%m-%d')}',
+                    f'regression_data_window': f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
                 }
 
             
@@ -537,13 +602,14 @@ class EquityFactorsRegression:
                             f'due to data range overlap compatibility.\n'
                     )
                 print(f'{ticker} observation window is from\n',
-                        f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
+                        f'{actual_start.strftime('%Y-%m')} to {actual_end.strftime('%Y-%m')}'
                 )
 
                 grand_results['merged_data'][ticker] = {
-                    f'{ticker} data window': f'{asset_start} to {asset_end}',
-                    f'french factor data window': f'{ff_start} to {ff_end}',
-                    f'regression data window': f'{actual_start} to {actual_end}'
+                    "dataframe": merged_df,
+                    f'{ticker}_data_window': f'{asset_start.strftime('%Y-%m')} to {asset_end.strftime('%Y-%m')}',
+                    f'factor_data_window': f'{ff_start.strftime('%Y-%m')} to {ff_end.strftime('%Y-%m')}',
+                    f'regression_data_window': f'{actual_start.strftime('%Y-%m')} to {actual_end.strftime('%Y-%m')}'
                 }
             
             
@@ -599,9 +665,10 @@ class EquityFactorsRegression:
                     )
 
                 grand_results['merged_data'][ticker] = {
-                    f'{ticker} data window': f'{asset_start} to {asset_end}',
-                    f'french factor data window': f'{ff_start} to {ff_end}',
-                    f'regression data window': f'{actual_start} to {actual_end}'
+                    "dataframe": merged_df,
+                    f'{ticker}_data_window': f'{asset_start.strftime('%Y')} to {asset_end.strftime('%Y')}',
+                    f'factor_data_window': f'{ff_start.strftime('%Y')} to {ff_end.strftime('%Y')}',
+                    f'regression_data_window': f'{actual_start.strftime('%Y')} to {actual_end.strftime('%Y')}'
                 }
 
 
@@ -612,16 +679,12 @@ class EquityFactorsRegression:
             for ticker, df in merged_df_dic.items():
 
                 df[f'{ticker}-RF'] = df[f'{ticker}_simple_returns'] - df['RF']
-
-                grand_results['merged_data'][ticker]['merged_data_dataframe'] = df.copy()
-
         else:
 
             for ticker, df in merged_df_dic.items():
 
                 df[f'{ticker}-RF'] = df[f'{ticker}_log_returns'] - df['RF']
 
-                grand_results['merged_data'][ticker]['merged_data_dataframe'] = df.copy()
 
 
         
@@ -633,6 +696,18 @@ class EquityFactorsRegression:
 
             actual_start = df["date"].min()
             actual_end = df["date"].max()
+            
+            if self.freq == 'daily':
+                actual_start_str = actual_start.strftime('%Y-%m-%d')
+                actual_end_str = actual_end.strftime('%Y-%m-%d')
+            
+            if self.freq == 'monthly':
+                actual_start_str = actual_start.strftime('%Y-%m')
+                actual_end_str = actual_end.strftime('%Y-%m')
+            
+            if self.freq == 'annually':
+                actual_start_str = actual_start.strftime('%Y')
+                actual_end_str = actual_end.strftime('%Y')
 
             y = df[f'{ticker}-RF']
             X = df[self.FRENCH_FACTOR_COLS]
@@ -643,17 +718,19 @@ class EquityFactorsRegression:
 
 
             grand_results['regression_results'][ticker] = {
-                "model": {
-                    "name": "Fama-French 5 Factor",
+                "summary": {
+                    "name": "Fama-French 5 Factor Regression",
                     "type": "OLS",
                     "dependent_variable": f"{ticker}-RF",
                     "factors": ["Mkt-RF", "SMB", "HML", "RMW", "CMA"],
                 },
-                "sample": {
+                "model": {
                     "frequency": f"{self.freq}",
-                    "start_date": f"{actual_start}",
-                    "end_date": f"{actual_end}",
+                    "start_date": f"{actual_start_str}",
+                    "end_date": f"{actual_end_str}",
                     "n_observations": int(model.nobs),
+                    "r_squared": model.rsquared.item(),
+                    "adjusted_r_squared": model.rsquared_adj.item()
                 },
                 "specification": {
                     "dependent_variable": f"{ticker}-RF",
@@ -663,49 +740,67 @@ class EquityFactorsRegression:
                 "inference": {
                     "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
                     "hac_maxlags": f'{self.hac_lags}',
-                    "hac_selection": "frequency_default"
+                    "hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
                 },
-                "coefficients": {
-                    "const (alpha)": model.params['const'].item(),
-                    "Mkt-RF (market-beta)": model.params['Mkt-RF'].item(),
-                    "SMB (size-exposure)": model.params["SMB"].item(),
-                    "HML (value vs growth)": model.params["HML"].item(),
-                    "RMW (profitability-exposure)": model.params["RMW"].item(),
-                    "CMA (conservative vs aggressive investment)": model.params["CMA"].item(),
+                "alpha":{
+                    "amount": model.params['const'].item(),
+                    "standard_error": model.bse['const'].item(),
+                    "t-stat": model.tvalues['const'].item(),
+                    "p-value":model.pvalues['const'].item(),
+                    "ci_lower": model.conf_int().loc['const', 0].item(),
+                    "ci_upper": model.conf_int().loc['const', 1].item(),
                 },
-
-                "standard_errors": {
-                    "const": model.bse['const'].item(),
-                    "Mkt-RF": model.bse['Mkt-RF'].item(),
-                    "SMB": model.bse['SMB'].item(),
-                    "HML": model.bse['HML'].item(),
-                    "RMW": model.bse['RMW'].item(),
-                    "CMA": model.bse['CMA'].item(),
-                },
-
-                "t_statistics": {
-                    "const": model.tvalues['const'].item(),
-                    "Mkt-RF": model.tvalues['Mkt-RF'].item(),
-                    "SMB": model.tvalues['SMB'].item(),
-                    "HML": model.tvalues['HML'].item(),
-                    "RMW": model.tvalues['RMW'].item(),
-                    "CMA": model.tvalues['CMA'].item(),
-                },
-
-                "p_values": {
-                    "const": model.pvalues['const'].item(),
-                    "Mkt-RF": model.pvalues['Mkt-RF'].item(),
-                    "SMB": model.pvalues['SMB'].item(),
-                    "HML": model.pvalues['HML'].item(),
-                    "RMW": model.pvalues['RMW'].item(),
-                    "CMA": model.pvalues['CMA'].item(),
-                },
+                "exposures":{
+                    "market":{
+                        "beta": model.params['Mkt-RF'].item(),
+                        "standard_error": model.bse['Mkt-RF'].item(),
+                        "t-stat": model.tvalues['Mkt-RF'].item(),
+                        "p-value": model.pvalues['Mkt-RF'].item(),
+                        "ci_lower": model.conf_int().loc['Mkt-RF', 0].item(),
+                        "ci_upper": model.conf_int().loc['Mkt-RF', 1].item(),
+                    },
+                    "size":{
+                        "beta": model.params["SMB"].item(),
+                        "standard_error": model.bse["SMB"].item(),
+                        "t-stat": model.tvalues["SMB"].item(),
+                        "p-value": model.pvalues["SMB"].item(),
+                        "ci_lower": model.conf_int().loc["SMB", 0].item(),
+                        "ci_upper": model.conf_int().loc["SMB", 1].item(),
+                    },
+                    "value":{
+                        "beta": model.params["HML"].item(),
+                        "standard_error": model.bse["HML"].item(),
+                        "t-stat": model.tvalues["HML"].item(),
+                        "p-value": model.pvalues["HML"].item(),
+                        "ci_lower": model.conf_int().loc["HML", 0].item(),
+                        "ci_upper": model.conf_int().loc["HML", 1].item(),
+                    },
+                    "profitability":{
+                        "beta": model.params["RMW"].item(),
+                        "standard_error": model.bse["RMW"].item(),
+                        "t-stat": model.tvalues["RMW"].item(),
+                        "p-value": model.pvalues["RMW"].item(),
+                        "ci_lower": model.conf_int().loc["RMW", 0].item(),
+                        "ci_upper": model.conf_int().loc["RMW", 1].item(),
+                    },
+                    "investment":{
+                        "beta": model.params["CMA"].item(),
+                        "standard_error": model.bse["CMA"].item(),
+                        "t-stat": model.tvalues["CMA"].item(),
+                        "p-value": model.pvalues["CMA"].item(),
+                        "ci_lower": model.conf_int().loc["CMA", 0].item(),
+                        "ci_upper": model.conf_int().loc["CMA", 1].item(),
+                    }
+                }
             }
 
-        for model in model_results.values():
-            print(model.summary())
+        self._model_results_dic = model_results
+        self._grand_results_dic = grand_results
+        
+        # for model in model_results.values():
+        #     print(model.summary())
 
-        return grand_results
+        # return grand_results
 
     def _ols_regression(self, y, X):
         X = sm.add_constant(X)
