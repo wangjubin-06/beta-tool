@@ -1,6 +1,6 @@
 import os
-from datetime import timedelta, date
-
+from datetime import timedelta, date, datetime
+import json
 import pandas as pd
 import requests
 from io import StringIO
@@ -65,6 +65,14 @@ class TiingoApi:
         "annually",
     }
 
+    # How often we are willing to check Tiingo for new data
+    REFRESH_INTERVALS = {
+        "daily": timedelta(hours=24),
+        "weekly": timedelta(days=4),
+        "monthly": timedelta(days=15),
+        "annually": timedelta(days=120),
+    }
+    
     def __init__(self, api_key, frequency, simplified=False):
 
         if frequency not in self.ALLOWED_FREQUENCIES:
@@ -82,6 +90,8 @@ class TiingoApi:
         self.api_key = api_key
         self.freq = frequency
         self.simplified = simplified
+        
+        self.refresh_interval = self.REFRESH_INTERVALS[frequency]
 
     # ==========================================================
     # Public API
@@ -93,8 +103,14 @@ class TiingoApi:
 
         Data is cached locally in Parquet files.
 
-        If the requested range extends beyond the cached range,
-        only the missing portion is downloaded.
+        The cache will only be updated when the cache becomes stale
+        dictated by self.REFRESH_INTERVALS, so the cache data date range
+        may not be the latest.
+        
+        This explicit design is chosen to balance
+        between conserving API call limits and having enough data points
+        for regression.
+        
         """
 
         ticker = ticker.lower()
@@ -118,117 +134,28 @@ class TiingoApi:
                 f"start_date ({requested_start.date()}) cannot be after end_date ({requested_end.date()})"
             )
 
-        # ------------------------------------------------------
-        # Load cache
-        # ------------------------------------------------------
-
-        cached = self._load_cache(cache_file)
 
         # ------------------------------------------------------
-        # No useful cache
+        # Cache missing or stale -> download full history
         # ------------------------------------------------------
 
-        if cached.empty:
+        if self._cache_is_stale(cache_file):
 
-            df = self._get_history(
-                ticker=ticker,
-                start=requested_start,
-                end=requested_end,
-            )
+            df = self._get_full_history(ticker)
 
-            # Don't cache an empty response.
-            #
-            # This is important because an empty response can be
-            # caused by requesting a future/weekend-only period.
             if df.empty:
-                return df
+                return self._empty_dataframe()
 
             self._save_cache(df, cache_file)
 
-            return self._filter_date_range(
-                df,
-                requested_start,
-                requested_end,
-            )
-
         # ------------------------------------------------------
-        # Existing cache
+        # Cache is fresh -> use local data
         # ------------------------------------------------------
 
-        cached_start = cached["date"].min()
-        cached_end = cached["date"].max()
-
-        pieces = [cached]
-
-        # ======================================================
-        # Missing data BEFORE cache
-        # ======================================================
-
-        if requested_start < cached_start:
-
-            fetch_end = cached_start - pd.Timedelta(days=1)
-
-            older = self._get_history(
-                ticker=ticker,
-                start=requested_start,
-                end=fetch_end,
-            )
-
-            if not older.empty:
-                pieces.append(older)
-
-        # ======================================================
-        # Missing data AFTER cache
-        # ======================================================
-
-        if requested_end > cached_end:
-
-            # --------------------------------------------------
-            # If requested_end is a weekend, don't bother making
-            # an API request just for Saturday/Sunday.
-            #
-            # We still fetch up to the most recent weekday.
-            # --------------------------------------------------
-
-            fetch_end = self._latest_weekday(requested_end)
-
-            fetch_start = cached_end + pd.Timedelta(days=1)
-
-            if fetch_start <= fetch_end:
-
-                newer = self._get_history(
-                    ticker=ticker,
-                    start=fetch_start,
-                    end=fetch_end,
-                )
-
-                if not newer.empty:
-                    pieces.append(newer)
-
-        # ======================================================
-        # Combine cache + newly downloaded data
-        # ======================================================
-
-        result = (
-            pd.concat(pieces, ignore_index=True)
-            .drop_duplicates(subset=["date"])
-            .sort_values("date")
-            .reset_index(drop=True)
-        )
-
-        # ------------------------------------------------------
-        # Save updated cache
-        # ------------------------------------------------------
-
-        if not result.empty:
-            self._save_cache(result, cache_file)
-
-        # ------------------------------------------------------
-        # Return only requested range
-        # ------------------------------------------------------
-
+        cached = self._load_cache(cache_file)
+        
         return self._filter_date_range(
-            result,
+            cached,
             requested_start,
             requested_end,
         )
@@ -483,7 +410,7 @@ class TiingoApi:
         """
 
         if not cache_file.exists():
-            return pd.DataFrame()
+            return self._empty_dataframe()
 
         try:
             cached = pd.read_parquet(cache_file)
@@ -496,7 +423,7 @@ class TiingoApi:
             ) from exc
 
         if cached.empty:
-            return pd.DataFrame()
+            return self._empty_dataframe()
 
         if "date" not in cached.columns:
             raise RuntimeError(
@@ -589,6 +516,15 @@ class TiingoApi:
 
         return pd.DataFrame(columns=columns)
 
+    def _cache_is_stale(self, cache_file):
+        if not cache_file.exists():
+            return True
+
+        cache_age = datetime.now() - datetime.fromtimestamp(
+            cache_file.stat().st_mtime
+        )
+
+        return cache_age >= self.REFRESH_INTERVALS[self.freq]
 
 # ==============================================================
 # Example
