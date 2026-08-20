@@ -24,6 +24,17 @@ class FrenchApi:
     #
     #----------------------------------------------------------
 
+    
+    # How often we are willing to check Tiingo for new data
+    REFRESH_INTERVALS = {
+        "daily": timedelta(days=15),
+        "monthly": timedelta(days=15),
+        "annually": timedelta(days=180),
+    }
+
+    FACTOR_COLS = ["Mkt-RF", "SMB", "HML", "RMW", "CMA", "RF"]
+
+
     def __init__(self, region:str, frequency:str):
 
         regions = {
@@ -197,61 +208,187 @@ class FrenchApi:
 
 
     def get_data(self, start_date=None, end_date=None):
-        CACHE_DIR = Path("../../data/french")
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        """
+        Return French historical factor data for the requested date range.
 
-        cache_file = CACHE_DIR / f"{self.region}_{self.freq}.parquet"
+        Data is cached locally in Parquet files.
 
-        CACHE_MAX_AGE = timedelta(hours=24)
+        The cache will only be updated when the cache becomes stale
+        dictated by self.REFRESH_INTERVALS, so the cache data date range
+        may not be the latest.
+        
+        This explicit design is chosen to balance
+        between conserving API call and having enough data points
+        for regression.
+        
+        """
 
-        # -------------------------
-        # 1. Load existing cache
-        # -------------------------
-        if cache_file.exists():
-            modified_time = datetime.fromtimestamp(cache_file.stat().st_mtime)
+        
+        cache_file = self._get_cache_file()
 
-            if datetime.now() - modified_time < CACHE_MAX_AGE:
-                # Cache is still fresh
-                cached = pd.read_parquet(cache_file)
-                cached["date"] = pd.to_datetime(cached["date"])
-            else:
-                # Cache has expired
-                cached = pd.DataFrame()
-        else:
-            cached = pd.DataFrame()
+        # ------------------------------------------------------
+        # Requested date range
+        # ------------------------------------------------------
 
-        if start_date is None:
-            requested_start = None
-        else:
-            requested_start = pd.Timestamp(start_date)
+        requested_start = (
+            pd.Timestamp("1900-01-01") if start_date is None else pd.Timestamp(start_date)
+        )
 
-        # If no end date supplied, use today
-        if end_date is None:
-            requested_end = pd.Timestamp.today().normalize()
-        else:
-            requested_end = pd.Timestamp(end_date)
+        requested_end = (
+            pd.Timestamp.today().normalize() if end_date is None else pd.Timestamp(end_date)
+        )
 
-        # -------------------------
-        # 2. If cache is empty,
-        #    fetch everything
-        # -------------------------
-        if cached.empty:
-            df = self._get_full_history()
-
-            # df["date"] = pd.to_datetime(df["date"])
-
-            df.to_parquet(
-                cache_file,
-                engine="pyarrow",
-                index=False,
+        if requested_start > requested_end:
+            raise ValueError(
+                f"start_date ({requested_start.date()}) cannot be after end_date ({requested_end.date()})"
             )
 
-            if requested_start is not None:
-                return df[(df['date'] >= requested_start) & (df['date'] <= requested_end)]
-            else:
-                return df[(df['date'] <= requested_end)]
 
-        if requested_start is not None:
-            return cached[(cached['date'] >= requested_start) & (cached['date'] <= requested_end)]
-        else:
-            return cached[(cached['date'] <= requested_end)]
+        # ------------------------------------------------------
+        # Cache missing or stale -> download full history
+        # ------------------------------------------------------
+        
+        if self._cache_is_stale(cache_file):
+        
+            df = self._get_full_history()
+
+            if df.empty:
+                return self._empty_dataframe()
+
+            self._save_cache(df, cache_file)
+
+        cached = self._load_cache(cache_file)
+
+        return self._filter_date_range(
+            cached,
+            requested_start,
+            requested_end
+        )
+
+
+    def _empty_dataframe(self):
+        """
+        Return an empty DataFrame with the correct schema.
+        """
+
+        columns = ['date',self.FACTOR_COLS]
+
+        return pd.DataFrame(columns=columns)
+
+
+    
+    def _cache_is_stale(self, cache_file):
+        if not cache_file.exists():
+            return True
+
+        cache_age = datetime.now() - datetime.fromtimestamp(
+            cache_file.stat().st_mtime
+        )
+
+        return cache_age >= self.REFRESH_INTERVALS[self.freq]
+
+
+    @staticmethod
+    def _filter_date_range(
+        df,
+        start_date,
+        end_date,
+    ):
+        """
+        Return only rows inside requested date range.
+        """
+
+        if df.empty:
+            return df.copy()
+
+        return (
+            df[
+                (df["date"] >= start_date)
+                & (df["date"] <= end_date)
+            ]
+            .reset_index(drop=True)
+        )
+
+    
+    # ==========================================================
+    # Cache
+    # ==========================================================
+
+    def _get_cache_file(self):
+        """
+        Return the cache path for a ticker.
+        """
+
+        cache_dir = Path("../../data/french")
+        cache_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        return cache_dir / (
+            f"{self.region}_{self.freq}_.parquet"
+        )
+
+    def _load_cache(self, cache_file):
+        """
+        Load an existing Parquet cache.
+
+        Invalid/empty cache files are treated as no useful cache.
+        """
+
+        if not cache_file.exists():
+            return self._empty_dataframe()
+
+        try:
+            cached = pd.read_parquet(cache_file)
+
+        except Exception as exc:
+
+            raise RuntimeError(
+                f"Unable to read French factor cache:\n"
+                f"{cache_file}"
+            ) from exc
+
+        if cached.empty:
+            return self._empty_dataframe()
+
+        if "date" not in cached.columns:
+            raise RuntimeError(
+                f"French factor cache is missing the 'date' column:\n"
+                f"{cache_file}"
+            )
+
+        cached["date"] = (
+            pd.to_datetime(cached["date"])
+            .dt.normalize()
+        )
+
+        return (
+            cached
+            .drop_duplicates(subset=["date"])
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
+
+    def _save_cache(self, df, cache_file):
+        """
+        Save DataFrame to Parquet cache.
+        """
+
+        if df.empty:
+            return
+
+        df = (
+            df
+            .copy()
+            .sort_values("date")
+            .drop_duplicates(subset=["date"])
+            .reset_index(drop=True)
+        )
+
+        df.to_parquet(
+            cache_file,
+            engine="pyarrow",
+            index=False,
+        )
+    

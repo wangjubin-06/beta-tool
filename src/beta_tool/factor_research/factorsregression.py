@@ -130,6 +130,18 @@ class EquityFactorsRegression:
         self.hac_lags = self._resolve_hac_lags(hac)
         self.hac_auto = True if hac == 'auto' else False
 
+
+# ------------------------------
+# 
+#          PUBLIC APIs
+#
+# ------------------------------
+
+    # =========================
+    #
+    #   Sets the assets for regression
+    #
+    # =========================
     def asset_list(self, *args:str):
         """
         Input the list of asset tickers that you want to do factor regression on.
@@ -150,13 +162,7 @@ class EquityFactorsRegression:
 
         return
 
-
-    # ------------------------------
-    # 
-    # the actual APIs the user uses
-    #
-    # ------------------------------
-
+    # REGRESS
     def regress(self):
         
         # how it works:
@@ -190,22 +196,298 @@ class EquityFactorsRegression:
         elif self.factor_source == 'french':
             return self._french_regress()
 
-
+    # =========================
+    #
+    #   Prints the simplified factor results
+    #
+    # =========================
     def results(self):
-        return_str = ''
         
         if self.factor_source == 'etf':
-            for asset, dic in self._grand_results_dic['regression_results'].items():
-                window = f'From {dic['sample']['start_date']} to {dic['sample']['end_date']}'
-                frequency = f'Frequency of observations: {dic['sample']['frequency']}'
-                obs = f'{dic['sample']['n_observations']}'
+            for asset, dic in self._grand_results['regression_results'].items():
+
+                return_str = ''
+
+                title = f'\n========================\nOLS regression of {asset} against a proxy basket of ETFs\n========================\n'
+
+
+                window = f'{dic['model']['frequency'].capitalize()} data from {dic['model']['start_date']} to {dic['model']['end_date']} with {dic['model']['n_observations']} observations was used.\n\n\n\n'
+
+                alpha = dic['alpha']['amount']
+
+                alpha_t = dic['alpha']['t-stat']
+
+                alpha_stat = 'Alpha: ' + f'{(alpha*100):.2f}% /month; t-stat: {alpha_t:5f}'
+                
+                if abs(alpha_t) > 2:
+                    alpha_stat += '  - Statistically significant\n\n'
+                else:
+                    alpha_stat += '  - Statistically insignificant\n\n'
+
+                r_square = f"R-Squared: {(dic['model']['r_squared']*100):.2f}%\nThe factors explain approximately {(dic['model']['r_squared']*100):.2f}% of {asset}'s {dic['model']['frequency']} excess-return variation over the sample.\n\n"
+
+                
+
+                market = dic['exposures']['market']['beta']
+
+                market_t = dic['exposures']['market']['t-stat']
+
+                size = dic['exposures']['size']['beta']
+
+                size_t = dic['exposures']['size']['t-stat']
+
+                value = dic['exposures']['value']['beta']
+
+                value_t = dic['exposures']['value']['t-stat']
+
+                momentum = dic['exposures']['momentum']['beta']
+
+                momentum_t = dic['exposures']['momentum']['t-stat']
+
+                profitability = dic['exposures']['profitability']['beta']
+
+                profitability_t = dic['exposures']['profitability']['t-stat']
+
+                stats = f'\nmarket beta: {market:.5f}; t-stat: {market_t:.5f}\nsize beta: {size:.5f}; t-stat: {size_t:.5f}\nvalue beta: {value:.5f}; t-stat: {value_t:.5f}\nmomentum beta: {momentum:.5f}; t-stat: {momentum_t:.5f}\nprofitability beta: {profitability:.5f}; t-stat: {profitability_t:.5f}\n\n\n'
             
-    
+
+                if market < 0.7:
+                    market_profile = 'LOWER MARKET BETA'
+                elif market < 1.2:
+                    market_profile = 'MODERATE MARKET BETA'
+                else:
+                    market_profile = 'HIGHER MARKET BETA'
+
+                if size < -0.2:
+                    size_profile = 'LARGER CAP'
+                elif size <= 0.2:
+                    size_profile = 'NEUTRAL SIZE EXPOSURE'
+                else:
+                    size_profile = 'SMALLER CAP'
+
+                if value < -0.2:
+                    value_profile = 'GROWTH TILT'
+                elif value <= 0.2:
+                    value_profile = 'NEUTRAL VALUE/GROWTH'
+                else:
+                    value_profile = 'VALUE TILT'
+
+                if momentum < -0.2:
+                    momentum_profile = 'LOW MOMENTUM'
+                elif momentum <= 0.2:
+                    momentum_profile = 'NEUTRAL MOMENTUM'
+                else:
+                    momentum_profile = 'STRONG MOMENTUM'
+
+                if profitability < -0.2:
+                    profitability_profile = 'NEGATIVE PROFITABILITY EXPOSURE'
+                elif profitability <= 0.2:
+                    profitability_profile = 'NEUTRAL PROFITABILITY EXPOSURE'
+                else:
+                    profitability_profile = 'POSITIVE PROFITABILITY EXPOSURE'
+
+
+                profile = 'FACTOR PROFILE:\n'
+
+                profile += market_profile
+                if abs(market_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += size_profile
+                if abs(size_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += value_profile
+                if abs(value_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += momentum_profile
+                if abs(momentum_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += profitability_profile
+                if abs(profitability_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                return_str += title
+                return_str += window
+                return_str += alpha_stat
+                return_str += r_square
+                return_str += stats
+                return_str += profile
+
+                print(return_str)
+
+            print('For more information, use .advanced_results()\n')
+            print('***Disclaimer: ETF proxy regression here does NOT provide the true Fama-French 5 factor regression results***\n\n')
+
+        else:
+            for asset, dic in self._grand_results['regression_results'].items():
+
+                return_str = ''
+
+                title = f'\n=========================================\n {asset} Fama-French 5 factor analysis\n=========================================\n'
+
+
+                window = f'{dic['model']['frequency'].capitalize()} data from {dic['model']['start_date']} to {dic['model']['end_date']} with {dic['model']['n_observations']} observations was used.\n\n\n\n'
+
+                alpha = dic['alpha']['amount']
+
+                alpha_t = dic['alpha']['t-stat']
+
+                alpha_stat = 'Alpha: ' + f'{(alpha*100):.2f}% /month; t-stat: {alpha_t:5f}'
+
+                if abs(alpha_t) > 2:
+                    alpha_stat += '  - Statistically significant\n\n'
+                else:
+                    alpha_stat += '  - Statistically insignificant\n\n'
+
+                r_square = f"R-Squared: {(dic['model']['r_squared']*100):.2f}%\nThe factors explain approximately {(dic['model']['r_squared']*100):.2f}% of {asset}'s {dic['model']['frequency']} excess-return variation over the sample.\n\n"
+
+
+
+                market = dic['exposures']['market']['beta']
+
+                market_t = dic['exposures']['market']['t-stat']
+
+                size = dic['exposures']['size']['beta']
+
+                size_t = dic['exposures']['size']['t-stat']
+
+                value = dic['exposures']['value']['beta']
+
+                value_t = dic['exposures']['value']['t-stat']
+
+                investment = dic['exposures']['investment']['beta']
+
+                investment_t = dic['exposures']['investment']['t-stat']
+
+                profitability = dic['exposures']['profitability']['beta']
+
+                profitability_t = dic['exposures']['profitability']['t-stat']
+
+                stats = f'\nmarket beta: {market:.5f}; t-stat: {market_t:.5f}\nsize beta: {size:.5f}; t-stat: {size_t:.5f}\nvalue beta: {value:.5f}; t-stat: {value_t:.5f}\nprofitability beta: {profitability:.5f}; t-stat: {profitability_t:.5f}\ninvestment beta: {investment:.5f}; t-stat: {investment_t:.5f}\n\n\n'
+
+
+                if market < 0.7:
+                    market_profile = 'LOWER MARKET BETA'
+                elif market < 1.2:
+                    market_profile = 'MODERATE MARKET BETA'
+                else:
+                    market_profile = 'HIGHER MARKET BETA'
+
+                if size < -0.2:
+                    size_profile = 'LARGER CAP'
+                elif size <= 0.2:
+                    size_profile = 'NEUTRAL SIZE EXPOSURE'
+                else:
+                    size_profile = 'SMALLER CAP'
+
+                if value < -0.2:
+                    value_profile = 'GROWTH TILT'
+                elif value <= 0.2:
+                    value_profile = 'NEUTRAL VALUE/GROWTH'
+                else:
+                    value_profile = 'VALUE TILT'
+
+                if investment < -0.2:
+                    investment_profile = 'MORE AGGRESSIVE INVESTMENT'
+                elif investment <= 0.2:
+                    investment_profile = 'NEUTRAL INVESTMENT'
+                else:
+                    investment_profile = 'MORE CONSERVATIVE INVESTMENT'
+
+                if profitability < -0.2:
+                    profitability_profile = 'NEGATIVE PROFITABILITY EXPOSURE'
+                elif profitability <= 0.2:
+                    profitability_profile = 'NEUTRAL PROFITABILITY EXPOSURE'
+                else:
+                    profitability_profile = 'POSITIVE PROFITABILITY EXPOSURE'
+
+
+                profile = 'FACTOR PROFILE:\n'
+
+                profile += market_profile
+                if abs(market_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += size_profile
+                if abs(size_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += value_profile
+                if abs(value_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += profitability_profile
+                if abs(profitability_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                profile += investment_profile
+                if abs(investment_t) < 2:
+                    profile += '    -Not significant\n'
+                else:
+                    profile += '    -Significant\n'
+
+                return_str += title
+                return_str += window
+                return_str += alpha_stat
+                return_str += r_square
+                return_str += stats
+                return_str += profile
+
+                print(return_str)
+
+            print('For more information, use .advanced_results()\n')
+
+
+    # =========================
+    #
+    #   Prints the advanced statistics
+    #
+    # =========================
     def advanced_results(self):
-        for model in self._model_results_dic:
+        for model in self._model_results_dic.values():
             print(model.summary())
 
 
+    # User Help menu
+    def help(self):
+        print(
+            """
+            Usage:
+
+            .regress() - does the regression. Important! do this first before using the below tools.
+
+            .results() - shows the regression summary
+
+            .advanced_results() - shows the advanced regression statistics
+
+
+            """
+        )
+
+    # Removes all the assets from the list
+    def reset_assets(self):
+        self.assets = []
 
     # ----------------
     # private methods
@@ -420,8 +702,9 @@ class EquityFactorsRegression:
                 }
             }
 
+
         self._model_results_dic = model_results
-        self._grand_results_dic = grand_results
+        self._grand_results = grand_results
                 
         # for model in model_results.values():
         #     print(model.summary())
@@ -795,7 +1078,7 @@ class EquityFactorsRegression:
             }
 
         self._model_results_dic = model_results
-        self._grand_results_dic = grand_results
+        self._grand_results = grand_results
         
         # for model in model_results.values():
         #     print(model.summary())
@@ -1295,19 +1578,11 @@ class EquityFactorsRegression:
 # EXAMPLE USAGE
 # -----------------------
 
-if __name__ == "__main__":
-    # fac = EquityFactorsRegression(factor_source='french', frequency='daily')
-    # asset_list = ['msft','nvda']
-    # fac.asset_list(*asset_list)
-    # data = fac.regress()
-
-    # for asset in asset_list:
-    #     pprint(data['regression_results'][asset], sort_dicts=False, width=1, indent=4)
-    
-    fac1 = EquityFactorsRegression(factor_source="etf", frequency='daily')
-    asset_list = ['goog','ko']
-    fac1.asset_list(*asset_list)
+if __name__ == "__main__":    
+    fac1 = EquityFactorsRegression(factor_source="french", frequency='monthly')
+    fac1.asset_list('goog','ko')
+    fac1.reset_assets()
+    fac1.asset_list('nvda','msft')
     data = fac1.regress()
-    
-    for asset in asset_list:
-        pprint(data['regression_results'][asset], sort_dicts=False, width=1, indent=4)
+    fac1.results()
+    #fac1.advanced_results()

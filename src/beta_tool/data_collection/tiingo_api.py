@@ -1,6 +1,5 @@
 import os
 from datetime import timedelta, date, datetime
-import json
 import pandas as pd
 import requests
 from io import StringIO
