@@ -16,13 +16,5 @@ def simple_returns(data: pd.DataFrame, header_name = "adjusted_close") -> pd.Dat
     return df
 
 if __name__ == "__main__":
-    import data
-    import os
-    from lse import LSE
-    client = LSE(api_key=os.environ.get('LSE_API_KEY'))
-
-    apple = data.AssetData(ticker= "aapl", interval="daily", start_date = "2020-08-20", end_date   = "2020-09-10") 
-    data = apple.get_prices()
-
-    returns = log_returns(data)
+    pass
 

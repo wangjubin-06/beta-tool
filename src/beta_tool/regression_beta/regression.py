@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-import data, beta_tool.regression_beta.returns as returns
+import regression_beta.returns as returns
 
 class OLSRegression():
 
@@ -12,7 +12,7 @@ class OLSRegression():
         merged = pd.merge(
             asset1,
             asset2,
-            on="timestamp",
+            on="date",
             how="inner",
             suffixes=("_1", "_2")
             )
@@ -22,9 +22,9 @@ class OLSRegression():
             ).reset_index(drop=True)
         
         #hiding the time part of the pd datetime object
-        merged = merged.sort_values('timestamp').reset_index(drop=True)
+        merged = merged.sort_values('date').reset_index(drop=True)
         merged.style.format({
-            'timestamp': '%Y-%m-%d'
+            'date': '%Y-%m-%d'
             })
 
 
@@ -52,7 +52,7 @@ class MultiFactorRegression():
         if len(assets) < 1:
             raise ValueError("at least one factor asset is required")
 
-        merged = asset1[["timestamp", col]].copy()
+        merged = asset1[["date", col]].copy()
         merged = merged.rename(columns = {col :'y'})
  
         assets_names = []
@@ -60,9 +60,9 @@ class MultiFactorRegression():
         for asset_name, asset_df in assets.items():
             if col not in asset_df.columns:
                 raise ValueError(f"factor '{asset_name}' is missing column '{col}' — did you pass returns, not prices?")
-            df = asset_df[["timestamp", col]].copy()
+            df = asset_df[["date", col]].copy()
             df = df.rename(columns={col: asset_name})
-            merged = pd.merge(merged, df, on="timestamp", how="inner")
+            merged = pd.merge(merged, df, on="date", how="inner")
             assets_names.append(asset_name)
         #inner-merging sequentially keeps only timestamps common to the dependent asset and every factor
  
@@ -74,9 +74,9 @@ class MultiFactorRegression():
         self.x = merged[assets_names]
 
         #hiding the time part of the pd datetime object
-        merged = merged.sort_values('timestamp').reset_index(drop=True)
+        merged = merged.sort_values('date').reset_index(drop=True)
         merged.style.format({
-            'timestamp': '%Y-%m-%d'
+            'date': '%Y-%m-%d'
         })
 
         
@@ -89,18 +89,4 @@ class MultiFactorRegression():
     
 
 if __name__ == "__main__":
-    apple = data.AssetData("aapl","2y","daily")
-    appledata = apple.get_prices()
-
-    msft = data.AssetData("msft","2y","daily")
-    msftdata = msft.get_prices()
-
-    apple_returns = returns.log_returns(appledata)
-    msft_returns = returns.log_returns(msftdata)
-
-    regressobj = OLSRegression(apple_returns,msft_returns)
-    results = regressobj.ols()
-
-    print(results.params)
-    print(results.params.index)
-
+    pass

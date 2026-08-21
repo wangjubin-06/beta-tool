@@ -2,12 +2,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-from beta_tool.regression_beta.beta import Beta
-from beta_tool.regression_beta.multibeta import MultiFactorRegression
 from scipy.stats import norm, gaussian_kde, probplot
 from matplotlib.lines import Line2D
 
-def price_series_plot(data: pd.DataFrame, ax = None):
+def price_series_plot(ticker:str, data: pd.DataFrame, ax = None):
     """
     this function plots the time series of the asset price
 
@@ -23,13 +21,13 @@ def price_series_plot(data: pd.DataFrame, ax = None):
 
 
     ax.plot(
-        df["timestamp"],
-        df["adjusted_close"],
+        df["date"],
+        df["adjClose"],
         label="adjusted-close price"
     )
 
     ax.set_title(
-        f"Price series of {df['symbol'].loc[1]}",
+        f"Price series of {ticker}",
         fontsize=16,
         pad = 15
         )
@@ -39,7 +37,8 @@ def price_series_plot(data: pd.DataFrame, ax = None):
 
     return ax
 
-def returns_distribution_plot(data: pd.DataFrame, return_type:str="log", axes = None):
+
+def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="log", axes = None):
     """
     
     this function plots the distribution histogram/KDE of the asset returns, compared to a normal distribution with the empirical data parameters, and also a Q-Q plot
@@ -86,7 +85,7 @@ def returns_distribution_plot(data: pd.DataFrame, return_type:str="log", axes = 
 
     ax1.set_xlabel(f"{return_type} Return")
     ax1.set_ylabel("Density")
-    ax1.set_title(f"Distribution of {df["symbol"].iloc[0]} {return_type} Returns")
+    ax1.set_title(f"Distribution of {ticker} {return_type} Returns")
     ax1.legend(fontsize=8)
     ax1.grid(alpha=0.2)
 
@@ -103,8 +102,7 @@ def returns_distribution_plot(data: pd.DataFrame, return_type:str="log", axes = 
     return axes
 
 
-
-def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log", ax = None):
+def two_asset_ols_plot(ticker1:str, ticker2:str, asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log", ax = None):
 
     """
 
@@ -119,13 +117,13 @@ def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:s
     merged = pd.merge(
         df1,
         df2,
-        on="timestamp",
+        on="date",
         how="inner",
         suffixes=("_1", "_2")
         )
     
     #hiding the time part of the pd datetime object
-    merged['timestamp'] = merged['timestamp'].dt.strftime('%Y-%m-%d')
+    merged['date'] = merged['date'].dt.strftime('%Y-%m-%d')
 
     y = merged[f'{return_type}-returns_1']
     X = merged[f'{return_type}-returns_2']
@@ -159,8 +157,8 @@ def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:s
     ax.set_title('Scatter plot of two asset return series with OLS regression line')
     ax.legend()
     ax.grid(alpha=0.25)
-    ax.set_xlabel(f"{df2['symbol'].iloc[1]} {return_type} returns")
-    ax.set_ylabel(f"{df1['symbol'].iloc[1]} {return_type} returns")
+    ax.set_xlabel(f"{ticker2} {return_type} returns")
+    ax.set_ylabel(f"{ticker1} {return_type} returns")
 
     alpha = model.params['const']
     beta = model.params[f"{return_type}-returns_2"]
@@ -171,8 +169,8 @@ def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:s
     beta_ci_high = model.conf_int().loc[f"{return_type}-returns_2", 1]
     n = int(model.nobs)
 
-    start_date = merged['timestamp'].iloc[0]
-    end_date = merged['timestamp'].iloc[-1]
+    start_date = merged['date'].iloc[0]
+    end_date = merged['date'].iloc[-1]
 
     stats_text = (
         f"$y = {float(alpha):.4f} + {float(beta):.4f}x$\n"
@@ -198,7 +196,7 @@ def two_asset_ols_plot(asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:s
     return ax
 
 
-def beta_obj_ols_plot(beta_obj: Beta, ax=None):
+def beta_obj_ols_plot(beta_obj, ax=None):
     
     """
 
@@ -218,7 +216,7 @@ def beta_obj_ols_plot(beta_obj: Beta, ax=None):
     merged = pd.merge(
         df1,
         df2,
-        on="timestamp",
+        on="date",
         how="inner",
         suffixes=("_1", "_2")
         )
@@ -248,8 +246,8 @@ def beta_obj_ols_plot(beta_obj: Beta, ax=None):
     ax.set_title('Scatter plot of two asset return series with OLS regression line')
     ax.legend()
     ax.grid(alpha=0.25)
-    ax.set_xlabel(f"{df2['symbol'].iloc[1]} {beta_obj.return_type} returns")
-    ax.set_ylabel(f"{df1['symbol'].iloc[1]} {beta_obj.return_type} returns")
+    ax.set_xlabel(f"{beta_obj.asset2} {beta_obj.return_type} returns")
+    ax.set_ylabel(f"{beta_obj.asset1} {beta_obj.return_type} returns")
 
     
     stats_text = (
@@ -277,8 +275,7 @@ def beta_obj_ols_plot(beta_obj: Beta, ax=None):
     return ax
 
 
-
-def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True, ax=None):
+def mutlifac_ols_plot(multifac_obj, sort=True, ax=None):
 
     """
 
@@ -445,28 +442,4 @@ def mutlifac_ols_plot(multifac_obj: MultiFactorRegression, sort=True, ax=None):
 
 
 if __name__ == "__main__":
-    import data
-    import beta_tool.regression_beta.returns as returns
-    import beta_tool.regression_beta.beta as beta
-    import beta_tool.regression_beta.multibeta as multibeta
-
-    # my_reg = beta.Beta(asset1="aapl", asset2="msft", period="5y", end_date="2026-02-03", return_type="log", interval="daily")
-
-    # beta_obj_ols_plot(my_reg)
-
-    # apple = data.AssetData(ticker="aapl",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
-    # msft = data.AssetData(ticker="msft",interval="daily",start_date = "2013-01-01", end_date = "2021-01-01")
-    
-    # aapleprices = apple.get_prices()
-    # msftprices = msft.get_prices()
-
-    # aaplreturns = returns.log_returns(aapleprices)
-    # msftreturns = returns.log_returns(msftprices)
-
-    #two_asset_ols_plot(aaplreturns, msftreturns, "log")
-
-    # returns_distribution_plot(aaplreturns,"log")
-
-    my_multi = multibeta.MultiFactorRegression(asset1="aapl", assets=["msft", "goog","nvda","ko","intc","spy","iwm"], period = "5y", end_date="2026-02-03", return_type="log", interval="daily")
-
-    mutlifac_ols_plot(my_multi)
+    pass

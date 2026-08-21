@@ -1,10 +1,13 @@
-import data, beta_tool.regression_beta.regression as regression, beta_tool.regression_beta.returns as returns, beta_tool.regression_beta.beta as beta, beta_tool.regression_beta.plotting as plotting
 from datetime import date
 import pandas as pd
 import matplotlib.pyplot as plt
+from regression_beta.data import AssetData
+from regression_beta.returns import log_returns, simple_returns
+from regression_beta.regression import MultiFactorRegression
+from regression_beta.plotting import mutlifac_ols_plot
  
  
-class MultiAssetsRegression():
+class MultiAssetsRegression:
     """
     Generic multi-asset factor tool: regresses one asset's returns against N
     other assets' returns simultaneously. Same idea as Beta, just not limited
@@ -17,7 +20,7 @@ class MultiAssetsRegression():
             asset1: str, #the dependent asset on y-axis
             assets: list[str], #the list of assets for x-axis
             period: str = "1y",
-            interval: str = "daily",
+            frequency: str = "daily",
             start_date: date | None = None,
             end_date: date | None = None,
             return_type: str = "log"
@@ -28,14 +31,14 @@ class MultiAssetsRegression():
         if return_type not in ("log", "simple"):
             raise ValueError("return_type = 'log' or return_type = 'simple' only.")
  
-        self.asset1 = asset1.upper()
-        self.interval = interval
+        self.asset1 = asset1
+        self.freq = frequency
         
         self.return_type = return_type
  
-        returns_fn = returns.log_returns if return_type == "log" else returns.simple_returns
+        returns_fn = log_returns if return_type == "log" else simple_returns
  
-        asset_1_prices = data.AssetData(asset1, period, interval, start_date, end_date).get_prices()
+        asset_1_prices = AssetData(asset1, period, frequency, start_date, end_date).get_prices()
         asset_1_returns = returns_fn(asset_1_prices)
 
         self.asset_1_prices = asset_1_prices
@@ -43,7 +46,7 @@ class MultiAssetsRegression():
 
         assets_prices = {}
         for ticker in assets:
-            prices = data.AssetData(ticker, period, interval, start_date, end_date).get_prices()
+            prices = AssetData(ticker, period, frequency, start_date, end_date).get_prices()
             assets_prices[ticker.upper()] = prices
 
         self.assets_prices = assets_prices
@@ -55,7 +58,7 @@ class MultiAssetsRegression():
 
         self.assets_returns = assets_returns
  
-        regress_obj = regression.MultiFactorRegression(
+        regress_obj = MultiFactorRegression(
             asset_1_returns,
             assets_returns,
             return_type=return_type
@@ -63,8 +66,8 @@ class MultiAssetsRegression():
 
         self.merged_assets_names = regress_obj.assets_names #this is a list of names of assets that are actually used in the end for the factor regression of asset1 against asset(s) after combining common timestamps available in the return series
 
-        self.start_date = regress_obj.merged_return_series['timestamp'].iloc[0]
-        self.end_date = regress_obj.merged_return_series['timestamp'].iloc[-1]
+        self.start_date = regress_obj.merged_return_series['date'].iloc[0]
+        self.end_date = regress_obj.merged_return_series['date'].iloc[-1]
         #these are the start and end dates which includes all available data for all assets.
  
         results = regress_obj.ols()
@@ -114,18 +117,10 @@ class MultiAssetsRegression():
         return self.summary()
 
     def plot_results(self):
-        factor_beta_and_ci_ax = plotting.multifac_ols_plot(self)
+        factor_beta_and_ci_ax = mutlifac_ols_plot(self)
         plt.show()
 
 
- 
- 
+
 if __name__ == "__main__":
-    my_multi_beta = MultiAssetsRegression(
-        asset1="tsla",
-        assets=["aapl", "msft", "spy"],
-        period="5y",
-        interval="daily",
-        return_type="log"
-        )
-    print(my_multi_beta.summary())
+    pass

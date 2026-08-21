@@ -1,10 +1,13 @@
-import data, beta_tool.regression_beta.regression as regression, beta_tool.regression_beta.returns as returns, beta_tool.regression_beta.plotting as plotting
+from regression_beta.data import AssetData
+from regression_beta import regression
+from regression_beta import plotting
+from regression_beta.returns import log_returns, simple_returns
 from datetime import date
 import matplotlib.pyplot as plt
-from beta_tool.regression_beta.rolling import historical_rolling_beta, historical_rolling_beta_plot
+from regression_beta.rolling import historical_rolling_beta, historical_rolling_beta_plot
 
 
-class Beta():
+class Beta:
 
     def __init__(
             self,
@@ -20,21 +23,43 @@ class Beta():
         if return_type not in ("log","simple"):
             raise ValueError("return_type = 'log' or return_type = 'simple' only.")
 
-        self.asset1 = asset1.upper()
-        self.asset2 = asset2.upper()
+        self.asset1 = asset1
+        self.asset2 = asset2
         self.return_type = return_type
 
 
-        asset_1_prices = data.AssetData(asset1, period, interval, start_date, end_date).get_prices()
-        asset_2_prices = data.AssetData(asset2, period, interval, start_date, end_date).get_prices()
+        asset_1_prices = AssetData(
+            ticker = asset1,
+            period = period,
+            frequency = interval,
+            start_date = start_date,
+            end_date = end_date
+        ).get_prices()
+
+        asset_2_prices = AssetData(
+            ticker = asset2,
+            period = period,
+            frequency = interval,
+            start_date = start_date,
+            end_date = end_date
+        ).get_prices()
+
+        
 
         self.asset_1_prices = asset_1_prices
         self.asset_2_prices = asset_2_prices
 
-        returns_fn = returns.log_returns if return_type == "log" else returns.simple_returns
+        returns_fn = log_returns if return_type == "log" else simple_returns
 
-        asset_1_returns = returns_fn(asset_1_prices)
-        asset_2_returns = returns_fn(asset_2_prices)
+        asset_1_returns = returns_fn(
+            data = asset_1_prices,
+            header_name="adjClose"
+        )
+
+        asset_2_returns = returns_fn(
+            data = asset_2_prices,
+            header_name="adjClose"
+        )
 
         self.asset_1_returns = asset_1_returns
         self.asset_2_returns = asset_2_returns
@@ -52,8 +77,8 @@ class Beta():
         self.merged_asset_1_returns = regress_obj.y.copy()
         self.merged_asset_2_returns = regress_obj.x.copy()
 
-        self.start_date = regress_obj.merged_return_series["timestamp"].iloc[0]
-        self.end_date = regress_obj.merged_return_series["timestamp"].iloc[-1]
+        self.start_date = regress_obj.merged_return_series["date"].iloc[0]
+        self.end_date = regress_obj.merged_return_series["date"].iloc[-1]
         
         results = regress_obj.ols()
         self.olsresults = results
@@ -121,11 +146,11 @@ class Beta():
         
         ax_ols = fig.add_subplot(gs[2:4, :])
 
-        plotting.price_series_plot(data=self.asset_1_prices, ax = ax_asset_1_price)
-        plotting.price_series_plot(data=self.asset_2_prices, ax = ax_asset_2_price)
+        plotting.price_series_plot(ticker = self.asset1, data=self.asset_1_prices, ax = ax_asset_1_price)
+        plotting.price_series_plot(ticker = self.asset2, data=self.asset_2_prices, ax = ax_asset_2_price)
 
-        plotting.returns_distribution_plot(data=self.asset_1_returns, axes = (ax_asset_1_dist, ax_asset_1_qq), return_type=self.return_type)
-        plotting.returns_distribution_plot(data=self.asset_2_returns, axes = (ax_asset_2_dist, ax_asset_2_qq), return_type=self.return_type)
+        plotting.returns_distribution_plot(ticker = self.asset1, data=self.asset_1_returns, axes = (ax_asset_1_dist, ax_asset_1_qq), return_type=self.return_type)
+        plotting.returns_distribution_plot(ticker = self.asset2, data=self.asset_2_returns, axes = (ax_asset_2_dist, ax_asset_2_qq), return_type=self.return_type)
 
         plotting.beta_obj_ols_plot(beta_obj=self, ax=ax_ols)
 
@@ -144,9 +169,7 @@ class Beta():
 
 
 
-
-
-
 if __name__ == "__main__":
     my_beta = Beta(asset1="msft", asset2="aapl", period="5y", interval="daily", return_type="log")
+    my_beta.plot_results()
     my_beta.plot_historical_rolling_beta(observation_window=60)

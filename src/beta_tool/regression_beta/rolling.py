@@ -1,4 +1,4 @@
-import beta_tool.regression_beta.regression as regression
+import regression_beta.regression as regression
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ def historical_rolling_beta(beta_obj, observation_window:int = 60):
             f"observation_window must be positive, got {observation_window}."
         )
 
-    df = beta_obj.merged_returns_series.sort_values("timestamp").reset_index(drop=True)
+    df = beta_obj.merged_returns_series.sort_values("date").reset_index(drop=True)
 
     if len(df) < observation_window:
         raise ValueError(
@@ -34,11 +34,11 @@ def historical_rolling_beta(beta_obj, observation_window:int = 60):
         window = df.iloc[i - observation_window + 1:i + 1].copy()
 
         asset_1_returns = window[
-            ["timestamp", asset_1_col]
+            ["date", asset_1_col]
         ]
 
         asset_2_returns = window[
-            ["timestamp", asset_2_col]
+            ["date", asset_2_col]
         ]
 
         results = regression.OLSRegression(
@@ -47,7 +47,7 @@ def historical_rolling_beta(beta_obj, observation_window:int = 60):
             return_type=return_type
         ).ols()
 
-        rolling_beta_results[window["timestamp"].iloc[-1]] = (
+        rolling_beta_results[window["date"].iloc[-1]] = (
             results.params[asset_2_col]
         )
 
@@ -55,13 +55,13 @@ def historical_rolling_beta(beta_obj, observation_window:int = 60):
 
     return_df = pd.DataFrame(
         rolling_beta_results.items(),
-        columns=["timestamp", "beta"]
+        columns=["date", "beta"]
     )
 
 
     return_df.attrs["title"] = f"Historical {observation_window}-trading-days rolling beta of {beta_obj.asset1} {beta_obj.return_type}-returns against {beta_obj.asset2} {beta_obj.return_type}-returns"
 
-    return_df.attrs["period"] = f"from {str(return_df['timestamp'].iloc[0])[:10]} to {str(return_df['timestamp'].iloc[-1])[:10]}"
+    return_df.attrs["period"] = f"from {str(return_df['date'].iloc[0])[:10]} to {str(return_df['date'].iloc[-1])[:10]}"
 
     return return_df
 
@@ -73,7 +73,7 @@ def historical_rolling_beta_plot(rolling_df: pd.DataFrame, ax = None):
         fig, ax = plt.subplots(figsize=(14,6))
 
     ax.plot(
-        df["timestamp"],
+        df["date"],
         df["beta"],
     )
 
