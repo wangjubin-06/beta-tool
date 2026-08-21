@@ -3,7 +3,7 @@ import pandas as pd
 import statsmodels.api as sm
 import regression_beta.returns as returns
 
-class OLSRegression():
+class OLSRegression:
 
     def __init__(self, asset1: pd.DataFrame, asset2: pd.DataFrame, return_type: str ="log"):
         col = f"{return_type}-returns"
@@ -39,7 +39,7 @@ class OLSRegression():
         model = sm.OLS(self.y,x).fit()
         return model
 
-class MultiFactorRegression():
+class MultiFactorRegression:
     """
     Generic OLS regression of one asset's returns against N other assets' returns
     at once. Not tied to any fixed factor set (e.g. Fama-French) — the
