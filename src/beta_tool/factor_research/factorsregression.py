@@ -6,6 +6,7 @@ import os
 from data_collection.tiingo_api import TiingoApi
 from data_collection.fred_api import FredApi
 from data_collection.ff_factors_api import FrenchApi
+from factor_research.factorresults import RegressionSummary, FactorResult, interpret_factor, print_regression_summary
 from pprint import pprint
 from functools import reduce
 
@@ -196,267 +197,175 @@ class EquityFactorsRegression:
         elif self.factor_source == 'french':
             return self._french_regress()
 
-    # =========================
+
+    # ====================================
     #
-    #   Prints the simplified factor results
+    #   Prints the factor results summary
     #
-    # =========================
+    # ====================================
+    
     def results(self):
         
         if self.factor_source == 'etf':
-            for asset, dic in self._grand_results['regression_results'].items():
+            for asset, dic in self._grand_results.items():
 
-                return_str = ''
+                result = RegressionSummary(
+                    asset = asset.upper(),
+                    model_name = "Factor regression against ETF proxies",
+                    
+                    frequency = dic["model"]['frequency'],
+                    start_date = dic['model']['start_date'],
+                    end_date = dic['model']['end_date'],
+                    observations = dic['model']['n_observations'],
+                    
+                    alpha = dic['alpha']['amount'],
+                    alpha_t_stat = dic['alpha']['t-stat'],
+                    alpha_p_value= dic['alpha']['p-value'],
+                    alpha_ci_lower= dic['alpha']['ci_lower'],
+                    alpha_ci_upper= dic['alpha']['ci_upper'],
+                    
+                    r_squared=dic['model']['r_squared'],
+                    adj_r_squared=dic['model']['adjusted_r_squared'],
 
-                title = f'\n========================\nOLS regression of {asset} against a proxy basket of ETFs\n========================\n'
+                    factors=[
+                        FactorResult(
+                            name="Market",
+                            beta= dic['exposures']['market']['beta'],
+                            t_stat= dic['exposures']['market']['t-stat'],
+                            p_value= dic['exposures']['market']['p-value'],
+                            ci_lower= dic['exposures']['market']['ci_lower'],
+                            ci_upper= dic['exposures']['market']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'market', beta = dic['exposures']['market']['beta'], p_value = dic['exposures']['market']['p-value'])
+                        ),
 
+                        FactorResult(
+                            name="Size",
+                            beta= dic['exposures']['size']['beta'],
+                            t_stat= dic['exposures']['size']['t-stat'],
+                            p_value= dic['exposures']['size']['p-value'],
+                            ci_lower= dic['exposures']['size']['ci_lower'],
+                            ci_upper= dic['exposures']['size']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'size', beta = dic['exposures']['size']['beta'], p_value = dic['exposures']['size']['p-value'])
+                        ),
 
-                window = f'{dic['model']['frequency'].capitalize()} data from {dic['model']['start_date']} to {dic['model']['end_date']} with {dic['model']['n_observations']} observations was used.\n\n\n\n'
+                        FactorResult(
+                            name="Value",
+                            beta=dic['exposures']['value']['beta'],
+                            t_stat=dic['exposures']['value']['t-stat'],
+                            p_value=dic['exposures']['value']['p-value'],
+                            ci_lower=dic['exposures']['value']['ci_lower'],
+                            ci_upper=dic['exposures']['value']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'value', beta = dic['exposures']['value']['beta'], p_value = dic['exposures']['value']['p-value'])
+                        ),
 
-                alpha = dic['alpha']['amount']
+                        FactorResult(
+                            name="Profitability",
+                            beta=dic['exposures']['profitability']['beta'],
+                            t_stat=dic['exposures']['profitability']['t-stat'],
+                            p_value=dic['exposures']['profitability']['p-value'],
+                            ci_lower=dic['exposures']['profitability']['ci_lower'],
+                            ci_upper=dic['exposures']['profitability']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'profitability', beta = dic['exposures']['profitability']['beta'], p_value = dic['exposures']['profitability']['p-value'])
+                        ),
+                        
+                        FactorResult(
+                            name="Momentum",
+                            beta=dic['exposures']['momentum']['beta'],
+                            t_stat=dic['exposures']['momentum']['t-stat'],
+                            p_value=dic['exposures']['momentum']['p-value'],
+                            ci_lower=dic['exposures']['momentum']['ci_lower'],
+                            ci_upper=dic['exposures']['momentum']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'momentum', beta = dic['exposures']['momentum']['beta'], p_value = dic['exposures']['momentum']['p-value'])
+                        ),
+                    ],
 
-                alpha_t = dic['alpha']['t-stat']
-
-                alpha_stat = 'Alpha: ' + f'{(alpha*100):.2f}% /month; t-stat: {alpha_t:5f}'
+                    covariance_type="HAC",
+                    hac_lags=dic['inference']['hac_maxlags'],
+                )
                 
-                if abs(alpha_t) > 2:
-                    alpha_stat += '  - Statistically significant\n\n'
-                else:
-                    alpha_stat += '  - Statistically insignificant\n\n'
+                print_regression_summary(result)
 
-                r_square = f"R-Squared: {(dic['model']['r_squared']*100):.2f}%\nThe factors explain approximately {(dic['model']['r_squared']*100):.2f}% of {asset}'s {dic['model']['frequency']} excess-return variation over the sample.\n\n"
-
-                
-
-                market = dic['exposures']['market']['beta']
-
-                market_t = dic['exposures']['market']['t-stat']
-
-                size = dic['exposures']['size']['beta']
-
-                size_t = dic['exposures']['size']['t-stat']
-
-                value = dic['exposures']['value']['beta']
-
-                value_t = dic['exposures']['value']['t-stat']
-
-                momentum = dic['exposures']['momentum']['beta']
-
-                momentum_t = dic['exposures']['momentum']['t-stat']
-
-                profitability = dic['exposures']['profitability']['beta']
-
-                profitability_t = dic['exposures']['profitability']['t-stat']
-
-                stats = f'\nmarket beta: {market:.5f}; t-stat: {market_t:.5f}\nsize beta: {size:.5f}; t-stat: {size_t:.5f}\nvalue beta: {value:.5f}; t-stat: {value_t:.5f}\nmomentum beta: {momentum:.5f}; t-stat: {momentum_t:.5f}\nprofitability beta: {profitability:.5f}; t-stat: {profitability_t:.5f}\n\n\n'
-            
-
-                if market < 0.7:
-                    market_profile = 'LOWER MARKET BETA'
-                elif market < 1.2:
-                    market_profile = 'MODERATE MARKET BETA'
-                else:
-                    market_profile = 'HIGHER MARKET BETA'
-
-                if size < -0.2:
-                    size_profile = 'LARGER CAP'
-                elif size <= 0.2:
-                    size_profile = 'NEUTRAL SIZE EXPOSURE'
-                else:
-                    size_profile = 'SMALLER CAP'
-
-                if value < -0.2:
-                    value_profile = 'GROWTH TILT'
-                elif value <= 0.2:
-                    value_profile = 'NEUTRAL VALUE/GROWTH'
-                else:
-                    value_profile = 'VALUE TILT'
-
-                if momentum < -0.2:
-                    momentum_profile = 'LOW MOMENTUM'
-                elif momentum <= 0.2:
-                    momentum_profile = 'NEUTRAL MOMENTUM'
-                else:
-                    momentum_profile = 'STRONG MOMENTUM'
-
-                if profitability < -0.2:
-                    profitability_profile = 'NEGATIVE PROFITABILITY EXPOSURE'
-                elif profitability <= 0.2:
-                    profitability_profile = 'NEUTRAL PROFITABILITY EXPOSURE'
-                else:
-                    profitability_profile = 'POSITIVE PROFITABILITY EXPOSURE'
-
-
-                profile = 'FACTOR PROFILE:\n'
-
-                profile += market_profile
-                if abs(market_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += size_profile
-                if abs(size_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += value_profile
-                if abs(value_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += momentum_profile
-                if abs(momentum_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += profitability_profile
-                if abs(profitability_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                return_str += title
-                return_str += window
-                return_str += alpha_stat
-                return_str += r_square
-                return_str += stats
-                return_str += profile
-
-                print(return_str)
-
-            print('For more information, use .advanced_results()\n')
             print('***Disclaimer: ETF proxy regression here does NOT provide the true Fama-French 5 factor regression results***\n\n')
 
         else:
-            for asset, dic in self._grand_results['regression_results'].items():
+            for asset, dic in self._grand_results.items():
+                
+                result = RegressionSummary(
+                    asset = asset.upper(),
+                    model_name = "Fama-French 5-Factor Regression",
+                    
+                    frequency = dic["model"]['frequency'],
+                    start_date = dic['model']['start_date'],
+                    end_date = dic['model']['end_date'],
+                    observations = dic['model']['n_observations'],
+                    
+                    alpha = dic['alpha']['amount'],
+                    alpha_t_stat = dic['alpha']['t-stat'],
+                    alpha_p_value= dic['alpha']['p-value'],
+                    alpha_ci_lower= dic['alpha']['ci_lower'],
+                    alpha_ci_upper= dic['alpha']['ci_upper'],
+                    
+                    r_squared=dic['model']['r_squared'],
+                    adj_r_squared=dic['model']['adjusted_r_squared'],
 
-                return_str = ''
+                    factors=[
+                        FactorResult(
+                            name="Market",
+                            beta= dic['exposures']['market']['beta'],
+                            t_stat= dic['exposures']['market']['t-stat'],
+                            p_value= dic['exposures']['market']['p-value'],
+                            ci_lower= dic['exposures']['market']['ci_lower'],
+                            ci_upper= dic['exposures']['market']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'market', beta = dic['exposures']['market']['beta'], p_value = dic['exposures']['market']['p-value'])
+                        ),
 
-                title = f'\n=========================================\n {asset} Fama-French 5 factor analysis\n=========================================\n'
+                        FactorResult(
+                            name="Size",
+                            beta= dic['exposures']['size']['beta'],
+                            t_stat= dic['exposures']['size']['t-stat'],
+                            p_value= dic['exposures']['size']['p-value'],
+                            ci_lower= dic['exposures']['size']['ci_lower'],
+                            ci_upper= dic['exposures']['size']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'size', beta = dic['exposures']['size']['beta'], p_value = dic['exposures']['size']['p-value'])
+                        ),
 
+                        FactorResult(
+                            name="Value",
+                            beta=dic['exposures']['value']['beta'],
+                            t_stat=dic['exposures']['value']['t-stat'],
+                            p_value=dic['exposures']['value']['p-value'],
+                            ci_lower=dic['exposures']['value']['ci_lower'],
+                            ci_upper=dic['exposures']['value']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'value', beta = dic['exposures']['value']['beta'], p_value = dic['exposures']['value']['p-value'])
+                        ),
 
-                window = f'{dic['model']['frequency'].capitalize()} data from {dic['model']['start_date']} to {dic['model']['end_date']} with {dic['model']['n_observations']} observations was used.\n\n\n\n'
+                        FactorResult(
+                            name="Profitability",
+                            beta=dic['exposures']['profitability']['beta'],
+                            t_stat=dic['exposures']['profitability']['t-stat'],
+                            p_value=dic['exposures']['profitability']['p-value'],
+                            ci_lower=dic['exposures']['profitability']['ci_lower'],
+                            ci_upper=dic['exposures']['profitability']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'profitability', beta = dic['exposures']['profitability']['beta'], p_value = dic['exposures']['profitability']['p-value'])
+                        ),
+                        
+                        FactorResult(
+                            name="Investment",
+                            beta=dic['exposures']['investment']['beta'],
+                            t_stat=dic['exposures']['investment']['t-stat'],
+                            p_value=dic['exposures']['investment']['p-value'],
+                            ci_lower=dic['exposures']['investment']['ci_lower'],
+                            ci_upper=dic['exposures']['investment']['ci_upper'],
+                            interpretation = interpret_factor(factor_name = 'investment', beta = dic['exposures']['investment']['beta'], p_value = dic['exposures']['investment']['p-value'])
+                        ),
+                    ],
 
-                alpha = dic['alpha']['amount']
+                    covariance_type="HAC",
+                    hac_lags=dic['inference']['hac_maxlags'],
+                )
+                
+                print_regression_summary(result)
 
-                alpha_t = dic['alpha']['t-stat']
-
-                alpha_stat = 'Alpha: ' + f'{(alpha*100):.2f}% /month; t-stat: {alpha_t:5f}'
-
-                if abs(alpha_t) > 2:
-                    alpha_stat += '  - Statistically significant\n\n'
-                else:
-                    alpha_stat += '  - Statistically insignificant\n\n'
-
-                r_square = f"R-Squared: {(dic['model']['r_squared']*100):.2f}%\nThe factors explain approximately {(dic['model']['r_squared']*100):.2f}% of {asset}'s {dic['model']['frequency']} excess-return variation over the sample.\n\n"
-
-
-
-                market = dic['exposures']['market']['beta']
-
-                market_t = dic['exposures']['market']['t-stat']
-
-                size = dic['exposures']['size']['beta']
-
-                size_t = dic['exposures']['size']['t-stat']
-
-                value = dic['exposures']['value']['beta']
-
-                value_t = dic['exposures']['value']['t-stat']
-
-                investment = dic['exposures']['investment']['beta']
-
-                investment_t = dic['exposures']['investment']['t-stat']
-
-                profitability = dic['exposures']['profitability']['beta']
-
-                profitability_t = dic['exposures']['profitability']['t-stat']
-
-                stats = f'\nmarket beta: {market:.5f}; t-stat: {market_t:.5f}\nsize beta: {size:.5f}; t-stat: {size_t:.5f}\nvalue beta: {value:.5f}; t-stat: {value_t:.5f}\nprofitability beta: {profitability:.5f}; t-stat: {profitability_t:.5f}\ninvestment beta: {investment:.5f}; t-stat: {investment_t:.5f}\n\n\n'
-
-
-                if market < 0.7:
-                    market_profile = 'LOWER MARKET BETA'
-                elif market < 1.2:
-                    market_profile = 'MODERATE MARKET BETA'
-                else:
-                    market_profile = 'HIGHER MARKET BETA'
-
-                if size < -0.2:
-                    size_profile = 'LARGER CAP'
-                elif size <= 0.2:
-                    size_profile = 'NEUTRAL SIZE EXPOSURE'
-                else:
-                    size_profile = 'SMALLER CAP'
-
-                if value < -0.2:
-                    value_profile = 'GROWTH TILT'
-                elif value <= 0.2:
-                    value_profile = 'NEUTRAL VALUE/GROWTH'
-                else:
-                    value_profile = 'VALUE TILT'
-
-                if investment < -0.2:
-                    investment_profile = 'MORE AGGRESSIVE INVESTMENT'
-                elif investment <= 0.2:
-                    investment_profile = 'NEUTRAL INVESTMENT'
-                else:
-                    investment_profile = 'MORE CONSERVATIVE INVESTMENT'
-
-                if profitability < -0.2:
-                    profitability_profile = 'NEGATIVE PROFITABILITY EXPOSURE'
-                elif profitability <= 0.2:
-                    profitability_profile = 'NEUTRAL PROFITABILITY EXPOSURE'
-                else:
-                    profitability_profile = 'POSITIVE PROFITABILITY EXPOSURE'
-
-
-                profile = 'FACTOR PROFILE:\n'
-
-                profile += market_profile
-                if abs(market_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += size_profile
-                if abs(size_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += value_profile
-                if abs(value_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += profitability_profile
-                if abs(profitability_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                profile += investment_profile
-                if abs(investment_t) < 2:
-                    profile += '    -Not significant\n'
-                else:
-                    profile += '    -Significant\n'
-
-                return_str += title
-                return_str += window
-                return_str += alpha_stat
-                return_str += r_square
-                return_str += stats
-                return_str += profile
-
-                print(return_str)
-
-            print('For more information, use .advanced_results()\n')
 
 
     # =========================
@@ -497,15 +406,6 @@ class EquityFactorsRegression:
 
         grand_results = {}
 
-        grand_results['basic_information'] = {
-            'observations_frequency': self.freq,
-            'return_convention': self.return_type,
-            'factor_data_source': f"non standard etf-proxies",
-            'HAC_lags': self.hac_lags,
-            'asset_list': self.assets.copy()
-        }
-    
-
         asset_excess_returns_dic = {}
 
         for asset in self.assets:
@@ -517,7 +417,6 @@ class EquityFactorsRegression:
 
         merged_df_dic = {}
         
-        grand_results["merged_data"] = {}
 
         for asset, asset_excess_returns_df in asset_excess_returns_dic.items():
             merged_df = self._merge_factors(
@@ -542,60 +441,98 @@ class EquityFactorsRegression:
             # alert users which date rows are collapsed due to the inner merging
             asset_start = self._get_tiingo_df(asset)["date"].min()
             asset_end = self._get_tiingo_df(asset)["date"].max()
+            
+            
             f_start = merged_df['period'].min()
-            f_end = merged_df['period'].max()           
+            f_end = merged_df['period'].max()
+            
+                   
             actual_start = final_merged_df['period'].min()
             actual_end = final_merged_df['period'].max()
             
+            
+            
             if self.freq == 'daily':
+                
+                # in the monthly/annual tiingo df, the period columns are Period
+                # objects, not Timestamp objects, whereas in the daily df, the
+                # period columns are timestamp objects.
+                
+                # So i have to make the Timestamp object into a period object
+                # if it is monthly or annual frequency
+                # so that i can compare between period-period/ timestamp-timestamp
+                
+                asset_start_period = asset_start
+                asset_end_period = asset_end
+                
                 asset_start_str = asset_start.strftime('%Y-%m-%d')
                 asset_end_str = asset_end.strftime('%Y-%m-%d')
+                
                 f_start_str = f_start.strftime('%Y-%m-%d')
                 f_end_str = f_end.strftime('%Y-%m-%d')
+                
                 actual_start_str = actual_start.strftime('%Y-%m-%d')
                 actual_end_str = actual_end.strftime('%Y-%m-%d')
             
+            
             if self.freq == 'monthly':
+                
+                asset_start_period = asset_start.to_period(freq='M')
+                asset_end_period = asset_end.to_period(freq='M')
+                
                 asset_start_str = asset_start.strftime('%Y-%m')
                 asset_end_str = asset_end.strftime('%Y-%m')
+                
                 f_start_str = f_start.strftime('%Y-%m')
                 f_end_str = f_end.strftime('%Y-%m')
+                
                 actual_start_str = actual_start.strftime('%Y-%m')
                 actual_end_str = actual_end.strftime('%Y-%m')
             
+            
+            
             if self.freq == 'annually':
+                
+                asset_start_period = asset_start.to_period(freq='Y')
+                asset_end_period = asset_end.to_period(freq='Y')
+                
                 asset_start_str = asset_start.strftime('%Y')
                 asset_end_str = asset_end.strftime('%Y')
+                
                 f_start_str = f_start.strftime('%Y')
                 f_end_str = f_end.strftime('%Y')
+                
                 actual_start_str = actual_start.strftime('%Y')
                 actual_end_str = actual_end.strftime('%Y')
 
-            if actual_start > asset_start:
+
+
+            if actual_start > asset_start_period:
                 print(f'Start date of {asset} observation window has been\n',
                         f'pushed forward from {asset_start_str} to {actual_start_str}\n',
                         f'due to data range overlap compatibility.\n'
                 )
-            if actual_end < asset_end:
+                
+                
+                
+            if actual_end < asset_end_period:
                 print(f'End date of {asset} observation window has been\n',
                         f'pushed back from {asset_end_str} to {actual_end_str}\n',
                         f'due to data range overlap compatibility.\n'
                 )
+                
+                
+                
             print(f'{asset} observation window is from\n',
                     f'{actual_start_str} to {actual_end_str}\n\n'
             )
 
-            grand_results["merged_data"][asset] = {
-                "dataframe": final_merged_df,
-                f"{asset}_data_window": f"{asset_start_str} to {asset_end_str}",
-                "factor_data_window": f"{f_start_str} to {f_end_str}",
-                "regression_data_window": f"{actual_start_str} to {actual_end_str}",
-            }
 
             
-        grand_results['regression_results'] = {}
 
         model_results = {}
+
+
 
         for asset, df in merged_df_dic.items():
 
@@ -625,7 +562,7 @@ class EquityFactorsRegression:
 
             model_results[asset] = model
 
-            grand_results['regression_results'][asset] = {
+            grand_results[asset] = {
                 "summary": {
                     "name": "ETF Proxy Factor Regression",
                     "type": "OLS",
@@ -705,25 +642,14 @@ class EquityFactorsRegression:
 
         self._model_results_dic = model_results
         self._grand_results = grand_results
-                
-        # for model in model_results.values():
-        #     print(model.summary())
-
-        # return grand_results
+        
 
     def _french_regress(self):
         if self.freq not in {'daily','monthly','annually'}:
             raise ValueError("using french factor data is only available in input frequency: 'daily', OR 'monthly' OR 'annually'; otherwise use 'etf' as factor_source")
 
-        grand_results = {}
 
-        grand_results['basic_information'] = {
-            'observations_frequency': self.freq,
-            'return_convention': self.return_type,
-            'factor_data_source': self.factor_source,
-            'HAC_lags': self.hac_lags,
-            'asset_list': self.assets.copy()
-        }
+        grand_results = {}
         
 
         if self.freq == 'daily':
@@ -733,8 +659,9 @@ class EquityFactorsRegression:
         else:
             french_factor_df = self._load_french('annually').copy()
 
-        # grand_results['french_data'] = french_factor_df
-        # grand_results['assets_data'] = {}
+
+        self._french_factor_df = french_factor_df
+
 
 
         assets_df_dic = {}
@@ -745,7 +672,7 @@ class EquityFactorsRegression:
             if not asset_returns_df.empty:
                 assets_df_dic[ticker] = asset_returns_df
 
-                # grand_results['assets_data'][ticker] = asset_returns_df
+
 
 
         assets_returns_df_dic = {}
@@ -782,9 +709,6 @@ class EquityFactorsRegression:
                 assets_returns_df_dic[ticker] = df[['date', f'{ticker}_simple_returns']].copy()
 
         
-        grand_results['merged_data'] = {}
-
-
 
 
         if self.freq == 'daily':
@@ -829,12 +753,6 @@ class EquityFactorsRegression:
                         f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n\n'
                 )
 
-                grand_results['merged_data'][ticker] = {
-                    "dataframe": merged_df,
-                    f'{ticker}_data_window': f'{asset_start.strftime('%Y-%m-%d')} to {asset_end.strftime('%Y-%m-%d')}',
-                    f'factor_data_window': f'{ff_start.strftime('%Y-%m-%d')} to {ff_end.strftime('%Y-%m-%d')}',
-                    f'regression_data_window': f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
-                }
 
             
         elif self.freq == 'monthly':
@@ -888,12 +806,6 @@ class EquityFactorsRegression:
                         f'{actual_start.strftime('%Y-%m')} to {actual_end.strftime('%Y-%m')}'
                 )
 
-                grand_results['merged_data'][ticker] = {
-                    "dataframe": merged_df,
-                    f'{ticker}_data_window': f'{asset_start.strftime('%Y-%m')} to {asset_end.strftime('%Y-%m')}',
-                    f'factor_data_window': f'{ff_start.strftime('%Y-%m')} to {ff_end.strftime('%Y-%m')}',
-                    f'regression_data_window': f'{actual_start.strftime('%Y-%m')} to {actual_end.strftime('%Y-%m')}'
-                }
             
             
         elif self.freq == 'annually':
@@ -947,12 +859,6 @@ class EquityFactorsRegression:
                             f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
                     )
 
-                grand_results['merged_data'][ticker] = {
-                    "dataframe": merged_df,
-                    f'{ticker}_data_window': f'{asset_start.strftime('%Y')} to {asset_end.strftime('%Y')}',
-                    f'factor_data_window': f'{ff_start.strftime('%Y')} to {ff_end.strftime('%Y')}',
-                    f'regression_data_window': f'{actual_start.strftime('%Y')} to {actual_end.strftime('%Y')}'
-                }
 
 
 
@@ -970,12 +876,11 @@ class EquityFactorsRegression:
 
 
 
-        
-        grand_results['regression_results'] = {}
 
         model_results = {}
 
         for ticker, df in merged_df_dic.items():
+            
 
             actual_start = df["date"].min()
             actual_end = df["date"].max()
@@ -1000,7 +905,7 @@ class EquityFactorsRegression:
             model_results[ticker] = model
 
 
-            grand_results['regression_results'][ticker] = {
+            grand_results[ticker] = {
                 "summary": {
                     "name": "Fama-French 5 Factor Regression",
                     "type": "OLS",
@@ -1080,10 +985,7 @@ class EquityFactorsRegression:
         self._model_results_dic = model_results
         self._grand_results = grand_results
         
-        # for model in model_results.values():
-        #     print(model.summary())
 
-        # return grand_results
 
     def _ols_regression(self, y, X):
         X = sm.add_constant(X)
@@ -1579,7 +1481,7 @@ class EquityFactorsRegression:
 # -----------------------
 
 if __name__ == "__main__":    
-    fac1 = EquityFactorsRegression(factor_source="french", frequency='monthly')
+    fac1 = EquityFactorsRegression(factor_source="etf", frequency='monthly')
     fac1.asset_list('goog','ko')
     fac1.reset_assets()
     fac1.asset_list('nvda','msft')
