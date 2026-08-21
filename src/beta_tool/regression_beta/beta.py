@@ -158,18 +158,18 @@ class Beta:
 
     def plot_historical_rolling_beta(self,observation_window: int = 60):
 
-        attr_name = f"{observation_window}_day_rolling_beta_data"
-        attr = historical_rolling_beta(self, observation_window)
+        attr_name = f"{observation_window}_day_rolling_beta_dataframe"
+        rolling_df, whole_period_beta = historical_rolling_beta(self, observation_window)
 
-        setattr(self,attr_name,attr)
+        setattr(self,attr_name, rolling_df)
 
-        ax = historical_rolling_beta_plot(attr)
+        ax = historical_rolling_beta_plot(rolling_df, whole_period_beta)
 
         plt.show()
 
 
 
 if __name__ == "__main__":
-    my_beta = Beta(asset1="msft", asset2="aapl", period="5y", interval="daily", return_type="log")
-    my_beta.plot_results()
-    my_beta.plot_historical_rolling_beta(observation_window=60)
+    my_beta = Beta(asset1="msft", asset2="spy", period="20y", interval="daily", return_type="log")
+    #my_beta.plot_results()
+    my_beta.plot_historical_rolling_beta(observation_window=126)

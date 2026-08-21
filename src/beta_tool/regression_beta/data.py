@@ -9,7 +9,6 @@ import pandas as pd
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from dateutil import parser
-from lse import LSE
 from data_collection.tiingo_api import TiingoApi
 
 class AssetData:

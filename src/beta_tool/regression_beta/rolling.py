@@ -50,6 +50,17 @@ def historical_rolling_beta(beta_obj, observation_window:int = 60):
         rolling_beta_results[window["date"].iloc[-1]] = (
             results.params[asset_2_col]
         )
+    
+    
+    # overlay a horizontal line that is the whole period's beta
+    asset_1_returns = df[["date", asset_1_col]].copy()
+    asset_2_returns = df[["date", asset_2_col]].copy()
+    whole_period_regression = regression.OLSRegression(
+        asset1 =  asset_1_returns,
+        asset2= asset_2_returns,
+        return_type= return_type
+    ).ols()
+    whole_period_beta = whole_period_regression.params[asset_2_col].item()
 
     
 
@@ -63,10 +74,10 @@ def historical_rolling_beta(beta_obj, observation_window:int = 60):
 
     return_df.attrs["period"] = f"from {str(return_df['date'].iloc[0])[:10]} to {str(return_df['date'].iloc[-1])[:10]}"
 
-    return return_df
+    return return_df, whole_period_beta
 
 
-def historical_rolling_beta_plot(rolling_df: pd.DataFrame, ax = None):
+def historical_rolling_beta_plot(rolling_df: pd.DataFrame, whole_period_beta = None, ax = None):
     df = rolling_df.copy()
 
     if ax is None:
@@ -75,6 +86,7 @@ def historical_rolling_beta_plot(rolling_df: pd.DataFrame, ax = None):
     ax.plot(
         df["date"],
         df["beta"],
+        label = "Rolling beta"
     )
 
     ax.set_title(
@@ -86,6 +98,11 @@ def historical_rolling_beta_plot(rolling_df: pd.DataFrame, ax = None):
     ax.axhline(0, color="gray", linestyle="--", alpha=0.5)
 
     ax.axhline(1, color="gray", linestyle="--", alpha=0.5)
+    
+    if whole_period_beta is not None:
+        ax.axhline(whole_period_beta, color="red", linestyle= "--", label="Whole period beta")
+    
+    ax.legend()
 
     ax.grid(alpha=0.2)
 
