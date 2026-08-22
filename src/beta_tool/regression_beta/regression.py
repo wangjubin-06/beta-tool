@@ -6,7 +6,23 @@ import regression_beta.returns as returns
 class OLSRegression:
 
     def __init__(self, asset1: pd.DataFrame, asset2: pd.DataFrame, return_type: str ="log"):
+        
+        if return_type not in {'log','simple'}:
+            raise ValueError("return_type has to be either 'log' or 'simple'")
+        
+        
         col = f"{return_type}-returns"
+        
+        
+        if not any(f"{col}" in col for col in asset1.columns):
+            raise KeyError(f'No column named {col} in asset1 dataframe provided')
+        if not any(f"{col}" in col for col in asset2.columns):
+            raise KeyError(f'No column named {col} in asset2 dataframe provided')
+        if not any("date" in col for col in asset1.columns):
+            raise KeyError(f'No date column in asset1 dataframe provided')
+        if not any("date" in col for col in asset2.columns):
+            raise KeyError(f'No date column in asset2 dataframe provided')
+        
 
         #merge the two df by timeframes with how=inner so that the returns series will start on the latest timestamps which both assets have
         merged = pd.merge(
@@ -47,10 +63,20 @@ class MultiFactorRegression:
     """
     def __init__(self, asset1: pd.DataFrame, assets: dict[str, pd.DataFrame], return_type: str = "log"):
 
+        if return_type not in {'log','simple'}:
+            raise ValueError("return_type has to be either 'log' or 'simple'")
+        
         col = f"{return_type}-returns"
  
         if len(assets) < 1:
             raise ValueError("at least one factor asset is required")
+        
+        if not any(f"{col}" in col for col in asset1.columns):
+            raise KeyError(f'No column named {col} in asset1 dataframe provided')
+
+        if not any("date" in col for col in asset1.columns):
+            raise KeyError(f'No date column in asset1 dataframe provided')
+        
 
         merged = asset1[["date", col]].copy()
         merged = merged.rename(columns = {col :'y'})
@@ -58,12 +84,22 @@ class MultiFactorRegression:
         assets_names = []
  
         for asset_name, asset_df in assets.items():
+            
             if col not in asset_df.columns:
-                raise ValueError(f"factor '{asset_name}' is missing column '{col}' — did you pass returns, not prices?")
+                raise KeyError(f"factor '{asset_name}' dataframe is missing column '{col}' — did you pass returns, not prices?")
+            
+            if 'date' not in asset_df.columns:
+                raise KeyError(f"factor '{asset_name}' dataframe is missing column 'date'")
+            
+            
             df = asset_df[["date", col]].copy()
+            
             df = df.rename(columns={col: asset_name})
+            
             merged = pd.merge(merged, df, on="date", how="inner")
+            
             assets_names.append(asset_name)
+            
         #inner-merging sequentially keeps only timestamps common to the dependent asset and every factor
  
         if merged.empty:
@@ -75,6 +111,7 @@ class MultiFactorRegression:
 
         #hiding the time part of the pd datetime object
         merged = merged.sort_values('date').reset_index(drop=True)
+        
         merged.style.format({
             'date': '%Y-%m-%d'
         })

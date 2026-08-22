@@ -1,5 +1,5 @@
 """
-    this module gathers past asset price data using the London Strategic Edge API. requires the user to use their own API key stored in their system environments
+    this module gathers past asset price data using Tiingo API. requires the user to use their own API key stored in their system environments
 
 """
 
@@ -60,7 +60,7 @@ class AssetData:
         period: str,
         start_date: str | None,
         end_date: str | None,
-        ) -> tuple[str,str]:
+        ):
 
         """
 

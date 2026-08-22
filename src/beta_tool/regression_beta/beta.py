@@ -10,6 +10,13 @@ from regression_beta.diagnostics import autocorrelation, heteroskedasticity, nor
 
 class Beta:
 
+    ALLOWED_FREQUENCIES = {
+        'daily',
+        'weekly',
+        'monthly',
+        'annually'
+    }
+
     def __init__(
             self,
             asset1: str, #the dependent asset on y-axis
@@ -21,8 +28,12 @@ class Beta:
             return_type: str = "log"
             ):
         
+        
         if return_type not in ("log","simple"):
             raise ValueError("return_type = 'log' or return_type = 'simple' only.")
+        
+        if interval not in self.ALLOWED_FREQUENCIES:
+            raise ValueError("only daily, weekly, monthly, annually is allowed for data interval!")
 
         self.asset1 = asset1
         self.asset2 = asset2
@@ -44,7 +55,7 @@ class Beta:
             frequency = interval,
             start_date = start_date,
             end_date = end_date
-        ).get_prices()
+        ).get_prices() # type: ignore
 
         
 
@@ -113,7 +124,7 @@ class Beta:
 
 
     # Public APIs
-    def summary(self) -> str:
+    def summary(self):
         """Return a formatted summary of the regression results."""
         lines = [
             '\n\n=========================================',
@@ -170,6 +181,7 @@ class Beta:
     def plot_historical_rolling_beta(self,observation_window: int = 60):
 
         attr_name = f"{observation_window}_day_rolling_beta_dataframe"
+        
         rolling_df, whole_period_beta = historical_rolling_beta(self, observation_window)
 
         setattr(self,attr_name, rolling_df)
@@ -180,8 +192,8 @@ class Beta:
 
 
     # Private methods
-    def __str__(self) -> str:
-        return self.summary()
+    def __str__(self):
+        self.summary()
 
     def _diagnostics(self):
         """This prints the results of analysis on the regression results.

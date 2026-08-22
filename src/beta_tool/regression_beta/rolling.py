@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 def historical_rolling_beta(beta_obj, observation_window:int = 60):
     """
     
-    this function takes in a Beta object and calculates the beta over the previous observation window (in whole number of days) for every day, inclusive
+    this function takes in a Beta object and calculates the beta over the previous observation window (in whole number of data points), inclusive
     
     """
     if observation_window <= 0:
