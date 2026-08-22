@@ -5,6 +5,7 @@ from regression_beta.returns import log_returns, simple_returns
 from datetime import date
 import matplotlib.pyplot as plt
 from regression_beta.rolling import historical_rolling_beta, historical_rolling_beta_plot
+from regression_beta.diagnostics import autocorrelation, heteroskedasticity, normality
 
 
 class Beta:
@@ -15,8 +16,8 @@ class Beta:
             asset2: str, #the independent asset on x-axis
             period: str = "1y",
             interval: str = "daily",
-            start_date: date | None = None,
-            end_date: date | None = None,
+            start_date: str | None = None,
+            end_date: str | None = None,
             return_type: str = "log"
             ):
         
@@ -26,6 +27,7 @@ class Beta:
         self.asset1 = asset1
         self.asset2 = asset2
         self.return_type = return_type
+        self.freq = interval
 
 
         asset_1_prices = AssetData(
@@ -92,6 +94,8 @@ class Beta:
             "beta_std_error": results.bse[f"{return_type}-returns_2"],
             "beta_ci_low": results.conf_int().loc[f"{return_type}-returns_2", 0],
             "beta_ci_high": results.conf_int().loc[f"{return_type}-returns_2", 1],
+            "start_date": self.start_date,
+            "end_date": self.end_date,
             "n_obs": results.nobs,
             "residual_vol": results.resid.std()
             }
@@ -107,11 +111,14 @@ class Beta:
         self.observations = int(stats["n_obs"])
         self.residual_vol = float(stats["residual_vol"])
 
+
+    # Public APIs
     def summary(self) -> str:
         """Return a formatted summary of the regression results."""
         lines = [
+            '\n\n=========================================',
             f"OLS Regression: {self.asset1} against {self.asset2}:",
-            "-" * 50,
+            '=========================================',
             f"{'Beta':<30}: {self.beta:.5f}",
             f"{'Intercept':<30}: {self.intercept:.5f}",
             f"{'R-squared':<30}: {self.rsquare:.5f}",
@@ -120,13 +127,16 @@ class Beta:
             f"{'Beta std-error':<30}: {self.beta_std_error:.5f}",
             f"{'Beta Confidence Interval high':<30}: {self.beta_ci_high:.5f}",
             f"{'Beta Confidence Interval low':<30}: {self.beta_ci_low:.5f}",
+            f"{'Start date':<30}: {self.start_date}",
+            f"{'End date':<30}: {self.end_date}",
+            f"{'Frequency':<30}: {self.freq}",
             f"{'No. of observations':<30}: {self.observations}",
             f"{'Residual volatility':<30}: {self.residual_vol:.5f}",
         ]
-        return "\n".join(lines)
+        print("\n".join(lines))
+        
+        self._diagnostics()
 
-    def __str__(self) -> str:
-        return self.summary()
 
     def plot_results(self):
         fig = plt.figure(figsize=(20,16), layout="constrained")
@@ -156,6 +166,7 @@ class Beta:
 
         return fig
 
+
     def plot_historical_rolling_beta(self,observation_window: int = 60):
 
         attr_name = f"{observation_window}_day_rolling_beta_dataframe"
@@ -168,8 +179,26 @@ class Beta:
         plt.show()
 
 
+    # Private methods
+    def __str__(self) -> str:
+        return self.summary()
+
+    def _diagnostics(self):
+        """This prints the results of analysis on the regression results.
+        """
+        
+        heteroskedasticity(self.olsresults)
+        
+        autocorrelation(self.olsresults)
+        
+        normality(self.olsresults)
+        
+        print('\n\n\n')
+
 
 if __name__ == "__main__":
     my_beta = Beta(asset1="msft", asset2="spy", period="20y", interval="daily", return_type="log")
-    #my_beta.plot_results()
+    my_beta.summary()
+    my_beta.plot_results()
     my_beta.plot_historical_rolling_beta(observation_window=126)
+    

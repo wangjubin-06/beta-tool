@@ -33,13 +33,14 @@ class AssetData:
         "30y":relativedelta(years=30)
     }
 
+
     def __init__(
         self,
         ticker: str,
         period: str ="1y",
         frequency: str = "daily",
-        start_date: date | None = None,
-        end_date: date | None = None
+        start_date: str | None = None,
+        end_date: str | None = None
         ):
 
         if frequency not in self.ALLOWED_FREQUENCIES:
@@ -54,13 +55,12 @@ class AssetData:
         self.start_date, self.end_date = self._resolve_dates(period, start_date, end_date)
 
 
-
     def _resolve_dates(
         self,
         period: str,
-        start_date: date | None,
-        end_date: date | None,
-        ) -> tuple[date,date]:
+        start_date: str | None,
+        end_date: str | None,
+        ) -> tuple[str,str]:
 
         """
 
@@ -86,7 +86,7 @@ class AssetData:
                 # Automatically parses almost any date format into a datetime object
                 parsed_date = parser.parse(end_date)
                 # Formats the datetime object into strictly 'yyyy-mm-dd'
-                end = parsed_date.strftime('%Y-%m-%d').date()
+                end = parsed_date.date()
             except (ValueError, TypeError):
                 return None  # Handles invalid date strings gracefully
         else:
@@ -97,7 +97,7 @@ class AssetData:
                 # Automatically parses almost any date format into a datetime object
                 parsed_date = parser.parse(start_date)
                 # Formats the datetime object into strictly 'yyyy-mm-dd'
-                start = parsed_date.strftime('%Y-%m-%d').date()
+                start = parsed_date.date()
             except (ValueError, TypeError):
                 return None  # Handles invalid date strings gracefully
             start = start - timedelta(days = 1)

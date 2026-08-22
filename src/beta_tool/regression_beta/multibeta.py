@@ -5,6 +5,7 @@ from regression_beta.data import AssetData
 from regression_beta.returns import log_returns, simple_returns
 from regression_beta.regression import MultiFactorRegression
 from regression_beta.plotting import mutlifac_ols_plot
+from regression_beta.diagnostics import heteroskedasticity, autocorrelation, multicollinearity, normality
  
  
 class MultiAssetsRegression:
@@ -21,8 +22,8 @@ class MultiAssetsRegression:
             assets: list[str], #the list of assets for x-axis
             period: str = "1y",
             frequency: str = "daily",
-            start_date: date | None = None,
-            end_date: date | None = None,
+            start_date: str | None = None,
+            end_date: str | None = None,
             return_type: str = "log"
             ):
         
@@ -92,13 +93,18 @@ class MultiAssetsRegression:
                 "ci_high": float(conf_int.loc[name, 1]),
             }
 
- 
+
+    # Public APIs
     def summary(self) -> str:
         lines = [
-            f"Multi-Factor OLS Regression: {self.asset1} against {', '.join(self.assets_tickers)}:",
-            "-" * 60,
+            '\n\n=====================================================',
+            f"Multi-Factor OLS Regression: {self.asset1} against {', '.join(self.merged_assets_names)}:",
+            '=====================================================',
             f"{'Intercept':<30}: {self.intercept:.5f}",
             f"{'R-squared':<30}: {self.r_squared:.5f}",
+            f"{'Start date':<30}: {self.start_date}",
+            f"{'End date':<30}: {self.end_date}",
+            f"{'Frequency':<30}: {self.freq}",
             f"{'No. of observations':<30}: {self.observations}",
             f"{'Residual volatility':<30}: {self.residual_vol:.5f}",
             "",
@@ -111,16 +117,35 @@ class MultiAssetsRegression:
             lines.append(f"  {'std-error':<28}: {stats['std_error']:.5f}")
             lines.append(f"  {'CI low':<28}: {stats['ci_low']:.5f}")
             lines.append(f"  {'CI high':<28}: {stats['ci_high']:.5f}")
-        return "\n".join(lines)
- 
-    def __str__(self) -> str:
-        return self.summary()
+        print("\n".join(lines))
+        self._diagnostics()
+
 
     def plot_results(self):
         factor_beta_and_ci_ax = mutlifac_ols_plot(self)
         plt.show()
 
 
+    # Private methods
+    def __str__(self) -> str:
+        return self.summary()
+
+    def _diagnostics(self):
+        """This prints the results analysis on the regression results.
+        """
+
+        heteroskedasticity(self.olsresults)
+        
+        autocorrelation(self.olsresults)
+        
+        normality(self.olsresults)
+        
+        multicollinearity(self.olsresults)
+        
+        print('\n\n\n')
+
 
 if __name__ == "__main__":
-    pass
+    my_beta = MultiAssetsRegression("tsla", ['msft','aapl'], '5y')
+    my_beta.summary()
+    my_beta.plot_results()
