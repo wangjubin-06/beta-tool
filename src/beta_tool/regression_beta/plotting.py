@@ -38,7 +38,7 @@ def price_series_plot(ticker:str, data: pd.DataFrame, ax = None):
     return ax
 
 
-def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="log", axes = None):
+def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="log", data_col:str = None, axes = None):
     """
     
     this function plots the distribution histogram/KDE of the asset returns, compared to a normal distribution with the empirical data parameters, and also a Q-Q plot
@@ -47,9 +47,14 @@ def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="l
     
     """
     
-    
+    if data_col is None:
+        col = f"{return_type}-returns"
+    else:
+        col = data_col
+        
+        
     df = data.copy()
-    r = df[f"{return_type}-returns"]
+    r = df[col]
     
     if axes is None:
         fig, axes = plt.subplots(1,2,figsize=(13, 5))
@@ -102,7 +107,7 @@ def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="l
     return axes
 
 
-def two_asset_ols_plot(ticker1:str, ticker2:str, asset1: pd.DataFrame, asset2: pd.DataFrame, return_type:str = "log", ax = None):
+def two_asset_ols_plot(dependent_ticker:str, independent_ticker:str, dependent_asset_df: pd.DataFrame, independent_asset_df: pd.DataFrame, dependent_col, independent_col, return_type:str = "log", ax = None):
 
     """
 
@@ -110,8 +115,8 @@ def two_asset_ols_plot(ticker1:str, ticker2:str, asset1: pd.DataFrame, asset2: p
 
     """
 
-    df1 = asset1.copy()
-    df2 = asset2.copy()
+    df1 = dependent_asset_df.copy()
+    df2 = independent_asset_df.copy()
 
     #merge the two df by timeframes with how=inner so that the returns series will start on the latest timestamps which both assets have
     merged = pd.merge(
@@ -125,8 +130,8 @@ def two_asset_ols_plot(ticker1:str, ticker2:str, asset1: pd.DataFrame, asset2: p
     #hiding the time part of the pd datetime object
     merged['date'] = merged['date'].dt.strftime('%Y-%m-%d')
 
-    y = merged[f'{return_type}-returns_1']
-    X = merged[f'{return_type}-returns_2']
+    y = merged[dependent_col]
+    X = merged[independent_col]
 
     #OLS: y = alpha + beta * X
     X_with_constant = sm.add_constant(X, has_constant="add")
@@ -157,16 +162,16 @@ def two_asset_ols_plot(ticker1:str, ticker2:str, asset1: pd.DataFrame, asset2: p
     ax.set_title('Scatter plot of two asset return series with OLS regression line')
     ax.legend()
     ax.grid(alpha=0.25)
-    ax.set_xlabel(f"{ticker2} {return_type} returns")
-    ax.set_ylabel(f"{ticker1} {return_type} returns")
+    ax.set_xlabel(f"{independent_ticker} {return_type} returns")
+    ax.set_ylabel(f"{dependent_ticker} {return_type} returns")
 
     alpha = model.params['const']
-    beta = model.params[f"{return_type}-returns_2"]
-    beta_pvalue = model.pvalues[f"{return_type}-returns_2"]
-    beta_tstat = model.tvalues[f"{return_type}-returns_2"]
-    beta_std_error = model.bse[f"{return_type}-returns_2"]
-    beta_ci_low = model.conf_int().loc[f"{return_type}-returns_2", 0]
-    beta_ci_high = model.conf_int().loc[f"{return_type}-returns_2", 1]
+    beta = model.params[independent_col]
+    beta_pvalue = model.pvalues[independent_col]
+    beta_tstat = model.tvalues[independent_col]
+    beta_std_error = model.bse[independent_col]
+    beta_ci_low = model.conf_int().loc[independent_col, 0]
+    beta_ci_high = model.conf_int().loc[independent_col, 1]
     n = int(model.nobs)
 
     start_date = merged['date'].iloc[0]

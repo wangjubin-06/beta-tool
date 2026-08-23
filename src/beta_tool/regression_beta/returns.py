@@ -3,6 +3,13 @@ import pandas as pd
 
 def log_returns(data: pd.DataFrame, header_name = "adjClose") -> pd.DataFrame:
     
+    if data.empty:
+        raise ValueError("Price series dataframe is empty!")
+    
+    if not header_name in data.columns:
+        raise KeyError(f"No column named {header_name} in dataframe provided for return calculation!")
+    
+    
     df = data.copy()
     
     df = df.dropna(subset=[header_name])
@@ -14,6 +21,13 @@ def log_returns(data: pd.DataFrame, header_name = "adjClose") -> pd.DataFrame:
     return df
 
 def simple_returns(data: pd.DataFrame, header_name = "adjClose") -> pd.DataFrame:
+    
+    if data.empty:
+        raise ValueError("Price series dataframe is empty!")
+    
+    if not header_name in data.columns:
+        raise KeyError(f"No column named {header_name} in dataframe provided for return calculation!")
+    
     
     df = data.copy()
     

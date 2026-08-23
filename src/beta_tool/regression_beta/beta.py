@@ -100,6 +100,7 @@ class Beta:
             "beta": results.params[f"{return_type}-returns_2"],
             "intercept": results.params['const'],
             "r_squared": results.rsquared,
+            "alpha_p_value": results.pvalues['const'],
             "beta_pvalue": results.pvalues[f"{return_type}-returns_2"],
             "beta_tstat": results.tvalues[f"{return_type}-returns_2"],
             "beta_std_error": results.bse[f"{return_type}-returns_2"],
@@ -114,6 +115,7 @@ class Beta:
         self.beta = float(stats["beta"])
         self.intercept = float(stats["intercept"])
         self.rsquare = float(stats["r_squared"])
+        self.alpha_p_value = float(stats['alpha_p_value'])
         self.beta_p_value = float(stats["beta_pvalue"])
         self.beta_tstat = float(stats["beta_tstat"])
         self.beta_std_error = float(stats["beta_std_error"])
@@ -131,8 +133,9 @@ class Beta:
             f"OLS Regression: {self.asset1} against {self.asset2}:",
             '=========================================',
             f"{'Beta':<30}: {self.beta:.5f}",
-            f"{'Intercept':<30}: {self.intercept:.5f}",
+            f"{'Alpha':<30}: {self.intercept:.5f}",
             f"{'R-squared':<30}: {self.rsquare:.5f}",
+            f"{'Alpha p-value':<30}: {self.alpha_p_value:.5f}",
             f"{'Beta p-value':<30}: {self.beta_p_value:.4g}",
             f"{'Beta t-stat':<30}: {self.beta_tstat:.5f}",
             f"{'Beta std-error':<30}: {self.beta_std_error:.5f}",
@@ -141,6 +144,7 @@ class Beta:
             f"{'Start date':<30}: {self.start_date}",
             f"{'End date':<30}: {self.end_date}",
             f"{'Frequency':<30}: {self.freq}",
+            f"{'Return type':<30}: {self.return_type}",
             f"{'No. of observations':<30}: {self.observations}",
             f"{'Residual volatility':<30}: {self.residual_vol:.5f}",
         ]
