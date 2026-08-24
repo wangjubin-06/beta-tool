@@ -5,7 +5,7 @@ import statsmodels.api as sm
 from scipy.stats import norm, gaussian_kde, probplot
 from matplotlib.lines import Line2D
 
-def price_series_plot(ticker:str, data: pd.DataFrame, ax = None):
+def price_series_plot(ticker:str, data: pd.DataFrame, data_col=None, ax = None):
     """
     this function plots the time series of the asset price
 
@@ -18,11 +18,15 @@ def price_series_plot(ticker:str, data: pd.DataFrame, ax = None):
     if ax is None:
         _, ax = plt.subplots(figsize=(14, 6))
 
-
+    if not "date" in data.columns:
+        raise KeyError("Missing 'date' column in dataframe provided!")
+    
+    if data_col is None:
+        raise ValueError("Please set column name for data to be plotted")
 
     ax.plot(
         df["date"],
-        df["adjClose"],
+        df[data_col],
         label="adjusted-close price"
     )
 
@@ -48,13 +52,11 @@ def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="l
     """
     
     if data_col is None:
-        col = f"{return_type}-returns"
-    else:
-        col = data_col
+        raise ValueError("Please set column name for data to be plotted")
         
         
     df = data.copy()
-    r = df[col]
+    r = df[data_col]
     
     if axes is None:
         fig, axes = plt.subplots(1,2,figsize=(13, 5))
@@ -210,7 +212,7 @@ def beta_obj_ols_plot(beta_obj, ax=None):
     """
 
 
-    model = beta_obj.olsresults
+    model = beta_obj.olsmodel
     
     intercept, slope = model.params
 
@@ -222,13 +224,12 @@ def beta_obj_ols_plot(beta_obj, ax=None):
         df1,
         df2,
         on="date",
-        how="inner",
-        suffixes=("_1", "_2")
+        how="inner"
         )
         
     
-    y = merged[f'{beta_obj.return_type}-returns_1']
-    X = merged[f'{beta_obj.return_type}-returns_2']
+    y = merged[beta_obj.y_col]
+    X = merged[beta_obj.x_col]
     
     #regression line
     x_line = np.linspace(X.min(), X.max(),100)
@@ -254,19 +255,20 @@ def beta_obj_ols_plot(beta_obj, ax=None):
     ax.set_xlabel(f"{beta_obj.asset2} {beta_obj.return_type} returns")
     ax.set_ylabel(f"{beta_obj.asset1} {beta_obj.return_type} returns")
 
+    stats_df = beta_obj.ols_df.copy()
     
     stats_text = (
-        f"$y = {beta_obj.intercept:.4f} + {beta_obj.beta:.4f}x$\n"
-        f"$\\beta = {float(beta_obj.beta):.4f}$\n"
-        f"$R^2$ = {beta_obj.rsquare:.4f}\n"
-        f"$p(\\beta)$ = {beta_obj.beta_p_value:.4g}\n"
-        f"$N$ = {beta_obj.observations}\n"
-        f"$(\\beta)$ t-stat = {beta_obj.beta_tstat:.5f}\n"
-        f"$(\\beta)$ std-error = {beta_obj.beta_std_error:.5f}\n"
-        f"$(\\beta)$ confidence interval high = {beta_obj.beta_ci_high:.5f}\n"
-        f"$(\\beta)$ confidence interval low = {beta_obj.beta_ci_low:.5f}\n"
-        f"Start date: {beta_obj.start_date}\n"
-        f"End date: {beta_obj.end_date}"
+        f"$y = {stats_df['alpha'].item():.4f} + {stats_df['beta'].item():.4f}x$\n"
+        f"$\\beta = {stats_df['beta'].item():.4f}$\n"
+        f"$R^2$ = {stats_df['r_squared'].item():.4f}\n"
+        f"$p(\\beta)$ = {stats_df['beta_pvalue'].item():.4g}\n"
+        f"$N$ = {int(stats_df['n_obs'].item())}\n"
+        f"$(\\beta)$ t-stat = {stats_df['beta_tstat'].item():.5f}\n"
+        f"$(\\beta)$ std-error = {stats_df['beta_std_error'].item():.5f}\n"
+        f"$(\\beta)$ confidence interval high = {stats_df['beta_ci_high'].item():.5f}\n"
+        f"$(\\beta)$ confidence interval low = {stats_df['beta_ci_low'].item():.5f}\n"
+        f"Start date: {stats_df['start_date'].item()}\n"
+        f"End date: {stats_df['end_date'].item()}"
     )
 
     ax.text(
@@ -443,8 +445,3 @@ def mutlifac_ols_plot(multifac_obj, sort=True, ax=None):
     # )
 
     return ax
-
-
-
-if __name__ == "__main__":
-    pass

@@ -1,11 +1,10 @@
 from regression_beta.data import AssetData
-from regression_beta import regression
 from regression_beta import plotting
 from regression_beta.returns import log_returns, simple_returns
-from datetime import date
 import matplotlib.pyplot as plt
-from regression_beta.rolling import historical_rolling_beta, historical_rolling_beta_plot
+from regression_beta.rolling import historical_rolling_beta, rolling_beta_plot, rolling_beta_summary
 from regression_beta.diagnostics import autocorrelation, heteroskedasticity, normality
+from regression_beta.regression import OLSRegression
 
 
 class Beta:
@@ -26,7 +25,7 @@ class Beta:
             start_date: str | None = None,
             end_date: str | None = None,
             return_type: str = "log"
-            ):
+        ):
         
         
         if return_type not in ("log","simple"):
@@ -74,81 +73,35 @@ class Beta:
             header_name="adjClose"
         )
 
+        # Renaming the columns to differentiate
+        old_col = "log-returns" if self.return_type == 'log' else "simple-returns"
+        asset_1_returns.rename(columns={old_col: 'asset_1_returns'}, inplace=True)
+        asset_2_returns.rename(columns={old_col: 'asset_2_returns'}, inplace=True)
+
+        self.y_col = 'asset_1_returns'
+        self.x_col = 'asset_2_returns'
+
         self.asset_1_returns = asset_1_returns
         self.asset_2_returns = asset_2_returns
 
         #asset_1_returns is dependent variable (Y), asset_2_returns is independent variable (X)
 
-        regress_obj = regression.OLSRegression(
-            asset_1_returns,
-            asset_2_returns,
-            return_type=return_type
-            )
-        
-        self.merged_returns_series = regress_obj.merged_return_series.copy()
-        
-        self.merged_asset_1_returns = regress_obj.y.copy()
-        self.merged_asset_2_returns = regress_obj.x.copy()
-
-        self.start_date = regress_obj.merged_return_series["date"].iloc[0]
-        self.end_date = regress_obj.merged_return_series["date"].iloc[-1]
-        
-        results = regress_obj.ols()
-        self.olsresults = results
-
-        stats = {
-            "beta": results.params[f"{return_type}-returns_2"],
-            "intercept": results.params['const'],
-            "r_squared": results.rsquared,
-            "alpha_p_value": results.pvalues['const'],
-            "beta_pvalue": results.pvalues[f"{return_type}-returns_2"],
-            "beta_tstat": results.tvalues[f"{return_type}-returns_2"],
-            "beta_std_error": results.bse[f"{return_type}-returns_2"],
-            "beta_ci_low": results.conf_int().loc[f"{return_type}-returns_2", 0],
-            "beta_ci_high": results.conf_int().loc[f"{return_type}-returns_2", 1],
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "n_obs": results.nobs,
-            "residual_vol": results.resid.std()
-            }
-
-        self.beta = float(stats["beta"])
-        self.intercept = float(stats["intercept"])
-        self.rsquare = float(stats["r_squared"])
-        self.alpha_p_value = float(stats['alpha_p_value'])
-        self.beta_p_value = float(stats["beta_pvalue"])
-        self.beta_tstat = float(stats["beta_tstat"])
-        self.beta_std_error = float(stats["beta_std_error"])
-        self.beta_ci_low = float(stats["beta_ci_low"])
-        self.beta_ci_high = float(stats["beta_ci_high"])
-        self.observations = int(stats["n_obs"])
-        self.residual_vol = float(stats["residual_vol"])
+        self._regress(
+            asset1_df=self.asset_1_returns,
+            asset2_df=self.asset_2_returns,
+            asset_1_col=self.y_col,
+            asset_2_col=self.x_col
+        )
 
 
     # Public APIs
     def summary(self):
         """Return a formatted summary of the regression results."""
-        lines = [
-            '\n\n=========================================',
-            f"OLS Regression: {self.asset1} against {self.asset2}:",
-            '=========================================',
-            f"{'Beta':<30}: {self.beta:.5f}",
-            f"{'Alpha':<30}: {self.intercept:.5f}",
-            f"{'R-squared':<30}: {self.rsquare:.5f}",
-            f"{'Alpha p-value':<30}: {self.alpha_p_value:.5f}",
-            f"{'Beta p-value':<30}: {self.beta_p_value:.4g}",
-            f"{'Beta t-stat':<30}: {self.beta_tstat:.5f}",
-            f"{'Beta std-error':<30}: {self.beta_std_error:.5f}",
-            f"{'Beta Confidence Interval high':<30}: {self.beta_ci_high:.5f}",
-            f"{'Beta Confidence Interval low':<30}: {self.beta_ci_low:.5f}",
-            f"{'Start date':<30}: {self.start_date}",
-            f"{'End date':<30}: {self.end_date}",
-            f"{'Frequency':<30}: {self.freq}",
-            f"{'Return type':<30}: {self.return_type}",
-            f"{'No. of observations':<30}: {self.observations}",
-            f"{'Residual volatility':<30}: {self.residual_vol:.5f}",
-        ]
-        print("\n".join(lines))
+
+        self.ols_obj.summary(
+            asset_1_name=self.asset1,
+            asset_2_name=self.asset2
+        )
         
         self._diagnostics()
 
@@ -171,31 +124,87 @@ class Beta:
         
         ax_ols = fig.add_subplot(gs[2:4, :])
 
-        plotting.price_series_plot(ticker = self.asset1, data=self.asset_1_prices, ax = ax_asset_1_price)
-        plotting.price_series_plot(ticker = self.asset2, data=self.asset_2_prices, ax = ax_asset_2_price)
+        plotting.price_series_plot(ticker = self.asset1, data=self.asset_1_prices, data_col="adjClose", ax = ax_asset_1_price)
+        plotting.price_series_plot(ticker = self.asset2, data=self.asset_2_prices, data_col="adjClose", ax = ax_asset_2_price)
 
-        plotting.returns_distribution_plot(ticker = self.asset1, data=self.asset_1_returns, axes = (ax_asset_1_dist, ax_asset_1_qq), return_type=self.return_type)
-        plotting.returns_distribution_plot(ticker = self.asset2, data=self.asset_2_returns, axes = (ax_asset_2_dist, ax_asset_2_qq), return_type=self.return_type)
+        plotting.returns_distribution_plot(ticker = self.asset1, data=self.asset_1_returns, data_col=self.y_col,axes = (ax_asset_1_dist, ax_asset_1_qq), return_type=self.return_type)
+        plotting.returns_distribution_plot(ticker = self.asset2, data=self.asset_2_returns, data_col=self.x_col, axes = (ax_asset_2_dist, ax_asset_2_qq), return_type=self.return_type)
 
         plotting.beta_obj_ols_plot(beta_obj=self, ax=ax_ols)
 
+        plt.show()
         return fig
 
 
-    def plot_historical_rolling_beta(self,observation_window: int = 60):
+    def historical_rolling_beta(self, window=60):
+        """
+        Initiate historical rolling OLS for the portfolio against benchmark to get rolling beta and statistics
 
-        attr_name = f"{observation_window}_day_rolling_beta_dataframe"
+        Parameters:
+            window: integer (optional)
+
+            Specifies the look-back window for the rolling statistics
+            Defaults to 60 observations window
         
-        rolling_df, whole_period_beta = historical_rolling_beta(self, observation_window)
+        """
 
-        setattr(self,attr_name, rolling_df)
+        self.rolling_window = window
 
-        ax = historical_rolling_beta_plot(rolling_df, whole_period_beta)
 
-        plt.show()
+        y_df = self.asset_1_returns.copy()
+        x_df = self.asset_2_returns.copy()
+
+    
+
+        rolling_df = historical_rolling_beta(
+            y_df= y_df,
+            x_df= x_df,
+            y_col= self.y_col,
+            x_col= self.x_col,
+            return_type=self.return_type,
+            window = window
+        )
+
+        self.rolling_df = rolling_df.copy()
+
+
+    def rolling_beta_summary(self):
+
+        rolling_beta_summary(
+            rolling_df=self.rolling_df,
+            window=self.rolling_window
+        )
+
+
+    def rolling_beta_plot(self):
+
+        fig = rolling_beta_plot(
+            rolling_df=self.rolling_df,
+            window=self.rolling_window
+        )
+
 
 
     # Private methods
+    def _regress(self, asset1_df, asset2_df, asset_1_col, asset_2_col):
+
+        ols_obj = OLSRegression(
+            asset1=asset1_df,
+            asset2=asset2_df,
+            asset_1_col=asset_1_col,
+            asset_2_col=asset_2_col,
+            frequency=self.freq,
+            return_type=self.return_type
+        )
+        self.ols_obj = ols_obj
+
+        model = ols_obj.ols()
+        self.olsmodel = model
+
+        ols_df = ols_obj.results_df()
+        self.ols_df = ols_df
+
+
     def __str__(self):
         self.summary()
 
@@ -203,18 +212,21 @@ class Beta:
         """This prints the results of analysis on the regression results.
         """
         
-        heteroskedasticity(self.olsresults)
+        heteroskedasticity(self.olsmodel)
         
-        autocorrelation(self.olsresults)
+        autocorrelation(self.olsmodel)
         
-        normality(self.olsresults)
+        normality(self.olsmodel)
         
         print('\n\n\n')
 
 
+# Example Usage
 if __name__ == "__main__":
     my_beta = Beta(asset1="msft", asset2="spy", period="20y", interval="daily", return_type="log")
     my_beta.summary()
     my_beta.plot_results()
-    my_beta.plot_historical_rolling_beta(observation_window=126)
+    my_beta.historical_rolling_beta(window=126)
+    my_beta.rolling_beta_summary()
+    my_beta.rolling_beta_plot()
     
