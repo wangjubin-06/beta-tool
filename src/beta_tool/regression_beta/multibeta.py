@@ -1,12 +1,14 @@
 from datetime import date
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from regression_beta.data import AssetData
 from regression_beta.returns import log_returns, simple_returns
 from regression_beta.regression import MultiFactorRegression
 from regression_beta.plotting import mutlifac_ols_plot
 from regression_beta.diagnostics import heteroskedasticity, autocorrelation, multicollinearity, normality
- 
+import statsmodels.api as sm
+from statsmodels.regression.rolling import RollingOLS
  
 class MultiAssetsRegression:
     """
@@ -25,7 +27,7 @@ class MultiAssetsRegression:
             start_date: str | None = None,
             end_date: str | None = None,
             return_type: str = "log"
-            ):
+        ):
         
         if len(assets) < 1:
             raise ValueError("provide at least one factor asset")
@@ -38,42 +40,76 @@ class MultiAssetsRegression:
         self.return_type = return_type
  
         returns_fn = log_returns if return_type == "log" else simple_returns
- 
+
+
+
+
+        # Get dependent variable asset returns df
         asset_1_prices = AssetData(asset1, period, frequency, start_date, end_date).get_prices()
         asset_1_returns = returns_fn(asset_1_prices)
 
-        self.asset_1_prices = asset_1_prices
-        self.asset_1_returns = asset_1_returns
 
+
+        # Pull the prices of independent variable assets and store in a dict
         assets_prices = {}
+
         for ticker in assets:
+
             prices = AssetData(ticker, period, frequency, start_date, end_date).get_prices()
-            assets_prices[ticker.upper()] = prices
 
-        self.assets_prices = assets_prices
+            assets_prices[ticker.lower()] = prices
 
+        
+
+        # Calculate the returns df of independent variable assets and store it in a dict
         assets_returns = {}
+
+
         for ticker in assets:
-            prices = assets_prices[ticker.upper()]
+
+            prices = assets_prices[ticker.lower()]
+
+
             assets_returns[ticker.upper()] = returns_fn(prices)
 
-        self.assets_returns = assets_returns
- 
+        
+
+
+        # Create the multifactorregression object
         regress_obj = MultiFactorRegression(
             asset_1_returns,
             assets_returns,
             return_type=return_type
             )
 
-        self.merged_assets_names = regress_obj.assets_names #this is a list of names of assets that are actually used in the end for the factor regression of asset1 against asset(s) after combining common timestamps available in the return series
 
+        # Store the multifactorregression obj as an attribute
+        self.regress_obj = regress_obj
+
+
+        # Store the list of independent variable assets that is actually used after combining timestamps
+        self.merged_assets_names = regress_obj.x_col
+
+        # Store the final merged return dataframe
+        self.merged_return_series = regress_obj.merged_return_series.copy()
+
+        # Store start date of regression
         self.start_date = regress_obj.merged_return_series['date'].iloc[0]
+
+
+        # Store end date of regression
         self.end_date = regress_obj.merged_return_series['date'].iloc[-1]
-        #these are the start and end dates which includes all available data for all assets.
- 
+        
+
+        # Model of the OLS
         results = regress_obj.ols()
+
+
+        # Store the model
         self.olsresults = results
 
+
+        # Store the stats as attributes
         conf_int = results.conf_int()
  
         self.intercept = float(results.params["const"])
@@ -83,7 +119,7 @@ class MultiAssetsRegression:
  
         # per-asset stats, keyed by ticker, mirroring Beta's single-asset attributes
         self.betas = {}
-        for name in regress_obj.assets_names:
+        for name in regress_obj.x_col:
             self.betas[name] = {
                 "beta": float(results.params[name]),
                 "p_value": float(results.pvalues[name]),
@@ -94,8 +130,10 @@ class MultiAssetsRegression:
             }
 
 
+
     # Public APIs
     def summary(self) -> str:
+
         lines = [
             '\n\n=====================================================',
             f"Multi-Factor OLS Regression: {self.asset1} against {', '.join(self.merged_assets_names)}:",
@@ -145,7 +183,7 @@ class MultiAssetsRegression:
         print('\n\n\n')
 
 
+# Example usage
 if __name__ == "__main__":
     my_beta = MultiAssetsRegression("tsla", ['msft','aapl'], '5y')
     my_beta.summary()
-    my_beta.plot_results()

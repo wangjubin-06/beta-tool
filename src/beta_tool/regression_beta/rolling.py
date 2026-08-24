@@ -41,8 +41,8 @@ def historical_rolling_beta(y_df, x_df, y_col, x_col, return_type, window=60):
         raise ValueError("return_type must be a string!")
     if return_type not in {"simple","log"}:
         raise ValueError("return_type can only either be 'simple' or 'log'!")
-    if type(x_col) != str:
-        raise ValueError("x_col must be a string!")
+    if not (type(x_col) == str or type(x_col) == list):
+        raise ValueError("x_col must be a string or list of column names!")
     if type(y_col) != str:
         raise ValueError("y_col must be a string!")
     if type(window) != int:
@@ -58,8 +58,14 @@ def historical_rolling_beta(y_df, x_df, y_col, x_col, return_type, window=60):
     if not y_col in y_df.columns:
         raise KeyError(f"Missing column named {y_col} in dependent variable dataframe!")
 
-    if not x_col in x_df.columns:
-        raise KeyError(f"Missing column named {x_col} in independent variable dataframe!")
+    if type(x_col) == str:
+        if not x_col in x_df.columns:
+            raise KeyError(f"Missing column named {x_col} in independent variable dataframe!")
+
+    if type(x_col) == list:
+        if not pd.Series(x_col).isin(x_df.columns).all():
+            raise KeyError(f"Missing columns in independent variable dataframe!")
+
 
     ydf = y_df.copy()
     xdf = x_df.copy()

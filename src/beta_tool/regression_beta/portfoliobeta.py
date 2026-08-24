@@ -430,7 +430,7 @@ if __name__ == '__main__':
     portfolio.summary()
     portfolio.plot_results()
 
-    # portfolio.historical_rolling_beta()
-    # portfolio.rolling_beta_summary()
-    # portfolio.rolling_beta_plot()
+    portfolio.historical_rolling_beta()
+    portfolio.rolling_beta_summary()
+    portfolio.rolling_beta_plot()
 

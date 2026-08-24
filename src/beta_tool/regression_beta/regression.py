@@ -147,6 +147,7 @@ class MultiFactorRegression:
     at once. Not tied to any fixed factor set (e.g. Fama-French) — the
     "factors" here are just any other assets' return series the user supplies.
     """
+
     def __init__(self, asset1: pd.DataFrame, assets: dict[str, pd.DataFrame], return_type: str = "log"):
 
         if return_type not in {'log','simple'}:
@@ -155,7 +156,9 @@ class MultiFactorRegression:
 
         col = f"{return_type}-returns"
 
+
         self.return_type = return_type
+
  
         if len(assets) < 1:
             raise ValueError("at least one factor asset is required")
@@ -167,12 +170,30 @@ class MultiFactorRegression:
             raise KeyError(f'No date column in asset1 dataframe provided')
         
 
-        merged = asset1[["date", col]].copy()
-        merged = merged.rename(columns = {col :'y'})
+        y_df = asset1[["date", col]].copy()
+        y_df = y_df.rename(columns = {col :'y'})
+
+        
  
         assets_names = []
- 
-        for asset_name, asset_df in assets.items():
+
+        first_asset, first_asset_df = next(iter(assets.items()))
+        
+
+        if col not in first_asset_df.columns:
+            raise KeyError(f"factor '{first_asset}' dataframe is missing column '{col}' — did you pass returns, not prices?")
+            
+        if 'date' not in first_asset_df.columns:
+            raise KeyError(f"factor '{first_asset}' dataframe is missing column 'date'")
+
+        first_asset_df = first_asset_df[["date", col]].copy()
+        first_asset_df = first_asset_df.rename(columns={col: first_asset.lower()})
+
+        merged = first_asset_df
+        assets_names.append(first_asset.lower())
+
+
+        for asset_name, asset_df in list(assets.items())[1:]:
             
             if col not in asset_df.columns:
                 raise KeyError(f"factor '{asset_name}' dataframe is missing column '{col}' — did you pass returns, not prices?")
@@ -183,38 +204,69 @@ class MultiFactorRegression:
             
             df = asset_df[["date", col]].copy()
             
-            df = df.rename(columns={col: asset_name})
+            df = df.rename(columns={col: asset_name.lower()})
             
             merged = pd.merge(merged, df, on="date", how="inner")
             
-            assets_names.append(asset_name)
+            assets_names.append(asset_name.lower())
             
         #inner-merging sequentially keeps only timestamps common to the dependent asset and every factor
  
+
+        x_df = merged.copy()
+
+        self.y_df = y_df.copy()
+        self.x_df = x_df.copy()
+        
+        self.y_col = 'y'
+
+
+        merged = pd.merge(
+            y_df,
+            merged,
+            on = "date",
+            how = "inner",
+        )
+
         if merged.empty:
             raise ValueError("no overlapping timestamps across dependent asset and all factors")
  
-        self.assets_names = assets_names
-        self.y = merged["y"]
-        self.x = merged[assets_names]
+        
+        # self.y = merged["y"]
+        # self.x = merged[assets_names]
 
         #hiding the time part of the pd datetime object
         merged = merged.sort_values('date').reset_index(drop=True)
+
         
         merged.style.format({
             'date': '%Y-%m-%d'
         })
 
+        merged = merged.sort_values("date").reset_index(drop=True)
+
+        
+        
+        self.x_col = [
+            c for c in merged.columns
+            if c not in {"date", "y"}
+        ]
+
         self.start_date = merged['date'].min()
         self.end_date = merged['date'].max()
 
-        
         self.merged_return_series = merged.copy()
- 
-    def ols(self):
-        x = sm.add_constant(self.x, has_constant="add")
 
-        model = sm.OLS(self.y, x).fit()
+
+    def ols(self):
+        data = self.merged_return_series.copy()
+
+        y = data[self.y_col]
+        X = data[self.x_col]
+
+        X = sm.add_constant(X, has_constant="add")
+
+        model = sm.OLS(y, X).fit()
 
         self.results = model
 
