@@ -1,7 +1,5 @@
-from datetime import date
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from regression_beta.data import AssetData
 from regression_beta.returns import log_returns, simple_returns
 from regression_beta.regression import MultiFactorRegression
@@ -394,7 +392,7 @@ class MultiAssetsRegression:
 
 # Example usage
 if __name__ == "__main__":
-    my_beta = MultiAssetsRegression("tsla", ['msft','aapl'], '5y')
+    my_beta = MultiAssetsRegression("tsla", ['msft','aapl','goog','ko'], '5y')
     my_beta.historical_rolling_beta(window=126)
     my_beta.rolling_beta_summary()
     my_beta.rolling_beta_plot()

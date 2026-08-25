@@ -162,7 +162,8 @@ def rolling_beta_plot(rolling_df, window):
     ax.plot(
         rolling_df['date'],
         rolling_df['beta'],
-        label='Rolling Beta'
+        label='Rolling Beta',
+        linewidth = 2,
     )
 
     ax.fill_between(
@@ -175,8 +176,10 @@ def rolling_beta_plot(rolling_df, window):
 
     ax.axhline(
         1.0,
+        color = 'black',
         linestyle='--',
         linewidth=1,
+        alpha = 0.4,
         label='Beta = 1'
     )
 
