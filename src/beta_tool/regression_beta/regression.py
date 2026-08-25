@@ -174,26 +174,12 @@ class MultiFactorRegression:
         y_df = y_df.rename(columns = {col :'y'})
 
         
- 
+        merged = y_df
+
+
         assets_names = []
 
-        first_asset, first_asset_df = next(iter(assets.items()))
-        
-
-        if col not in first_asset_df.columns:
-            raise KeyError(f"factor '{first_asset}' dataframe is missing column '{col}' — did you pass returns, not prices?")
-            
-        if 'date' not in first_asset_df.columns:
-            raise KeyError(f"factor '{first_asset}' dataframe is missing column 'date'")
-
-        first_asset_df = first_asset_df[["date", col]].copy()
-        first_asset_df = first_asset_df.rename(columns={col: first_asset.lower()})
-
-        merged = first_asset_df
-        assets_names.append(first_asset.lower())
-
-
-        for asset_name, asset_df in list(assets.items())[1:]:
+        for asset_name, asset_df in assets.items():
             
             if col not in asset_df.columns:
                 raise KeyError(f"factor '{asset_name}' dataframe is missing column '{col}' — did you pass returns, not prices?")
@@ -211,39 +197,24 @@ class MultiFactorRegression:
             assets_names.append(asset_name.lower())
             
         #inner-merging sequentially keeps only timestamps common to the dependent asset and every factor
- 
 
-        x_df = merged.copy()
 
-        self.y_df = y_df.copy()
-        self.x_df = x_df.copy()
         
-        self.y_col = 'y'
-
-
-        merged = pd.merge(
-            y_df,
-            merged,
-            on = "date",
-            how = "inner",
-        )
 
         if merged.empty:
             raise ValueError("no overlapping timestamps across dependent asset and all factors")
  
         
-        # self.y = merged["y"]
-        # self.x = merged[assets_names]
-
-        #hiding the time part of the pd datetime object
-        merged = merged.sort_values('date').reset_index(drop=True)
-
         
-        merged.style.format({
-            'date': '%Y-%m-%d'
-        })
+        # merged.style.format({
+        #     'date': '%Y-%m-%d'
+        # })
+
+        merged['date'] = pd.to_datetime(merged['date'])
 
         merged = merged.sort_values("date").reset_index(drop=True)
+
+        merged = merged.dropna().reset_index(drop=True)
 
         
         
@@ -252,26 +223,31 @@ class MultiFactorRegression:
             if c not in {"date", "y"}
         ]
 
+
+        self.y_series = merged["y"]
+        self.x_series = merged[self.x_col]
+
+
         self.start_date = merged['date'].min()
         self.end_date = merged['date'].max()
 
-        self.merged_return_series = merged.copy()
+        self.merged_df = merged.copy()
+
+        
 
 
     def ols(self):
-        data = self.merged_return_series.copy()
 
-        y = data[self.y_col]
-        X = data[self.x_col]
+        y = self.y_series
+        X = self.x_series
 
         X = sm.add_constant(X, has_constant="add")
 
         model = sm.OLS(y, X).fit()
 
-        self.results = model
+        self.olsmodel = model
 
         return model
-
 
         
     

@@ -91,14 +91,16 @@ class MultiAssetsRegression:
         self.merged_assets_names = regress_obj.x_col
 
         # Store the final merged return dataframe
-        self.merged_return_series = regress_obj.merged_return_series.copy()
+        self.merged_return_series = regress_obj.merged_df.copy()
+
+        self.n_obs = len(regress_obj.merged_df)
 
         # Store start date of regression
-        self.start_date = regress_obj.merged_return_series['date'].iloc[0]
+        self.start_date = regress_obj.start_date
 
 
         # Store end date of regression
-        self.end_date = regress_obj.merged_return_series['date'].iloc[-1]
+        self.end_date = regress_obj.end_date
         
 
         # Model of the OLS
@@ -164,6 +166,213 @@ class MultiAssetsRegression:
         plt.show()
 
 
+    def historical_rolling_beta(self, window=60):
+
+        if window <= 0:
+            raise ValueError(
+                f"observation_window must be positive, got {window}."
+            )
+
+        if len(self.regress_obj.merged_df) < window:
+            raise ValueError(
+                f"Insufficient data for rolling beta: "
+                f"observation_window={window}, "
+                f"but only {len(self.regress_obj.merged_df)} observations are available."
+            )
+    
+        y = self.regress_obj.y_series
+        X = self.regress_obj.x_series.copy()
+
+        X = sm.add_constant(X, has_constant="add")
+
+
+        window = window
+        self.rolling_window = window
+
+        rols = RollingOLS(
+            endog=y,
+            exog=X, 
+            window=window
+        )
+
+        results = rols.fit()
+
+        df = self.regress_obj.merged_df
+        x_col = self.regress_obj.x_col
+
+        
+        params = results.params
+
+        # Convert the NumPy result arrays back into DataFrames
+        bse = pd.DataFrame(
+            results.bse,
+            index=params.index,
+            columns=params.columns
+        )
+
+        tvalues = pd.DataFrame(
+            results.tvalues,
+            index=params.index,
+            columns=params.columns
+        )
+
+        pvalues = pd.DataFrame(
+            results.pvalues,
+            index=params.index,
+            columns=params.columns
+        )
+
+        rsquared = pd.Series(
+            results.rsquared,
+            index=params.index
+        )
+
+
+        ci = results.conf_int(alpha=0.05)
+
+        rolling_dfs = {}
+
+        for ticker in x_col:
+
+            rolling_df = pd.DataFrame({
+                'date': df['date'].values,
+                'beta': params[ticker].values,
+                'beta_std_error': bse[ticker].values,
+                'beta_tstat': tvalues[ticker].values,
+                'beta_pvalue': pvalues[ticker].values,
+                'alpha': params['const'].values,
+                'alpha_stf_error': bse['const'].values,
+                'alpha_tstat': tvalues['const'].values,
+                'alpha_pvalue': pvalues['const'].values,
+                'r_squared': rsquared.values
+            })
+
+            # Confidence intervals
+            rolling_df["beta_ci_lower"] = (ci[(ticker, "lower")].values)
+            rolling_df["beta_ci_upper"] = (ci[(ticker, "upper")].values)
+
+            rolling_df["alpha_ci_lower"] = (ci[("const", "upper")].values)
+            rolling_df["alpha_ci_upper"] = (ci[("const", "upper")].values)
+
+            # Annualized alpha
+            if self.return_type == "simple":
+                rolling_df["annualized_alpha"] = (
+                    (1 + rolling_df["alpha"]) ** 252 - 1
+                )
+            else:
+                rolling_df["annualized_alpha"] = (
+                    rolling_df["alpha"] * 252
+                )
+
+            rolling_dfs[ticker] = rolling_df
+
+
+
+        self.rolling_dfs = rolling_dfs
+
+        return rolling_dfs
+
+
+    def rolling_beta_summary(self):
+
+        print("=" * 60)
+        print(f"Rolling Beta Summary ({self.rolling_window}-Observations Window)")
+        print("=" * 60)
+
+        print(f"\nObservation period")
+        print(f"  Start:              {self.regress_obj.start_date}")
+        print(f"  End:                {self.regress_obj.end_date}")
+        print(f"  Observations:       {self.n_obs}")
+        print("\n")
+
+        for ticker, rolling_df in self.rolling_dfs.items():
+
+            latest = rolling_df.iloc[-1]
+
+            print("=" * 60)
+            print(f"Stats for constituent independent variable {ticker}-returns")
+            print("=" * 60)
+
+            print(f"\nCurrent estimates")
+            print(f"  Beta:               {float(latest['beta']):.5f}")
+            print(
+                f"  95% CI:             "
+                f"[{float(latest['beta_ci_lower']):.5f}, "
+                f"{float(latest['beta_ci_upper']):.5f}]"
+            )
+            print(f"  Alpha:              {float(latest['alpha']):.6f}")
+            print(f"  R-squared:          {float(latest['r_squared']):.3f}")
+            #print(f"  Residual volatility: {float(latest['residual_volatility'].item()):.6f}")
+
+            print(f"\nBeta significance")
+            print(f"  Standard error:     {float(latest['beta_std_error']):.4f}")
+            print(f"  t-statistic:        {float(latest['beta_tstat']):.2f}")
+            print(f"  p-value:            {float(latest['beta_pvalue']):.4g}")
+
+            print(f"\nBeta history")
+            print(f"  Mean:               {float(rolling_df['beta'].mean()):.5f}")
+            print(f"  Median:             {float(rolling_df['beta'].median()):.5f}")
+            print(f"  Minimum:            {float(rolling_df['beta'].min()):.5f}")
+            print(f"  Maximum:            {float(rolling_df['beta'].max()):.5f}")
+            print(f"  Std. deviation:     {float(rolling_df['beta'].std()):.5f}")
+
+            print(f"\nR-squared history")
+            print(f"  Mean:               {float(rolling_df['r_squared'].mean()):.3f}")
+            print(f"  Minimum:            {float(rolling_df['r_squared'].min()):.3f}")
+            print(f"  Maximum:            {float(rolling_df['r_squared'].max()):.3f}")
+
+            print("=" * 60)
+
+
+    def rolling_beta_plot(self):
+
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+
+        for ticker, df in self.rolling_dfs.items():
+
+            df = df.copy()
+
+            # Plot the beta trend line
+            (line,) = ax.plot(
+                df['date'],
+                df['beta'],
+                label = f'Rolling beta of {ticker}',
+                linewidth = 2,
+            )
+
+            # Plot the beta confidence intervals
+            ax.fill_between(
+                df['date'],
+                df['beta_ci_lower'],
+                df['beta_ci_upper'],
+                color = line.get_color(),
+                alpha = 0.2,
+                label = f'{ticker} 95% Confidence interval'
+            )
+
+        ax.axhline(
+            y=1,
+            color="black",
+            linestyle="--",
+            linewidth=1,
+            alpha=0.4,
+            label="Beta = 1"
+        )
+        
+        ax.set_title(f"{self.rolling_window}-observation rolling beta")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Beta")
+        ax.grid(True, linestyle="--", alpha=0.5)
+        plt.gcf().autofmt_xdate()  # Rotates dates automatically for readability
+        ax.legend()
+
+        plt.tight_layout()
+        plt.show()
+
+        return fig
+
+
     # Private methods
     def __str__(self) -> str:
         return self.summary()
@@ -186,4 +395,6 @@ class MultiAssetsRegression:
 # Example usage
 if __name__ == "__main__":
     my_beta = MultiAssetsRegression("tsla", ['msft','aapl'], '5y')
-    my_beta.summary()
+    my_beta.historical_rolling_beta(window=126)
+    my_beta.rolling_beta_summary()
+    my_beta.rolling_beta_plot()
