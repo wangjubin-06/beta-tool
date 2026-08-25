@@ -26,7 +26,8 @@ class PortfolioBeta:
     
 
 
-    def __init__(self, portfolio_dic: dict, asset_to_be_regressed = "spy", frequency = 'daily', period = '10y', start_date = None, end_date = None, return_type = 'simple'):
+    def __init__(self, portfolio_dic: dict, asset_to_be_regressed = "spy", frequency = 'daily', period = '10y', start_date = None, end_date = None, return_type = 'simple', hac: bool = False,
+                hac_lag: int = None):
         """
         Parameters:
         portfolio_dic
@@ -55,6 +56,7 @@ class PortfolioBeta:
             raise ValueError("only 'simple' or 'log' returns allowed for 'return_type'!")
 
 
+        self.freq = frequency
     
     
         # Cleaning up and checking the dictionary for consistent formatting
@@ -97,11 +99,26 @@ class PortfolioBeta:
             raise ValueError("sum of asset weights is not 100!")
 
 
+        # hac : heteroscedasticity and autocorrelation robust (HAC) using n lags
+        # users can override their hac lag number, but default will be automatic
+        if hac is True:
+
+            self.hac = True
+
+            if hac_lag is not None:
+                if type(hac_lag) == int:
+                    self.hac_lags = self._resolve_hac_lags(hac_lag)
+                else:
+                    raise ValueError('hac_lag has to be integer!')
+            elif hac_lag is None:
+                self.hac_lags = self._resolve_hac_lags()
+        else:
+            self.hac = False
+
+
         self.portfolio_dic = cleaned_portfolio_dic
         
         self.period = period
-        
-        self.freq = frequency
         
         self.start_date = start_date
         
@@ -150,6 +167,10 @@ class PortfolioBeta:
         print(f"  Observations:       {int(self.ols_df['n_obs'].item())}")
         print(f"  Frequency:          {self.freq}")
         print(f"  Return type:        {self.return_type}")
+        print(f"  Heteroskedasticity-Autocorrelation Robust Covariance:        {self.hac}")
+
+        if self.hac:
+            print(f"  Heteroskedasticity-Autocorrelation Robust Covariance lags:        {self.hac_lags}")
 
         print(f"  Beta:               {float(self.ols_df['beta'].item()):.5f}")
         print(
@@ -168,8 +189,9 @@ class PortfolioBeta:
         print(f"  t-statistic:        {float(self.ols_df['beta_tstat'].item()):.2f}")
         print(f"  p-value:            {float(self.ols_df['beta_pvalue'].item()):.4g}")
         print("\n")
-        
-        self._diagnostics()
+
+        if not self.hac:
+            self._diagnostics()
 
 
     def plot_results(self):
@@ -292,14 +314,27 @@ class PortfolioBeta:
 
         x_col = 'independent_variable_returns'
 
-        ols_obj = OLSRegression(
-            asset1=merged_df,
-            asset2=independent_df,
-            asset_1_col=y_col,
-            asset_2_col=x_col,
-            return_type=self.return_type,
-            frequency=self.freq
-        )
+        if self.hac:
+            ols_obj = OLSRegression(
+                asset1=merged_df,
+                asset2=independent_df,
+                asset_1_col=y_col,
+                asset_2_col=x_col,
+                frequency=self.freq,
+                return_type=self.return_type,
+                hac=True,
+                hac_lags=self.hac_lags
+            )
+        else:
+            ols_obj = OLSRegression(
+                asset1=merged_df,
+                asset2=independent_df,
+                asset_1_col=y_col,
+                asset_2_col=x_col,
+                frequency=self.freq,
+                return_type=self.return_type,
+            )
+
 
         model = ols_obj.ols()
         self.olsresults = model
@@ -397,6 +432,29 @@ class PortfolioBeta:
         return merged_df, independent_returns_df
 
 
+    def _resolve_hac_lags(self, hac="auto"):
+        if hac is None:
+            return None
+
+        if isinstance(hac, int):
+            if hac < 0:
+                raise ValueError("HAC lags must be non-negative.")
+            return hac
+
+        if hac != "auto":
+            raise ValueError(
+                "hac must be 'auto', None, or a non-negative integer."
+            )
+
+        defaults = {
+            "daily": 3,
+            "weekly": 3,
+            "monthly": 3,
+            "annually": 1,
+        }
+
+        return defaults[self.freq]
+
 
     def _diagnostics(self):
         """This prints the results of analysis on the regression results.
@@ -424,7 +482,7 @@ if __name__ == '__main__':
     
     portfolio = PortfolioBeta(
         portfolio_dic = portfolio_dic,
-        frequency = 'daily'
+        frequency = 'daily',
     )
     
     portfolio.summary()

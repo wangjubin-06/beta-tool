@@ -5,11 +5,19 @@ import regression_beta.returns as returns
 
 class OLSRegression:
 
-    def __init__(self, asset1: pd.DataFrame, asset2: pd.DataFrame, asset_1_col, asset_2_col, frequency, return_type: str ="log"):
+    def __init__(self, asset1: pd.DataFrame, asset2: pd.DataFrame, asset_1_col, asset_2_col, frequency, return_type: str ="log", hac=False, hac_lags=None):
         
         if return_type not in {'log','simple'}:
             raise ValueError("return_type has to be either 'log' or 'simple'")
 
+
+        self.hac = hac
+        if self.hac:
+            if type(hac_lags) == int and hac_lags > 0:
+                self.hac_lags = hac_lags
+            else:
+                raise ValueError('error with hac and hac_lags configuration!')
+        
 
         self.freq = frequency
 
@@ -63,9 +71,14 @@ class OLSRegression:
 
 
     def ols(self):
+
+
         x = sm.add_constant(self.x, has_constant="add")
 
-        model = sm.OLS(self.y,x).fit()
+        if self.hac is True:
+            model = sm.OLS(self.y, x).fit(cov_type="HAC", cov_kwds={"maxlags": self.hac_lags})
+        else:
+            model = sm.OLS(self.y,x).fit()
 
         self.results = model
 
@@ -81,6 +94,8 @@ class OLSRegression:
                 'start_date': self.start_date,
                 'end_date': self.end_date,
                 'frequency': self.freq,
+                'Use HAC': self.hac,
+                'HAC lags': (self.hac_lags if self.hac else 0),
                 'return_type': self.return_type,
                 "n_obs": self.results.nobs,
                 'beta': self.results.params[self.x_col],
@@ -118,6 +133,10 @@ class OLSRegression:
         print(f"  Observations:       {int(self.ols_df['n_obs'].item())}")
         print(f"  Frequency:          {self.freq}")
         print(f"  Return type:        {self.return_type}")
+        print(f"  Heteroskedasticity-Autocorrelation Robust Covariance:        {self.hac}")
+
+        if self.hac:
+            print(f"  Heteroskedasticity-Autocorrelation Robust Covariance lags:        {self.hac_lags}")
 
         print(f"  Beta:               {float(self.ols_df['beta'].item()):.5f}")
         print(
@@ -148,10 +167,18 @@ class MultiFactorRegression:
     "factors" here are just any other assets' return series the user supplies.
     """
 
-    def __init__(self, asset1: pd.DataFrame, assets: dict[str, pd.DataFrame], return_type: str = "log"):
+    def __init__(self, asset1: pd.DataFrame, assets: dict[str, pd.DataFrame], return_type: str = "log", hac=False, hac_lags=None):
 
         if return_type not in {'log','simple'}:
             raise ValueError("return_type has to be either 'log' or 'simple'")
+
+        self.hac = hac
+        if self.hac:
+            if type(hac_lags) == int and hac_lags > 0:
+                self.hac_lags = hac_lags
+            else:
+                raise ValueError('error with hac and hac_lags configuration!')
+        
 
 
         col = f"{return_type}-returns"
@@ -243,7 +270,11 @@ class MultiFactorRegression:
 
         X = sm.add_constant(X, has_constant="add")
 
-        model = sm.OLS(y, X).fit()
+        if self.hac is True:
+            model = sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": self.hac_lags})
+        else:
+            model = sm.OLS(y,X).fit()
+
 
         self.olsmodel = model
 

@@ -8,6 +8,12 @@ from regression_beta.regression import OLSRegression
 
 
 class Beta:
+    """
+    Generic two-asset regression tool: regresses one asset's returns against
+    another asset's returns. Returns statistics like beta, alpha etc. Can do rolling
+    regression with custom lookback window
+
+    """
 
     ALLOWED_FREQUENCIES = {
         'daily',
@@ -18,32 +24,64 @@ class Beta:
 
     def __init__(
             self,
-            asset1: str, #the dependent asset on y-axis
-            asset2: str, #the independent asset on x-axis
+            asset1: str,
+            asset2: str,
             period: str = "1y",
-            interval: str = "daily",
+            frequency: str = "daily",
             start_date: str | None = None,
             end_date: str | None = None,
-            return_type: str = "log"
+            return_type: str = "log",
+            hac: bool = False,
+            hac_lag: int = None
         ):
+        """
+        Parameters:
+            asset1: ticker of independent variable asset (string)
+            asset2: ticker of dependent variable asset (string)
+            period: optional - the data lookback period (string)
+            interval: frequency of returns data (string)
+            start_date: optional - start date of data (string in YYYY-MM-DD)
+            end_date: optional - end date of data (string in YYYY-MM-DD)
+            return_type: optional - choose between "simple" returns definition or "log" returns definition (string)
+            hac: optional - choose to regress with Heteroskedasticity-Autocorrelation Robust Covariance (boolean)
+            hac_lag: optional - choose the maxlags for hac (integer)
+        
+        
+        """
         
         
         if return_type not in ("log","simple"):
             raise ValueError("return_type = 'log' or return_type = 'simple' only.")
         
-        if interval not in self.ALLOWED_FREQUENCIES:
+        if frequency not in self.ALLOWED_FREQUENCIES:
             raise ValueError("only daily, weekly, monthly, annually is allowed for data interval!")
 
         self.asset1 = asset1
         self.asset2 = asset2
         self.return_type = return_type
-        self.freq = interval
+        self.freq = frequency
+
+
+        # hac : heteroscedasticity and autocorrelation robust (HAC) using n lags
+        # users can override their hac lag number, but default will be automatic
+        if hac is True:
+            self.hac = True
+            if hac_lag is not None:
+                if type(hac_lag) == int:
+                    self.hac_lags = self._resolve_hac_lags(hac_lag)
+                else:
+                    raise ValueError('hac_lag has to be integer!')
+            elif hac_lag is None:
+                self.hac_lags = self._resolve_hac_lags('auto')
+
+        else:
+            self.hac = False
 
 
         asset_1_prices = AssetData(
             ticker = asset1,
             period = period,
-            frequency = interval,
+            frequency = frequency,
             start_date = start_date,
             end_date = end_date
         ).get_prices()
@@ -51,7 +89,7 @@ class Beta:
         asset_2_prices = AssetData(
             ticker = asset2,
             period = period,
-            frequency = interval,
+            frequency = frequency,
             start_date = start_date,
             end_date = end_date
         ).get_prices() # type: ignore
@@ -102,8 +140,9 @@ class Beta:
             asset_1_name=self.asset1,
             asset_2_name=self.asset2
         )
-        
-        self._diagnostics()
+
+        if self.hac is False:
+            self._diagnostics()
 
 
     def plot_results(self):
@@ -188,14 +227,27 @@ class Beta:
     # Private methods
     def _regress(self, asset1_df, asset2_df, asset_1_col, asset_2_col):
 
-        ols_obj = OLSRegression(
-            asset1=asset1_df,
-            asset2=asset2_df,
-            asset_1_col=asset_1_col,
-            asset_2_col=asset_2_col,
-            frequency=self.freq,
-            return_type=self.return_type
-        )
+        if self.hac:
+            ols_obj = OLSRegression(
+                asset1=asset1_df,
+                asset2=asset2_df,
+                asset_1_col=asset_1_col,
+                asset_2_col=asset_2_col,
+                frequency=self.freq,
+                return_type=self.return_type,
+                hac=True,
+                hac_lags=self.hac_lags
+            )
+        else:
+            ols_obj = OLSRegression(
+                asset1=asset1_df,
+                asset2=asset2_df,
+                asset_1_col=asset_1_col,
+                asset_2_col=asset_2_col,
+                frequency=self.freq,
+                return_type=self.return_type
+            )
+
         self.ols_obj = ols_obj
 
         model = ols_obj.ols()
@@ -221,9 +273,33 @@ class Beta:
         print('\n\n\n')
 
 
+    def _resolve_hac_lags(self, hac="auto"):
+        if hac is None:
+            return None
+
+        if isinstance(hac, int):
+            if hac < 0:
+                raise ValueError("HAC lags must be non-negative.")
+            return hac
+
+        if hac != "auto":
+            raise ValueError(
+                "hac must be 'auto', None, or a non-negative integer."
+            )
+
+        defaults = {
+            "daily": 3,
+            "weekly": 3,
+            "monthly": 3,
+            "annually": 1,
+        }
+
+        return defaults[self.freq]
+
+
 # Example Usage
 if __name__ == "__main__":
-    my_beta = Beta(asset1="msft", asset2="spy", period="20y", interval="daily", return_type="log")
+    my_beta = Beta(asset1="msft", asset2="spy", period="20y", frequency="daily", return_type="log", hac=True)
     my_beta.summary()
     my_beta.plot_results()
     my_beta.historical_rolling_beta(window=126)

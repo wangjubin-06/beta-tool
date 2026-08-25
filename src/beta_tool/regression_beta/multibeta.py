@@ -24,8 +24,25 @@ class MultiAssetsRegression:
             frequency: str = "daily",
             start_date: str | None = None,
             end_date: str | None = None,
-            return_type: str = "log"
+            return_type: str = "log",
+            hac: bool = False,
+            hac_lag: int = None
+
         ):
+        """
+        Parameters:
+            asset1: ticker of independent variable asset (string)
+            assets: list of tickers of dependent variable assets (list)
+            period: optional - the data lookback period (string)
+            frequency: frequency of returns data (string)
+            start_date: optional - start date of data (string in YYYY-MM-DD)
+            end_date: optional - end date of data (string in YYYY-MM-DD)
+            return_type: optional - choose between "simple" returns definition or "log" returns definition (string)
+            hac: optional - choose to regress with Heteroskedasticity-Autocorrelation Robust Covariance (boolean)
+            hac_lag: optional - choose the maxlags for hac (integer)
+        
+        
+        """
         
         if len(assets) < 1:
             raise ValueError("provide at least one factor asset")
@@ -39,6 +56,21 @@ class MultiAssetsRegression:
  
         returns_fn = log_returns if return_type == "log" else simple_returns
 
+
+        # hac : heteroscedasticity and autocorrelation robust (HAC) using n lags
+        # users can override their hac lag number, but default will be automatic
+        if hac is True:
+            self.hac = True
+            if hac_lag is not None:
+                if type(hac_lag) == int:
+                    self.hac_lags = self._resolve_hac_lags(hac_lag)
+                else:
+                    raise ValueError('hac_lag has to be integer!')
+            elif hac_lag is None:
+                self.hac_lags = self._resolve_hac_lags('auto')
+
+        else:
+            self.hac = False
 
 
 
@@ -74,11 +106,21 @@ class MultiAssetsRegression:
 
 
         # Create the multifactorregression object
-        regress_obj = MultiFactorRegression(
-            asset_1_returns,
-            assets_returns,
-            return_type=return_type
-            )
+
+        if self.hac:
+            regress_obj = MultiFactorRegression(
+                asset1=asset_1_returns,
+                assets=assets_returns,
+                return_type=return_type,
+                hac=True,
+                hac_lags = self.hac_lags
+                )
+        else:
+            regress_obj = MultiFactorRegression(
+                asset1=asset_1_returns,
+                assets=assets_returns,
+                return_type=return_type
+                )
 
 
         # Store the multifactorregression obj as an attribute
@@ -144,6 +186,8 @@ class MultiAssetsRegression:
             f"{'End date':<30}: {self.end_date}",
             f"{'Frequency':<30}: {self.freq}",
             f"{'No. of observations':<30}: {self.observations}",
+            f"{'Use HAC':<30}: {self.hac}",
+            f"{'Hac lags':<30}: {self.hac_lags if self.hac else 'None'}",
             f"{'Residual volatility':<30}: {self.residual_vol:.5f}",
             "",
         ]
@@ -156,7 +200,9 @@ class MultiAssetsRegression:
             lines.append(f"  {'CI low':<28}: {stats['ci_low']:.5f}")
             lines.append(f"  {'CI high':<28}: {stats['ci_high']:.5f}")
         print("\n".join(lines))
-        self._diagnostics()
+
+        if not self.hac:
+            self._diagnostics()
 
 
     def plot_results(self):
@@ -336,7 +382,8 @@ class MultiAssetsRegression:
                 df['date'],
                 df['beta'],
                 label = f'Rolling beta of {ticker}',
-                linewidth = 2,
+                linewidth = 1.6,
+                alpha = 1,
             )
 
             # Plot the beta confidence intervals
@@ -390,9 +437,36 @@ class MultiAssetsRegression:
         print('\n\n\n')
 
 
+    def _resolve_hac_lags(self, hac="auto"):
+        if hac is None:
+            return None
+
+        if isinstance(hac, int):
+            if hac < 0:
+                raise ValueError("HAC lags must be non-negative.")
+            return hac
+
+        if hac != "auto":
+            raise ValueError(
+                "hac must be 'auto', None, or a non-negative integer."
+            )
+
+        defaults = {
+            "daily": 3,
+            "weekly": 3,
+            "monthly": 3,
+            "annually": 1,
+        }
+
+        return defaults[self.freq]
+
+
+
 # Example usage
 if __name__ == "__main__":
-    my_beta = MultiAssetsRegression("tsla", ['msft','aapl','goog','ko'], '5y')
+    my_beta = MultiAssetsRegression("tsla", ['msft','aapl','goog','ko'], '5y',hac=True)
+    my_beta.summary()
+    my_beta.plot_results
     my_beta.historical_rolling_beta(window=126)
     my_beta.rolling_beta_summary()
     my_beta.rolling_beta_plot()
