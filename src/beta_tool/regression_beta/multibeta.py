@@ -15,7 +15,7 @@ class MultiAssetsRegression:
     to a single explanatory asset — the "factors" can be any tickers, not a
     fixed factor set like Fama-French.
     """
- 
+
     def __init__(
             self,
             asset1: str, #the dependent asset on y-axis
@@ -247,6 +247,8 @@ class MultiAssetsRegression:
         
         params = results.params
 
+        self.beta_series = params
+
         # Convert the NumPy result arrays back into DataFrames
         bse = pd.DataFrame(
             results.bse,
@@ -404,6 +406,14 @@ class MultiAssetsRegression:
             alpha=0.4,
             label="Beta = 1"
         )
+
+        ax.axhline(
+            y=0,
+            color="black",
+            linestyle=":",
+            linewidth=1,
+            alpha=0.4
+        )
         
         ax.set_title(f"{self.rolling_window}-observation rolling beta")
         ax.set_xlabel("Date")
@@ -464,9 +474,16 @@ class MultiAssetsRegression:
 
 # Example usage
 if __name__ == "__main__":
-    my_beta = MultiAssetsRegression("tsla", ['msft','aapl','goog','ko'], '5y',hac=True)
+    my_beta = MultiAssetsRegression(
+        asset1="tsla",
+        assets=['msft','aapl','goog','ko'],
+        period='10y',
+        hac=True,
+        frequency='daily',
+        return_type='log'
+        )
     my_beta.summary()
     my_beta.plot_results
-    my_beta.historical_rolling_beta(window=126)
+    my_beta.historical_rolling_beta(window=60)
     my_beta.rolling_beta_summary()
     my_beta.rolling_beta_plot()

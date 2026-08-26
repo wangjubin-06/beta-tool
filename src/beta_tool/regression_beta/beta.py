@@ -206,6 +206,8 @@ class Beta:
 
         self.rolling_df = rolling_df.copy()
 
+        return rolling_df.copy()
+
 
     def rolling_beta_summary(self):
 
