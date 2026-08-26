@@ -4,6 +4,7 @@ from regression_beta.portfoliobeta import PortfolioBeta
 from dateutil.relativedelta import relativedelta
 from datetime import date, timedelta
 from regression_beta.rolling import historical_rolling_beta
+import pandas as pd
 
 class PortfolioHedge:
 
@@ -129,7 +130,7 @@ class PortfolioHedge:
                 # Then compute the rolling beta over that extended range.
 
                 # Start date to be 'window' number of days before period.
-                start_date = today - timedelta(days=self.rolling_window+1)
+                start_date = today - timedelta(days=self.rolling_window+7)
 
 
             start_date = start_date.isoformat()
@@ -160,6 +161,36 @@ class PortfolioHedge:
 
                     # Rolling beta time series dataframe
                     rolling_df = rolling_df[['date','beta']].copy()
+                    rolling_df['date'] = pd.to_datetime(rolling_df['date']).dt.normalize()
+                    rolling_df = rolling_df.dropna().sort_values('date').reset_index(drop=True)
+                    
+                    
+                    # Rebalance every N days, starting from start_date
+                    rebalance_dates = pd.date_range(
+                        start=start_date,
+                        end=rolling_df['date'].iloc[-1],
+                        freq=f'{self.rebalance_freq}D'
+                    )
+                    
+                    # At each rebalance, use the most recent beta known BEFORE that date to prevent look-ahead bias
+                    rebalance_beta = pd.merge_asof(
+                        pd.DataFrame({'date': rebalance_dates}),
+                        rolling_df[['date', 'beta']],
+                        on='date',
+                        direction='backward',
+                        allow_exact_matches=False
+                    )
+                    
+                    # For each date, use the most recent rebalance beta
+                    final_beta_to_use_at_each_date = pd.merge_asof(
+                        rolling_df.loc[rolling_df['date'] >= start_date, ['date']],
+                        rebalance_beta,
+                        on='date',
+                        direction='backward'
+                    )
+                    
+                    
+                    
 
 
 
