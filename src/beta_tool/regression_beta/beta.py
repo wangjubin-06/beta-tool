@@ -2,7 +2,6 @@ from regression_beta.data import AssetData
 from regression_beta import plotting
 from regression_beta.returns import log_returns, simple_returns
 import matplotlib.pyplot as plt
-from regression_beta.rolling import historical_rolling_beta, rolling_beta_plot, rolling_beta_summary
 from regression_beta.diagnostics import autocorrelation, heteroskedasticity, normality
 from regression_beta.regression import OLSRegression
 
@@ -186,43 +185,21 @@ class Beta:
             Defaults to 60 observations window
         
         """
-
-        self.rolling_window = window
-
-
-        y_df = self.asset_1_returns.copy()
-        x_df = self.asset_2_returns.copy()
-
-    
-
-        rolling_df = historical_rolling_beta(
-            y_df= y_df,
-            x_df= x_df,
-            y_col= self.y_col,
-            x_col= self.x_col,
-            return_type=self.return_type,
-            window = window
-        )
-
-        self.rolling_df = rolling_df.copy()
-
-        return rolling_df.copy()
-
+        rolling_df = self.ols_obj.rolling_ols(window=window)
+        
+        self.rolling_df = rolling_df
+        
 
     def rolling_beta_summary(self):
-
-        rolling_beta_summary(
-            rolling_df=self.rolling_df,
-            window=self.rolling_window
-        )
-
+        
+        self.ols_obj.rolling_beta_summary()
+        
 
     def rolling_beta_plot(self):
 
-        fig = rolling_beta_plot(
-            rolling_df=self.rolling_df,
-            window=self.rolling_window
-        )
+        fig = self.ols_obj.rolling_beta_plot()
+        
+        return fig
 
 
     def get_beta(self):

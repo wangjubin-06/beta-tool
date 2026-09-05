@@ -3,7 +3,6 @@ from regression_beta.multibeta import MultiAssetsRegression
 from regression_beta.portfoliobeta import PortfolioBeta
 from dateutil.relativedelta import relativedelta
 from datetime import date, timedelta
-from regression_beta.rolling import historical_rolling_beta
 import pandas as pd
 
 class PortfolioHedge:

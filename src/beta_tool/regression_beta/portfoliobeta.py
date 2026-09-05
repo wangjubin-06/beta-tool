@@ -6,7 +6,6 @@ from regression_beta.data import AssetData
 from regression_beta.diagnostics import *
 from regression_beta.plotting import returns_distribution_plot, two_asset_ols_plot
 from regression_beta.returns import log_returns, simple_returns
-from regression_beta.rolling import historical_rolling_beta, rolling_beta_plot, rolling_beta_summary
 from regression_beta.regression import OLSRegression, MultiFactorRegression
 
 class PortfolioBeta:
@@ -281,9 +280,6 @@ class PortfolioBeta:
             except ValueError as e:
                 # This block runs instead of crashing the script
                 print(f"\nCaught an error: {e}\n")
-    
-            
-
 
 
     def historical_rolling_beta(self, window=60):
@@ -301,23 +297,8 @@ class PortfolioBeta:
         
         if not self.multi_independent_asset:
             
-            self.rolling_window = window
-
-            y_col = 'portfolio_simple_returns' if self.return_type == 'simple' else 'portfolio_log_returns'
-
-            rolling_df = historical_rolling_beta(
-                y_df=self.portfolio_returns_data.copy(),
-                x_df=self.independent_returns_data.copy(),
-                y_col= y_col,
-                x_col='independent_variable_returns',
-                return_type=self.return_type,
-                window= window
-            )
-
+            rolling_df = self.ols_obj.rolling_ols(window=window)
             
-            self.rolling_df = rolling_df.copy()
-        
-        
         
         elif self.multi_independent_asset:
             
@@ -326,24 +307,19 @@ class PortfolioBeta:
         
         return
             
-        
 
     def rolling_beta_summary(self):
         """
         Print the summary of the historical rolling statistics
         """
         if not self.multi_independent_asset:
-            rolling_beta_summary(
-                rolling_df=self.rolling_df,
-                window=self.rolling_window
-            )
+            self.ols_obj.rolling_beta_summary()
         
         elif self.multi_independent_asset:
             self.multi_regress_obj.rolling_beta_summary()
             
         return
             
-        
 
     def rolling_beta_plot(self):
         """
@@ -351,10 +327,7 @@ class PortfolioBeta:
         
         """
         if not self.multi_independent_asset:
-            fig = rolling_beta_plot(
-                rolling_df=self.rolling_df,
-                window=self.rolling_window
-            )
+            self.ols_obj.rolling_beta_plot()
         
         elif self.multi_independent_asset:
             self.multi_regress_obj.rolling_beta_plot()
@@ -434,7 +407,6 @@ class PortfolioBeta:
             
             self.multi_regress_obj = regress_obj
             
-
 
     def _get_data(self):
         
@@ -556,7 +528,6 @@ class PortfolioBeta:
             return merged_df, independent_returns_dic
         
 
-
     def _resolve_hac_lags(self, hac="auto"):
         if hac is None:
             return None
@@ -608,7 +579,7 @@ if __name__ == '__main__':
     portfolio = PortfolioBeta(
         portfolio_dic = portfolio_dic,
         frequency = 'daily',
-        asset_to_be_regressed=['spy','qqqm']
+        asset_to_be_regressed='spy'
     )
     
     portfolio.summary()

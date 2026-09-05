@@ -159,7 +159,6 @@ class MultiAssetsRegression:
 
 
 
-
     # Public APIs
     def summary(self) -> str:
         
@@ -179,21 +178,16 @@ class MultiAssetsRegression:
 
         rolling_dfs = self.regress_obj.rolling_ols(window=window)
         
-        
-
 
     def rolling_beta_summary(self):
 
         self.regress_obj.rolling_beta_summary()
         
 
-
     def rolling_beta_plot(self):
 
         self.regress_obj.rolling_beta_plot()
         
-        
-
 
     def get_beta(self):
         
@@ -203,7 +197,6 @@ class MultiAssetsRegression:
             beta_dic[ticker] = dic['beta']
             
         return beta_dic
-
 
 
     # Private methods
