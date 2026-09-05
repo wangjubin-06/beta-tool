@@ -62,7 +62,7 @@ even though the overall fit (R²) might look fine.
     
 """
 
-def heteroskedasticity(regresssion_model, alpha=0.05):
+def heteroskedasticity(regression_model, alpha=0.05):
     """This uses the Breusch-Pagan Test in the statsmodels library
     to test for residual heteroskedasticity in the OLS regression model.
 
@@ -73,7 +73,7 @@ def heteroskedasticity(regresssion_model, alpha=0.05):
     print('Residual heteroskedasticity test results')
     print('=========================================')
             
-    bp_test = het_breuschpagan(regresssion_model.resid, regresssion_model.model.exog)
+    bp_test = het_breuschpagan(regression_model.resid, regression_model.model.exog)
     
     labels = ['LM Statistic', 'LM-Test p-value', 'F-Statistic', 'F-Test p-value']
     

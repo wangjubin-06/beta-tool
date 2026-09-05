@@ -225,6 +225,11 @@ class Beta:
         )
 
 
+    def get_beta(self):
+        
+        return self.ols_obj.get_beta
+        
+
 
     # Private methods
     def _regress(self, asset1_df, asset2_df, asset_1_col, asset_2_col):

@@ -352,14 +352,19 @@ def mutlifac_ols_plot(multifac_obj, sort=True, ax=None):
     ax.tick_params(axis="y", length=0)
 
     # ---------------------------------------------------------
-    # Title
+    # Title and subtitle
     # ---------------------------------------------------------
 
-    ax.set_title(
-        f"{multifac_obj.asset1} — Multi-Factor Beta",
-        fontsize=18,
-        pad=20,
+    full_title = (
+        f"{multifac_obj.asset1} — Multi-Factor Beta\n"
+        f"n = {multifac_obj.regress_obj.observations:,}, R² = {multifac_obj.regress_obj.r_squared:.2f}\n"
+        f"Start date = {multifac_obj.regress_obj.start_date}, End date = {multifac_obj.regress_obj.end_date}"
     )
+
+    # Use pad to create space between the title and the plot line
+    ax.set_title(full_title, fontdict={'fontsize': 12, 'fontweight': 'regular'}, pad=15)
+    
+    
 
     # ---------------------------------------------------------
     # Error-bar annotations
@@ -385,25 +390,7 @@ def mutlifac_ols_plot(multifac_obj, sort=True, ax=None):
             alpha = 0.8,
         )
 
-    # ---------------------------------------------------------
-    # Bottom information
-    # ---------------------------------------------------------
-
-    bottom_info = (
-        f"n = {multifac_obj.observations:,}    "
-        f"R² = {multifac_obj.r_squared:.2f}    "
-        f"Start date = {multifac_obj.start_date}    "
-        f"End date = {multifac_obj.end_date}"
-    )
-
-    ax.text(
-        0.5,
-        0.04,
-        bottom_info,
-        ha="center",
-        va="center",
-    )
-
+    
     # ---------------------------------------------------------
     # Legend
     # ---------------------------------------------------------
@@ -436,12 +423,12 @@ def mutlifac_ols_plot(multifac_obj, sort=True, ax=None):
         frameon=True,
     )
 
-    # Leave space for title and bottom information/legend
-    # fig.subplots_adjust(
-    #     left=0.15,
-    #     right=0.85,
-    #     top=0.85,
-    #     bottom=0.2,
-    # )
+    #Leave space for title and bottom information/legend
+    fig.subplots_adjust(
+        left=0.15,
+        right=0.85,
+        top=0.85,
+        bottom=0.2,
+    )
 
     return ax

@@ -36,7 +36,7 @@ class PortfolioHedge:
 
     def __init__(
             self,
-            target: str | dict[str:int],
+            target: str | dict[str,int],
             hedge_instruments: str | list[str] = 'spy',
             period: str = '1y',
             frequency: str = 'daily',
@@ -101,6 +101,16 @@ class PortfolioHedge:
             self.regress_type = 'portfolio'
         else:
             raise TypeError("target can only be a string of a single asset ticker or a dictionary mapping each asset ticker to its percentage in portfolio")
+        
+        if type(target) == str:
+            self.multiple_targets = False
+        elif type(target) == dict:
+            self.multiple_targets = True
+        else:
+            raise ValueError("target can only be a string of a single asset ticker or a dictionary mapping each asset ticker to its percentage in portfolio")
+        
+        self.target = target
+        
 
         if type(hedge_instruments) == str:
             self.hedge_instrument_count = 'single'
@@ -110,17 +120,24 @@ class PortfolioHedge:
             self.hedge_instruments = hedge_instruments
         else:
             raise TypeError("hedge instrument can only be a string of a single asset ticker or a list of hedge assets")
+        
+        
+        if type(hedge_instruments) == str:
+            self.multiple_hedge = False
+            self.hedge_instruments = hedge_instruments
+        elif type(hedge_instruments) == list:
+            self.multiple_hedge = True
+            self.hedge_instruments = hedge_instruments
+        else:
+            raise TypeError("hedge instrument can only be a string of a single asset ticker or a list of hedge assets")
 
 
 
-    # Private methods
-
-    def _compute_hedge_ratio(self):
-        # dispatch to Beta / MultiBeta / PortfolioBeta based on
-        # len(hedge_instruments) and whether target is a portfolio
-
+        # Compute start date
         if self.freq == "daily":
+            
             today = date.today()
+            
             start_date = today - self.ALLOWED_PERIODS[self.period]
 
             if self.hedge_type == 'rolling':
@@ -133,8 +150,16 @@ class PortfolioHedge:
                 start_date = today - timedelta(days=self.rolling_window+7)
 
 
-            start_date = start_date.isoformat()
+            self.start_date = start_date.isoformat()
 
+
+    # Private methods
+
+    def _compute_hedge_ratio(self):
+        # dispatch to Beta / MultiBeta / PortfolioBeta based on
+        # len(hedge_instruments) and whether target is a portfolio
+
+        
         
         if self.hedge_type == 'rolling':
 
@@ -206,5 +231,76 @@ class PortfolioHedge:
                         hac=True
                     )
 
+        
+        # Single hedge target,
+        
+        if not self.multiple_targets:
             
+            hedge_ratio = self._single_hedge()
+            
+        # Multiple hedge target:
+        
+        else:
+            
+            hedge_ratio = self._multiple_hedge()
+            
+        
+        
+        
+    # Single hedge target
+    def _single_hedge(self):
+        
+        if self.hedge_type == 'static':
+            
+            # single hedging instrument
+            
+            if not self.multiple_hedge:
+                
+                beta_obj = Beta(
+                    asset1 = self.target,
+                    asset2 = self.hedge_instruments,
+                    start_date = self.start_date,
+                    return_type = self.return_type,
+                    frequency = self.freq,
+                )
+                
+                return beta_obj.get_beta()
+            
+            # multiple hedging instrument
+            else:
+                
+                beta_obj = MultiAssetsRegression(
+                    asset1 = self.target,
+                    assets = self.hedge_instruments,
+                    frequency = self.freq,
+                    start_date = self.start_date,
+                    return_type = self.return_type,
+                )
+                
+                return beta_obj.get_beta()
+            
+            
+        else:
+            pass
+    
+    
+    # Multiple hedge target
+    def _multiple_hedge(self):
+        
+        # single hedging instrument
+        if not self.multiple_hedge:
+            beta_obj = PortfolioBeta(
+                portfolio_dic = self.target,
+                asset_to_be_regressed = self.hedge_instruments,
+                frequency = self.freq,
+                start_date = self.start_date,
+                return_type = self.return_type
+            )
+        
+        # multiple hedging instrument
+        else:
+            pass
+    
+    
+        
 
