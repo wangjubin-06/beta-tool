@@ -26,7 +26,7 @@ class MultiAssetsRegression:
             end_date: str | None = None,
             return_type: str = "log",
             hac: bool = False,
-            hac_lag: int = None
+            hac_lag: int | None = None
 
         ):
         """
@@ -160,7 +160,7 @@ class MultiAssetsRegression:
 
 
     # Public APIs
-    def summary(self) -> str:
+    def summary(self):
         
         self.regress_obj.summary(asset_1_name=self.asset1)
         
@@ -189,19 +189,23 @@ class MultiAssetsRegression:
         self.regress_obj.rolling_beta_plot()
         
 
-    def get_beta(self):
+    def get_static_beta(self):
         
-        beta_dic = {}
+        # beta_dic = {}
         
-        for ticker, dic in self.regress_obj.betas.items():
-            beta_dic[ticker] = dic['beta']
+        # for ticker, dic in self.regress_obj.betas.items():
+        #     beta_dic[ticker] = dic['beta']
             
-        return beta_dic
+        return self.regress_obj.get_static_beta()
+    
+    def get_rolling_beta(self):
+        
+        return self.regress_obj.get_rolling_beta()
 
 
     # Private methods
-    def __str__(self) -> str:
-        return self.summary()
+    def __str__(self):
+        self.summary()
 
 
     def _diagnostics(self):
@@ -219,7 +223,7 @@ class MultiAssetsRegression:
         print('\n\n\n')
 
 
-    def _resolve_hac_lags(self, hac="auto"):
+    def _resolve_hac_lags(self, hac: str|int ="auto"):
         if hac is None:
             return None
 

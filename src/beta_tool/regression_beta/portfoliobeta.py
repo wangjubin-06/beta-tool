@@ -25,7 +25,7 @@ class PortfolioBeta:
     
 
 
-    def __init__(self, portfolio_dic: dict, asset_to_be_regressed: str | list = "spy", frequency = 'daily', period = '10y', start_date = None, end_date = None, return_type = 'simple', hac: bool = False, hac_lag: int | None = None):
+    def __init__(self, portfolio_dic: dict[str,float], asset_to_be_regressed: str | list[str] = "spy", frequency = 'daily', period = '10y', start_date = None, end_date = None, return_type = 'simple', hac: bool = False, hac_lag: int | None = None):
         """
         Parameters:
         portfolio_dic
@@ -126,12 +126,13 @@ class PortfolioBeta:
         
         
         
-        if type(asset_to_be_regressed) == str:
+        if isinstance(asset_to_be_regressed, str):
             self.independent = asset_to_be_regressed.lower()
             self.multi_independent_asset = False
-        elif type(asset_to_be_regressed) == list:
+        elif isinstance(asset_to_be_regressed, list):
             self.independent = asset_to_be_regressed
             self.multi_independent_asset = True
+        
         
         
         portfolio_desc = ""
@@ -217,7 +218,7 @@ class PortfolioBeta:
 
     def plot_results(self):
         
-        if not self.multi_independent_asset:
+        if isinstance(self.independent,str):
             """
             Plot the results of the static regression
             """
@@ -273,7 +274,7 @@ class PortfolioBeta:
             plt.show()
             return fig
         
-        elif self.multi_independent_asset:
+        elif isinstance(self.independent,list):
             try:
                 # Intentionally raising an error
                 raise ValueError("2D plotting for the linear regression is only available for regression of portfolio against one asset only, cannot plot for regression of portfolio against multiple assets!")
@@ -334,6 +335,26 @@ class PortfolioBeta:
 
         return
 
+
+    def get_static_beta(self):
+        if not self.multi_independent_asset:
+            data = self.ols_obj.get_static_beta()
+        
+        elif self.multi_independent_asset:
+            data = self.multi_regress_obj.get_static_beta()
+            
+        return data
+
+
+    def get_rolling_beta(self):
+        if not self.multi_independent_asset:
+            data = self.ols_obj.get_rolling_beta()
+        
+        elif self.multi_independent_asset:
+            data = self.multi_regress_obj.get_rolling_beta()
+            
+        return data
+        
 
     # Private methods
     def _regress(self, merged_df, independent_data):
@@ -408,7 +429,7 @@ class PortfolioBeta:
             self.multi_regress_obj = regress_obj
             
 
-    def _get_data(self):
+    def _get_data(self) -> tuple[pd.DataFrame, pd.DataFrame | dict]:
         
         # Getting price data for each asset in portfolio
         prices_dict = {}
@@ -528,7 +549,7 @@ class PortfolioBeta:
             return merged_df, independent_returns_dic
         
 
-    def _resolve_hac_lags(self, hac="auto"):
+    def _resolve_hac_lags(self, hac:str|int="auto"):
         if hac is None:
             return None
 

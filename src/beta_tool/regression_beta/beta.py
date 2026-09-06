@@ -159,7 +159,6 @@ class Beta:
         ax_asset_1_qq = fig.add_subplot(gs[1, 1])
         ax_asset_2_dist = fig.add_subplot(gs[1, 2])
         ax_asset_2_qq = fig.add_subplot(gs[1, 3])
-        
         ax_ols = fig.add_subplot(gs[2:4, :])
 
         plotting.price_series_plot(ticker = self.asset1, data=self.asset_1_prices, data_col="adjClose", ax = ax_asset_1_price)
@@ -202,9 +201,15 @@ class Beta:
         return fig
 
 
-    def get_beta(self):
+    def get_static_beta(self):
         
-        return self.ols_obj.get_beta
+        return self.ols_obj.get_static_beta()
+    
+    
+    def get_rolling_beta(self):
+        
+        return self.ols_obj.get_rolling_beta()
+    
         
 
 

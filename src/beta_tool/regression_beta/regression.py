@@ -162,7 +162,7 @@ class OLSRegression:
         print("\n")
 
 
-    def get_beta(self):
+    def get_static_beta(self):
         return float(self.results.params[self.x_col])
 
 
@@ -193,6 +193,9 @@ class OLSRegression:
         
         return fig
 
+
+    def get_rolling_beta(self):
+        return
 
 class MultiFactorRegression:
     """
@@ -410,7 +413,7 @@ class MultiFactorRegression:
             print("\n")
 
 
-    def get_beta(self):
+    def get_static_beta(self):
         
         betas = {}
         
@@ -447,3 +450,7 @@ class MultiFactorRegression:
         fig = self.rolling_ols_obj.rolling_beta_plot()
         
         return fig
+
+
+    def get_rolling_beta(self):
+        return

@@ -35,7 +35,7 @@ class PortfolioHedge:
 
     def __init__(
             self,
-            target: str | dict[str,int],
+            target: str | dict[str,float],
             hedge_instruments: str | list[str] = 'spy',
             period: str = '1y',
             frequency: str = 'daily',
@@ -62,9 +62,6 @@ class PortfolioHedge:
 
         if hedge_type == 'rolling':
 
-            self.hedge_type = hedge_type
-
-
             if window is None:
                 raise ValueError("If hedge_type is 'rolling', please indicate window for the rolling Beta recalculation in the form of an integer!")
             if type(window) != int:
@@ -82,9 +79,9 @@ class PortfolioHedge:
 
             self.rebalance_freq = rebalance_freq
 
-        else:
+        
 
-            self.hedge_type = hedge_type
+        self.hedge_type = hedge_type
         
 
         self.return_type = return_type
@@ -94,52 +91,61 @@ class PortfolioHedge:
 
         
 
-        if type(target) == str:
-            self.regress_type = 'single'
-        elif type(target) == dict:
-            self.regress_type = 'portfolio'
-        else:
-            raise TypeError("target can only be a string of a single asset ticker or a dictionary mapping each asset ticker to its percentage in portfolio")
+        # if type(target) == str:
+        #     self.regress_type = 'single'
+        # elif type(target) == dict:
+        #     self.regress_type = 'portfolio'
+        # else:
+        #     raise TypeError("target can only be a string of a single asset ticker or a dictionary mapping each asset ticker to its percentage in portfolio")
         
-        if type(target) == str:
+        
+        
+        if isinstance(target, str):
+            
             self.multiple_targets = False
-        elif type(target) == dict:
+            
+        elif isinstance(target, dict):
+            
             self.multiple_targets = True
+            
         else:
+            
             raise ValueError("target can only be a string of a single asset ticker or a dictionary mapping each asset ticker to its percentage in portfolio")
+        
+        
         
         self.target = target
         
 
-        if type(hedge_instruments) == str:
-            self.hedge_instrument_count = 'single'
-            self.hedge_instrument = hedge_instruments
-        elif type(hedge_instruments) == list:
-            self.hedge_instrument_count = 'many'
-            self.hedge_instruments = hedge_instruments
-        else:
-            raise TypeError("hedge instrument can only be a string of a single asset ticker or a list of hedge assets")
+        
+
+        # if type(hedge_instruments) == str:
+        #     self.hedge_instrument_count = 'single'
+        #     self.hedge_instrument = hedge_instruments
+        # elif type(hedge_instruments) == list:
+        #     self.hedge_instrument_count = 'many'
+        #     self.hedge_instrument = hedge_instruments
+        # else:
+        #     raise TypeError("hedge instrument can only be a string of a single asset ticker or a list of hedge assets")
+        
         
         
         if type(hedge_instruments) == str:
             self.multiple_hedge = False
-            self.hedge_instruments = hedge_instruments
         elif type(hedge_instruments) == list:
             self.multiple_hedge = True
-            self.hedge_instruments = hedge_instruments
         else:
             raise TypeError("hedge instrument can only be a string of a single asset ticker or a list of hedge assets")
 
+        self.hedge_instruments = hedge_instruments
 
 
         # Compute start date
-        if self.freq == "daily":
-            
-            today = date.today()
-            
-            start_date = today - self.ALLOWED_PERIODS[self.period]
-
-            if self.hedge_type == 'rolling':
+        
+        today = date.today()
+        
+        if self.hedge_type == 'rolling':
+            if self.freq == 'daily':
                 # When fetching data for the hedger,
                 # pull window extra trading days before
                 # the period you actually want to analyze.
@@ -147,9 +153,18 @@ class PortfolioHedge:
 
                 # Start date to be 'window' number of days before period.
                 start_date = today - timedelta(days=self.rolling_window+7)
+            
+            elif self.freq == 'weekly':
+                start_date = today - timedelta(weeks=self.rolling_window+1)
+            
+            elif self.freq == 'monthly':
+                start_date = today - relativedelta(months=self.rolling_window+1)
+        
+        else:
+            start_date = today - self.ALLOWED_PERIODS[self.period]
 
 
-            self.start_date = start_date.isoformat()
+        self.start_date = start_date.isoformat()
 
 
     # Private methods
@@ -160,100 +175,99 @@ class PortfolioHedge:
 
         
         
-        if self.hedge_type == 'rolling':
+        # if self.hedge_type == 'rolling':
 
     
-            if self.regress_type == 'single':
+        #     if self.regress_type == 'single':
 
-                target = self.hedge_instrument.lower()
+        #         target = self.hedge_instrument.lower()
 
-                if self.hedge_instrument_count == 'single':
+        #         if self.hedge_instrument_count == 'single':
 
-                    hedge_assets = self.hedge_instrument
+        #             hedge_assets = self.hedge_instrument
 
-                    beta_obj = Beta(
-                        asset1=target,
-                        asset2=hedge_assets,
-                        start_date=start_date,
-                        frequency=self.freq,
-                        return_type=self.return_type,
-                        hac=True
-                    )
+        #             beta_obj = Beta(
+        #                 asset1=target,
+        #                 asset2=hedge_assets,
+        #                 start_date=self.start_date,
+        #                 frequency=self.freq,
+        #                 return_type=self.return_type,
+        #                 hac=True
+        #             )
 
-                    rolling_df = beta_obj.historical_rolling_beta(window = self.rolling_window)
+        #             rolling_df = beta_obj.historical_rolling_beta(window = self.rolling_window)
 
 
-                    # Rolling beta time series dataframe
-                    rolling_df = rolling_df[['date','beta']].copy()
-                    rolling_df['date'] = pd.to_datetime(rolling_df['date']).dt.normalize()
-                    rolling_df = rolling_df.dropna().sort_values('date').reset_index(drop=True)
+        #             # Rolling beta time series dataframe
+        #             rolling_df = rolling_df[['date','beta']].copy()
+        #             rolling_df['date'] = pd.to_datetime(rolling_df['date']).dt.normalize()
+        #             rolling_df = rolling_df.dropna().sort_values('date').reset_index(drop=True)
                     
                     
-                    # Rebalance every N days, starting from start_date
-                    rebalance_dates = pd.date_range(
-                        start=start_date,
-                        end=rolling_df['date'].iloc[-1],
-                        freq=f'{self.rebalance_freq}D'
-                    )
+        #             # Rebalance every N days, starting from start_date
+        #             rebalance_dates = pd.date_range(
+        #                 start=start_date,
+        #                 end=rolling_df['date'].iloc[-1],
+        #                 freq=f'{self.rebalance_freq}D'
+        #             )
                     
-                    # At each rebalance, use the most recent beta known BEFORE that date to prevent look-ahead bias
-                    rebalance_beta = pd.merge_asof(
-                        pd.DataFrame({'date': rebalance_dates}),
-                        rolling_df[['date', 'beta']],
-                        on='date',
-                        direction='backward',
-                        allow_exact_matches=False
-                    )
+        #             # At each rebalance, use the most recent beta known BEFORE that date to prevent look-ahead bias
+        #             rebalance_beta = pd.merge_asof(
+        #                 pd.DataFrame({'date': rebalance_dates}),
+        #                 rolling_df[['date', 'beta']],
+        #                 on='date',
+        #                 direction='backward',
+        #                 allow_exact_matches=False
+        #             )
                     
-                    # For each date, use the most recent rebalance beta
-                    final_beta_to_use_at_each_date = pd.merge_asof(
-                        rolling_df.loc[rolling_df['date'] >= start_date, ['date']],
-                        rebalance_beta,
-                        on='date',
-                        direction='backward'
-                    )
+        #             # For each date, use the most recent rebalance beta
+        #             final_beta_to_use_at_each_date = pd.merge_asof(
+        #                 rolling_df.loc[rolling_df['date'] >= start_date, ['date']],
+        #                 rebalance_beta,
+        #                 on='date',
+        #                 direction='backward'
+        #             )
                     
                     
                     
 
 
 
-                else:
-                    hedge_assets = self.hedge_instruments.copy()
+        #         else:
+        #             hedge_assets = self.hedge_instruments.copy()
 
-                    beta_obj = MultiAssetsRegression(
-                        asset1=target,
-                        assets=hedge_assets,
-                        period=self.period,
-                        frequency=self.freq,
-                        return_type=self.return_type,
-                        hac=True
-                    )
+        #             beta_obj = MultiAssetsRegression(
+        #                 asset1=target,
+        #                 assets=hedge_assets,
+        #                 period=self.period,
+        #                 frequency=self.freq,
+        #                 return_type=self.return_type,
+        #                 hac=True
+        #             )
 
         
-        # Single hedge target,
+        # Hedging a single asset
         
-        if not self.multiple_targets:
+        if isinstance(self.target,str):
             
-            hedge_ratio = self._single_hedge()
+            hedge_ratio_data = self._single_hedge()
             
-        # Multiple hedge target:
+        # Hedging a portfolio of assets with their weights
         
-        else:
+        elif isinstance(self.target,dict):
             
-            hedge_ratio = self._multiple_hedge()
+            hedge_ratio_data = self._multiple_hedge()
             
         
-        
-        
-    # Single hedge target
+ 
+    # Hedging a single asset
     def _single_hedge(self):
         
-        if self.hedge_type == 'static':
+
+        if isinstance(self.target,str):
             
             # single hedging instrument
-            
-            if not self.multiple_hedge:
+            if isinstance(self.hedge_instruments,str):
                 
                 beta_obj = Beta(
                     asset1 = self.target,
@@ -262,11 +276,19 @@ class PortfolioHedge:
                     return_type = self.return_type,
                     frequency = self.freq,
                 )
+            
+                if self.hedge_type == 'rolling':
+                    
+                    beta_data = beta_obj.get_rolling_beta()
+                    
+                else:
+                    
+                    beta_data = beta_obj.get_static_beta()
                 
-                return beta_obj.get_beta()
+            
             
             # multiple hedging instrument
-            else:
+            elif isinstance(self.hedge_instruments,list):
                 
                 beta_obj = MultiAssetsRegression(
                     asset1 = self.target,
@@ -276,18 +298,25 @@ class PortfolioHedge:
                     return_type = self.return_type,
                 )
                 
-                return beta_obj.get_beta()
+                if self.hedge_type == 'rolling':
+                    
+                    beta_data = beta_obj.get_rolling_beta()
+                    
+                else:
+                    
+                    beta_data = beta_obj.get_static_beta()
+                    
+                    
+            return beta_data
             
-            
-        else:
-            pass
-    
-    
+
     # Multiple hedge target
     def _multiple_hedge(self):
         
-        # single hedging instrument
-        if not self.multiple_hedge:
+        if isinstance(self.target, dict):
+            
+            # Portfolio beta accepts single or multiple independent asset in regression
+            
             beta_obj = PortfolioBeta(
                 portfolio_dic = self.target,
                 asset_to_be_regressed = self.hedge_instruments,
@@ -295,10 +324,18 @@ class PortfolioHedge:
                 start_date = self.start_date,
                 return_type = self.return_type
             )
+            
+            if self.hedge_type == 'rolling':
+                    
+                beta_data = beta_obj.get_rolling_beta()
+                
+            else:
+                
+                beta_data = beta_obj.get_static_beta()
+                
+                
+            return beta_data
         
-        # multiple hedging instrument
-        else:
-            pass
     
     
         
