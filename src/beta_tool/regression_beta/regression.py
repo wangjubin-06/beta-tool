@@ -180,6 +180,8 @@ class OLSRegression:
         rolling_df = rolling_ols_obj.rolling_ols()
         
         self.rolling_ols_obj = rolling_ols_obj
+
+        self.rolling_df = rolling_df.copy()
         
         return rolling_df.copy()
     
@@ -195,7 +197,11 @@ class OLSRegression:
 
 
     def get_rolling_beta(self):
-        return
+
+        return self.rolling_ols_obj.get_rolling_beta()
+        
+
+    
 
 class MultiFactorRegression:
     """
@@ -436,6 +442,8 @@ class MultiFactorRegression:
         rolling_dfs = rolling_ols_obj.rolling_ols()
         
         self.rolling_ols_obj = rolling_ols_obj
+
+        self.rolling_dfs = rolling_dfs
         
         return rolling_dfs
 
@@ -453,4 +461,9 @@ class MultiFactorRegression:
 
 
     def get_rolling_beta(self):
-        return
+
+        rolling_beta_df, independent_ticker_list = self.rolling_ols_obj.get_rolling_beta()
+
+        return rolling_beta_df, independent_ticker_list
+
+        

@@ -163,39 +163,6 @@ class PortfolioBeta:
             
             ols_obj.summary(asset_1_name=self.portfolio_desc,asset_2_name=self.independent)
 
-            # print("=" * 60)
-            # print(f" OLS Regression Summary")
-            # print(f"Portfolio consisting of \n{portfolio_desc}against {self.independent}")
-            # print("=" * 60)
-
-            # print(f"\nObservation period")
-            # print(f"  Start:              {self.ols_df['start_date'].item()}")
-            # print(f"  End:                {self.ols_df['end_date'].item()}")
-            # print(f"  Observations:       {int(self.ols_df['n_obs'].item())}")
-            # print(f"  Frequency:          {self.freq}")
-            # print(f"  Return type:        {self.return_type}")
-            # print(f"  Heteroskedasticity-Autocorrelation Robust Covariance:        {self.hac}")
-
-            # if self.hac:
-            #     print(f"  Heteroskedasticity-Autocorrelation Robust Covariance lags:        {self.hac_lags}")
-
-            # print(f"  Beta:               {float(self.ols_df['beta'].item()):.5f}")
-            # print(
-            #     f"  95% CI:             "
-            #     f"[{float(self.ols_df['beta_ci_low'].item()):.5f}, "
-            #     f"{float(self.ols_df['beta_ci_high'].item()):.5f}]"
-            # )
-            # print(f"  Alpha:              {float(self.ols_df['alpha'].item()):.6f}")
-            # print(f"  Annualized Alpha    {float(self.ols_df['annualized_alpha'].item()):.3f}")
-            # print(f"  Alpha p-value       {float(self.ols_df['alpha_p_value'].item()):.4g}")
-            # print(f"  R-squared:          {float(self.ols_df['r_squared'].item()):.3f}")
-            # print(f"  Residual volatility: {float(self.ols_df['residual_volatility'].item()):.6f}")
-
-            # print(f"\nBeta significance")
-            # print(f"  Standard error:     {float(self.ols_df['beta_std_error'].item()):.4f}")
-            # print(f"  t-statistic:        {float(self.ols_df['beta_tstat'].item()):.2f}")
-            # print(f"  p-value:            {float(self.ols_df['beta_pvalue'].item()):.4g}")
-            # print("\n")
 
             if not self.hac:
                 self._diagnostics()
@@ -299,11 +266,15 @@ class PortfolioBeta:
         if not self.multi_independent_asset:
             
             rolling_df = self.ols_obj.rolling_ols(window=window)
+
+            s
             
         
         elif self.multi_independent_asset:
             
-            self.multi_regress_obj.rolling_ols(window=window)
+            rolling_dfs = self.multi_regress_obj.rolling_ols(window=window)
+
+            
             
         
         return
@@ -338,22 +309,21 @@ class PortfolioBeta:
 
     def get_static_beta(self):
         if not self.multi_independent_asset:
-            data = self.ols_obj.get_static_beta()
+            return self.ols_obj.get_static_beta()
         
         elif self.multi_independent_asset:
-            data = self.multi_regress_obj.get_static_beta()
+            return self.multi_regress_obj.get_static_beta()
             
-        return data
 
 
     def get_rolling_beta(self):
         if not self.multi_independent_asset:
-            data = self.ols_obj.get_rolling_beta()
+            return self.ols_obj.get_rolling_beta()
         
         elif self.multi_independent_asset:
-            data = self.multi_regress_obj.get_rolling_beta()
+            data, tickers = self.multi_regress_obj.get_rolling_beta()
             
-        return data
+            return data, tickers
         
 
     # Private methods

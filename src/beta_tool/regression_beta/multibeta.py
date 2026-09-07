@@ -189,18 +189,16 @@ class MultiAssetsRegression:
         self.regress_obj.rolling_beta_plot()
         
 
-    def get_static_beta(self):
-        
-        # beta_dic = {}
-        
-        # for ticker, dic in self.regress_obj.betas.items():
-        #     beta_dic[ticker] = dic['beta']
-            
+    def get_static_beta(self):        
         return self.regress_obj.get_static_beta()
-    
+
+
     def get_rolling_beta(self):
         
-        return self.regress_obj.get_rolling_beta()
+        rolling_beta_df, independent_ticker_list = self.regress_obj.get_rolling_beta()
+
+        return rolling_beta_df, independent_ticker_list
+
 
 
     # Private methods
@@ -251,12 +249,12 @@ class MultiAssetsRegression:
 # Example usage
 if __name__ == "__main__":
     my_beta = MultiAssetsRegression(
-        asset1="tsla",
-        assets=['msft','aapl','goog','ko'],
+        asset1="goog",
+        assets=['nvda','aapl','ko'],
         period='10y',
         hac=True,
         frequency='daily',
-        return_type='log'
+        return_type='simple'
         )
     my_beta.summary()
     my_beta.plot_results()
