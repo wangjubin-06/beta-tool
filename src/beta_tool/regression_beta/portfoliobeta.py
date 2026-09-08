@@ -267,7 +267,7 @@ class PortfolioBeta:
             
             rolling_df = self.ols_obj.rolling_ols(window=window)
 
-            s
+            
             
         
         elif self.multi_independent_asset:

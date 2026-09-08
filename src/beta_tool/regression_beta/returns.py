@@ -8,6 +8,9 @@ def log_returns(data: pd.DataFrame, header_name = "adjClose") -> pd.DataFrame:
     
     if not header_name in data.columns:
         raise KeyError(f"No column named {header_name} in dataframe provided for return calculation!")
+
+    if not 'date' in data.columns:
+        raise KeyError(f"No column named 'date' in dataframe provided for return calculation!")
     
     
     df = data.copy()
@@ -30,6 +33,9 @@ def simple_returns(data: pd.DataFrame, header_name = "adjClose") -> pd.DataFrame
     
     if not header_name in data.columns:
         raise KeyError(f"No column named {header_name} in dataframe provided for return calculation!")
+
+    if not 'date' in data.columns:
+        raise KeyError(f"No column named 'date' in dataframe provided for return calculation!")
     
     
     df = data.copy()
