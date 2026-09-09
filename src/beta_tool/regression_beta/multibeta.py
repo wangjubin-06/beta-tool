@@ -246,18 +246,18 @@ class MultiAssetsRegression:
 
 
 
-# Example usage
-if __name__ == "__main__":
-    my_beta = MultiAssetsRegression(
-        asset1="goog",
-        assets=['nvda','aapl','ko'],
-        period='10y',
-        hac=True,
-        frequency='daily',
-        return_type='simple'
-        )
-    my_beta.summary()
-    my_beta.plot_results()
-    my_beta.historical_rolling_beta(window=60)
-    my_beta.rolling_beta_summary()
-    my_beta.rolling_beta_plot()
+# # Example usage
+# if __name__ == "__main__":
+#     my_beta = MultiAssetsRegression(
+#         asset1="goog",
+#         assets=['nvda','aapl','ko'],
+#         period='10y',
+#         hac=True,
+#         frequency='daily',
+#         return_type='simple'
+#         )
+#     my_beta.summary()
+#     my_beta.plot_results()
+#     my_beta.historical_rolling_beta(window=60)
+#     my_beta.rolling_beta_summary()
+#     my_beta.rolling_beta_plot()

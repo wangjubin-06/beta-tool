@@ -285,13 +285,3 @@ class Beta:
 
         return defaults[self.freq]
 
-
-# Example Usage
-if __name__ == "__main__":
-    my_beta = Beta(asset1="msft", asset2="spy", period="20y", frequency="daily", return_type="log", hac=True)
-    my_beta.summary()
-    my_beta.plot_results()
-    my_beta.historical_rolling_beta(window=126)
-    my_beta.rolling_beta_summary()
-    my_beta.rolling_beta_plot()
-    

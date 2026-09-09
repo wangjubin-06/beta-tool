@@ -7,7 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from regression_beta.data import AssetData
 from regression_beta.returns import simple_returns
-import os
+from portfolio_hedge.metrics import *
 
 
 class PortfolioHedge:
@@ -115,6 +115,9 @@ class PortfolioHedge:
 
         self._date_resolver(backtest_start_date=backtest_start_date, backtest_end_date=backtest_end_date, backtest_period=backtest_period)
 
+        self.effective_backtest_start_date = self.backtest_start_date
+        self.effective_backtest_end_date = self.backtest_end_date
+
 
 
 
@@ -125,6 +128,11 @@ class PortfolioHedge:
 
         # Do a comparison between unhedged position and hedged position with static and rolling beta
         
+
+        if self.hedge_type == 'rolling':
+
+            self._compute_hedge_ratio()   # resolves effective_backtest_start/end_date up front
+
 
         self._port_return_series()
 
@@ -145,71 +153,53 @@ class PortfolioHedge:
 
 
 
-        print(unhedged_port_return_series.head())
+        metrics_df, hedge_df = calculate_risk_metrics(
+            hedged_port_return_series,
+            return_col="port-returns",
+            hedged_col="hedged-returns",
+            date_col="date",
+            frequency="daily",
+            risk_free_rate=0.0,
+            plot=True,
+        )
 
-        print(hedged_port_return_series.head())
+        print(metrics_df)
+        print('\n\n')
+        print(hedge_df)
 
 
+        # FOR WEEKLY
+        # metrics_df, hedge_df = calculate_risk_metrics(
+        #     hedged_port_return_series,
+        #     frequency="weekly",
+        #     risk_free_rate=0.04,
+        # )
+
+
+        # FOR MONTHLY 
+        # metrics_df, hedge_df = calculate_risk_metrics(
+        #     hedged_port_return_series,
+        #     frequency="monthly",
+        #     risk_free_rate=0.04,
+        # )
+
+        # IF WANT TO PLOT
+        # metrics_df, hedge_df = calculate_risk_metrics(
+        #     hedged_port_return_series,
+        #     frequency="daily",
+        #     risk_free_rate=0.04,
+        #     plot=True,
+        # )
 
 
 
     def backtest_plot(self):
 
-        # Plots the price series of the hedged and unhedged portfolio over time
-
-        self._port_val_series_unhedged(portfolio_starting_value = 100)
-
-        unhedged_price_series = self.unhedged_portfolio_price_series
-
-        self._port_val_series_hedged(portfolio_starting_value=100)
-
-        hedged_price_series = self.hedged_portfolio_price_series
-
-        print(unhedged_price_series.head())
-        print(hedged_price_series.head())
-
-        df1 = unhedged_price_series
-        df2 = hedged_price_series
-
-        label1 = 'unhedged portfolio'
-        label2 = 'hedged portfolio'
+        self._plot()
 
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-
-        ax.plot(df1["date"], df1['port-value'], label=label1)
-        ax.plot(df2["date"], df2['port-value'], label=label2)
 
 
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Index")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-
-        if self.hedge_type == 'rolling':
-            ax.set_title(
-                f"Hedged vs Unhedged Portfolio\n"
-                f"Rolling window: {self.rolling_window}, "
-                f"rebalance: every {self.rebalance_freq} observations",
-                fontsize=14
-            )
-        else:
-            ax.set_title(
-                "Hedged vs Unhedged Portfolio",
-                fontsize=14
-            )
-
-
-        ax.text(0.5, 1.02, "Index start = 100", 
-        transform=ax.transAxes, ha="center", va="bottom", fontsize=10, color="gray")
-
-
-        fig.autofmt_xdate()
-        fig.tight_layout()
-
-        plt.show()
-
-        return fig
 
 
 
@@ -217,6 +207,11 @@ class PortfolioHedge:
 
 
     # Private methods
+
+
+    # =================================================
+    # Unhedged portfolio value series and return series
+    # =================================================
 
     # Returns a df with column named 'date' and 'port-value' to self.unhedged_portfolio_price_series
     def _port_val_series_unhedged(self, portfolio_starting_value: int|float = 100):
@@ -228,9 +223,8 @@ class PortfolioHedge:
 
 
         
-
-        start_date = datetime.fromisoformat(self.backtest_start_date) - timedelta(days=2)
-        end_date = datetime.fromisoformat(self.backtest_start_date) + timedelta(days=2)
+        start_date = datetime.fromisoformat(self.effective_backtest_start_date) - timedelta(days=2)
+        end_date = datetime.fromisoformat(self.effective_backtest_end_date) + timedelta(days=2)
 
         start_date = start_date.isoformat()
         end_date = end_date.isoformat()
@@ -260,7 +254,7 @@ class PortfolioHedge:
                 price_df = data_obj.get_prices()
 
 
-                price_df = price_df[price_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
+                price_df = price_df[price_df["date"] >= pd.Timestamp(self.effective_backtest_start_date)].copy()
 
                 starting_price = float(price_df['adjClose'].iloc[0])
 
@@ -286,8 +280,8 @@ class PortfolioHedge:
                 data_obj = AssetData(
                     ticker = ticker,
                     frequency=self.freq,
-                    start_date= self.backtest_start_date,
-                    end_date= self.backtest_end_date
+                    start_date= self.effective_backtest_start_date,
+                    end_date= self.effective_backtest_end_date
                 )
 
                 price_df = data_obj.get_prices()
@@ -341,7 +335,7 @@ class PortfolioHedge:
             price_df = data_obj.get_prices()
 
 
-            price_df = price_df[price_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
+            price_df = price_df[price_df["date"] >= pd.Timestamp(self.effective_backtest_start_date)].copy()
 
             starting_price = float(price_df['adjClose'].iloc[0])
 
@@ -352,8 +346,8 @@ class PortfolioHedge:
             data_obj = AssetData(
                 ticker = self.target,
                 frequency=self.freq,
-                start_date= self.backtest_start_date,
-                end_date = self.backtest_end_date
+                start_date= self.effective_backtest_start_date,
+                end_date = self.effective_backtest_end_date
             )
 
             price_df = data_obj.get_prices()
@@ -366,103 +360,116 @@ class PortfolioHedge:
 
         self.unhedged_portfolio_price_series = portfolio_price_series_df.copy()
 
-
     # Returns a df with column named 'date' and 'port-returns' to self.unhedged_port_return_series
-    def _port_return_series(self):
+    def _port_return_series(self, portfolio_starting_value: int | float = 100):
 
-        start_date = datetime.fromisoformat(self.backtest_start_date) - timedelta(days=5)
-        end_date = datetime.fromisoformat(self.backtest_end_date) + timedelta(days=2)
+        self._port_val_series_unhedged(portfolio_starting_value=portfolio_starting_value)
 
-        start_date = start_date.isoformat()
-        end_date = end_date.isoformat()
+        price_df = self.unhedged_portfolio_price_series.copy()
+        price_df = price_df.sort_values('date').reset_index(drop=True)
 
+        price_df['port-returns'] = price_df['port-value'].pct_change()
+        price_df = price_df.dropna(subset=['port-returns']).reset_index(drop=True)
 
-        if isinstance(self.target,str):
+        self.unhedged_port_return_series = price_df[['date', 'port-returns']].copy()
 
-            data_obj = AssetData(
-                ticker=self.target,
-                frequency=self.freq,
-                start_date = start_date,
-                end_date = end_date
-            )
+        # start_date = datetime.fromisoformat(self.backtest_start_date) - timedelta(days=5)
+        # end_date = datetime.fromisoformat(self.backtest_end_date) + timedelta(days=2)
 
-            price_df = data_obj.get_prices()
-
-            returns_df = simple_returns(data = price_df)
-
-            returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
-            returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
-
-            returns_df.rename(columns={"simple-returns": "port-returns"}, inplace=True)
-
-            self.unhedged_port_return_series = returns_df.copy()
-
-            #return returns_df
+        # start_date = start_date.isoformat()
+        # end_date = end_date.isoformat()
 
 
-        elif isinstance(self.target,dict):
+        # if isinstance(self.target,str):
 
-            returns_dict = {}
-            cols = []
+        #     data_obj = AssetData(
+        #         ticker=self.target,
+        #         frequency=self.freq,
+        #         start_date = start_date,
+        #         end_date = end_date
+        #     )
 
-            for ticker, allocation in self.target.items():
+        #     price_df = data_obj.get_prices()
 
-                data_obj = AssetData(
-                    ticker= ticker,
-                    frequency=self.freq,
-                    start_date = start_date,
-                    end_date = end_date
-                )
+        #     returns_df = simple_returns(data = price_df)
 
-                price_df = data_obj.get_prices()
+        #     returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
+        #     returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
 
-                returns_df = simple_returns(data = price_df)
+        #     returns_df.rename(columns={"simple-returns": "port-returns"}, inplace=True)
 
-                returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
-                returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
+        #     self.unhedged_port_return_series = returns_df.copy()
 
-                returns_df[f'{ticker}-port-returns'] = returns_df['simple-returns'] * (allocation / 100)
-
-                returns_df = returns_df[['date',f'{ticker}-port-returns']].copy()
-
-                returns_dict[ticker] = returns_df
-
-                cols.append(f'{ticker}-port-returns')
+        #     #return returns_df
 
 
-            merged_df = None
+        # elif isinstance(self.target,dict):
 
-            for ticker, df in returns_dict.items():
+        #     returns_dict = {}
+        #     cols = []
 
-                if merged_df is None:
-                    merged_df = df.copy()
-                else:
-                    merged_df = pd.merge(
-                        merged_df,
-                        df,
-                        on='date',
-                        how='inner'
-                    )
+        #     for ticker, allocation in self.target.items():
+
+        #         data_obj = AssetData(
+        #             ticker= ticker,
+        #             frequency=self.freq,
+        #             start_date = start_date,
+        #             end_date = end_date
+        #         )
+
+        #         price_df = data_obj.get_prices()
+
+        #         returns_df = simple_returns(data = price_df)
+
+        #         returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
+        #         returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
+
+        #         returns_df[f'{ticker}-port-returns'] = returns_df['simple-returns'] * (allocation / 100)
+
+        #         returns_df = returns_df[['date',f'{ticker}-port-returns']].copy()
+
+        #         returns_dict[ticker] = returns_df
+
+        #         cols.append(f'{ticker}-port-returns')
+
+
+        #     merged_df = None
+
+        #     for ticker, df in returns_dict.items():
+
+        #         if merged_df is None:
+        #             merged_df = df.copy()
+        #         else:
+        #             merged_df = pd.merge(
+        #                 merged_df,
+        #                 df,
+        #                 on='date',
+        #                 how='inner'
+        #             )
 
             
 
-            merged_df['port-returns'] = merged_df[cols].sum(axis=1)
+        #     merged_df['port-returns'] = merged_df[cols].sum(axis=1)
 
 
 
-            port_return_series = merged_df[['date','port-returns']].copy()
+        #     port_return_series = merged_df[['date','port-returns']].copy()
 
 
-            self.unhedged_port_return_series = port_return_series.copy()
+        #     self.unhedged_port_return_series = port_return_series.copy()
 
-            
 
+
+
+    # =================================================
+    # Hedge instruments return series
+    # =================================================
 
     # Either returns a single df with column named 'date' and 'hedge-returns' OR a tuple(df,list) of column names for the hedge instrument column names
     def _hedge_instrument_return_series(self):
 
-        start_date = datetime.fromisoformat(self.backtest_start_date) - timedelta(days=5)
-        end_date = datetime.fromisoformat(self.backtest_end_date) + timedelta(days=2)
+        start_date = datetime.fromisoformat(self.effective_backtest_start_date) - timedelta(days=5)
+        end_date = datetime.fromisoformat(self.effective_backtest_end_date) + timedelta(days=2)
 
         start_date = start_date.isoformat()
         end_date = end_date.isoformat()
@@ -482,8 +489,8 @@ class PortfolioHedge:
 
             returns_df = simple_returns(data = price_df)
 
-            returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
-            returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
+            returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.effective_backtest_start_date)].copy()
+            returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.effective_backtest_end_date)].copy()
 
             returns_df.rename(columns={"simple-returns": "hedge-returns"}, inplace=True)
 
@@ -510,8 +517,8 @@ class PortfolioHedge:
 
                 returns_df = simple_returns(data = price_df)
 
-                returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
-                returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
+                returns_df = returns_df[returns_df["date"] >= pd.Timestamp(self.effective_backtest_start_date)].copy()
+                returns_df = returns_df[returns_df["date"] <= pd.Timestamp(self.effective_backtest_end_date)].copy()
 
                 returns_df.rename(columns={"simple-returns": f"{ticker}-hedge-returns"}, inplace=True)
 
@@ -543,6 +550,13 @@ class PortfolioHedge:
 
             return hedge_return_series, cols
 
+
+
+
+
+    # =================================================
+    # Hedged portfolio return series
+    # =================================================
 
     # returns a df with 'date' and 'hedged-returns' to self.static_hedged_return_series
     def _static_hedged_return_series(self):
@@ -614,7 +628,6 @@ class PortfolioHedge:
 
             self.static_hedged_return_series = merged_df.copy()
 
-            
 
     # returns a df with 'date' and 'hedged-returns' to self.rolling_hedged_return_series
     def _rolling_hedged_return_series(self):
@@ -639,6 +652,7 @@ class PortfolioHedge:
 
             rolling_beta_float = self._compute_hedge_ratio()
 
+            
             merged_df = merged_df.sort_values('date')
             rolling_beta_float = rolling_beta_float.sort_values('date')
 
@@ -649,7 +663,8 @@ class PortfolioHedge:
                 direction='backward'
             )
 
-
+            
+            
             final_df['adjusted-hedge-returns'] = final_df['rolling-beta'] * final_df['hedge-returns']
 
             final_df['hedged-returns'] = final_df['port-returns'] - final_df['adjusted-hedge-returns']
@@ -689,6 +704,7 @@ class PortfolioHedge:
                 direction='backward'
             )
 
+
             ticker_list = []
             for col in cols:
                 ticker = col[:-14]
@@ -716,40 +732,73 @@ class PortfolioHedge:
 
 
 
+
+    # =================================================
+    # Hedged portfolio price series
+    # =================================================
+
     # Returns a df with column named 'date' and 'port-value' to self.hedged_portfolio_price_series
     def _port_val_series_hedged(self, portfolio_starting_value: int|float = 100):
 
-        
         if not (isinstance(portfolio_starting_value, int) or isinstance(portfolio_starting_value, float)):
             raise ValueError('wrong input type for portfolio_starting_value')
         if not portfolio_starting_value > 0:
             raise ValueError('only numbers greater than 0 allowed for portfolio_starting_value')
 
 
+        if not hasattr(self, 'unhedged_port_return_series'):
+            self._port_return_series(portfolio_starting_value=portfolio_starting_value)
+
 
         if self.hedge_type == "static":
-
+            if not hasattr(self, 'static_hedged_return_series'):
+                self._static_hedged_return_series()
             df = self.static_hedged_return_series.copy()
 
-            df['port-value'] = portfolio_starting_value * (1 + df['hedged-returns']).cumprod()
-
-            #df = df[['date','port-value']].copy()
-
-
-
         elif self.hedge_type == "rolling":
-
+            if not hasattr(self, 'rolling_hedged_return_series'):
+                self._rolling_hedged_return_series()
             df = self.rolling_hedged_return_series.copy()
 
-            df['port-value'] = portfolio_starting_value * (1 + df['hedged-returns']).cumprod()
+        df['port-value'] = portfolio_starting_value * (1 + df['hedged-returns']).cumprod()
 
-            #df = df[['date','port-value']].copy()
+        self.hedged_portfolio_price_series = df.copy()
+
+
+        # if not (isinstance(portfolio_starting_value, int) or isinstance(portfolio_starting_value, float)):
+        #     raise ValueError('wrong input type for portfolio_starting_value')
+        # if not portfolio_starting_value > 0:
+        #     raise ValueError('only numbers greater than 0 allowed for portfolio_starting_value')
+
+
+
+        # if self.hedge_type == "static":
+
+        #     df = self.static_hedged_return_series.copy()
+
+        #     df['port-value'] = portfolio_starting_value * (1 + df['hedged-returns']).cumprod()
+
+        #     #df = df[['date','port-value']].copy()
+
+
+
+        # elif self.hedge_type == "rolling":
+
+        #     df = self.rolling_hedged_return_series.copy()
+
+        #     df['port-value'] = portfolio_starting_value * (1 + df['hedged-returns']).cumprod()
+
+        #     #df = df[['date','port-value']].copy()
 
             
         
-        self.hedged_portfolio_price_series = df.copy()
+        # self.hedged_portfolio_price_series = df.copy()
         
 
+
+    # =================================================
+    # Calculate the hedge ratios depending on static or rolling
+    # =================================================
 
     def _compute_hedge_ratio(self):
 
@@ -766,8 +815,11 @@ class PortfolioHedge:
         # Can also access latest betas by calling self.latest_beta
 
 
-        # Hedging a single asset
+        if hasattr(self, '_cached_hedge_ratio'):
+            return self._cached_hedge_ratio
+
         
+        # Hedging a single asset
         if isinstance(self.target,str):
             
             hedge_ratio_data = self._single_hedge()
@@ -778,9 +830,14 @@ class PortfolioHedge:
             
             hedge_ratio_data = self._multiple_hedge()
 
+        else:
+            hedge_ratio_data = None
+
+
+        self._cached_hedge_ratio = hedge_ratio_data
+
         return hedge_ratio_data
             
-        
 
     # Hedging a single asset
     def _single_hedge(self):
@@ -791,7 +848,7 @@ class PortfolioHedge:
             # single hedging instrument
             if isinstance(self.hedge_instruments,str):
 
-                # Returns a df with one column '{ticker}-rolling-beta'
+                # Returns a df with one column 'rolling-beta'
                 if self.hedge_type == 'rolling':
 
                     beta_obj = Beta(
@@ -806,20 +863,26 @@ class PortfolioHedge:
 
                     beta_data = beta_obj.get_rolling_beta()
 
+                    self.rolling_beta_df = beta_data.copy()
+                    self.rolling_beta_df_cols = ['rolling_beta']
+
                     self.latest_beta = float(beta_data.copy()['rolling_beta'].iloc[-1])
                     
                     # Today's beta is yesterday's one to prevent look-ahead bias
                     beta_data["rolling_beta"] = beta_data["rolling_beta"].shift(1)
 
 
+                    # Drop the first observation since it will be NaN after shifting by 1
+                    beta_data.dropna(ignore_index=True, inplace=True)
+
+
                     beta_data = beta_data[beta_data["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
                     beta_data = beta_data[beta_data["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
-
-                    beta_data = beta_data.reset_index(drop=True)
+                
 
                     # Update the actual start and end of backtest to what is available in the dataframe with all merged by date
-                    self.backtest_start_date = beta_data['date'].iloc[0].strftime('%Y-%m-%d')
-                    self.backtest_end_date = beta_data['date'].iloc[-1].strftime('%Y-%m-%d')
+                    self.effective_backtest_start_date = beta_data['date'].iloc[0].strftime('%Y-%m-%d')
+                    self.effective_backtest_end_date = beta_data['date'].iloc[-1].strftime('%Y-%m-%d')
 
                     beta_data.rename(columns={"rolling_beta": "rolling-beta"}, inplace=True)
 
@@ -860,8 +923,7 @@ class PortfolioHedge:
 
                     self.latest_beta = full_beta_obj.get_static_beta()
                 
-            
-            
+
             # multiple hedging instrument
             elif isinstance(self.hedge_instruments,list):
 
@@ -880,6 +942,9 @@ class PortfolioHedge:
 
                     beta_data, independent_ticker_cols = beta_obj.get_rolling_beta()
 
+                    self.rolling_beta_df = beta_data.copy()
+                    self.rolling_beta_df_cols = independent_ticker_cols.copy()
+
 
                     latest_beta = {}
 
@@ -890,18 +955,21 @@ class PortfolioHedge:
 
 
                     # Today's beta is yesterday's one to prevent look-ahead bias
-                    beta_data[independent_ticker_cols] = beta_data[independent_ticker_cols].shift(1)
+
+                    for col in independent_ticker_cols:
+                        beta_data[col] = beta_data[col].shift(1)
+
+                    # Drop the first observation since it will be NaN after shifting by 1
+                    beta_data.dropna(ignore_index=True, inplace=True)
 
 
                     beta_data = beta_data[beta_data["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
                     beta_data = beta_data[beta_data["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
 
-                    beta_data = beta_data.reset_index(drop=True)
-
 
                     # Update the actual start and end of backtest to what is available in the dataframe with all merged by date
-                    self.backtest_start_date = beta_data['date'].iloc[0].strftime('%Y-%m-%d')
-                    self.backtest_end_date = beta_data['date'].iloc[-1].strftime('%Y-%m-%d')
+                    self.effective_backtest_start_date = beta_data['date'].iloc[0].strftime('%Y-%m-%d')
+                    self.effective_backtest_end_date = beta_data['date'].iloc[-1].strftime('%Y-%m-%d')
 
 
                     # This dataframe gives the actual betas to use on each rebalance date
@@ -968,7 +1036,9 @@ class PortfolioHedge:
                 if isinstance(self.hedge_instruments,list):
                     beta_data, independent_ticker_cols = beta_obj.get_rolling_beta()
 
-                    
+                    self.rolling_beta_df = beta_data.copy()
+                    self.rolling_beta_df_cols = independent_ticker_cols.copy()
+
                     latest_beta = {}
 
                     for col in independent_ticker_cols:
@@ -977,12 +1047,18 @@ class PortfolioHedge:
                     self.latest_beta = latest_beta
 
                     # Today's beta is yesterday's one to prevent look-ahead bias
-                    beta_data[independent_ticker_cols] = beta_data[independent_ticker_cols].shift(1)
+
+
+                    for col in independent_ticker_cols:
+                        beta_data[col] = beta_data[col].shift(1)
 
 
                 # Returns a df with one column '{ticker}-rolling-beta'
                 elif isinstance(self.hedge_instruments,str):
                     beta_data = beta_obj.get_rolling_beta()
+
+                    self.rolling_beta_df = beta_data.copy()
+                    self.rolling_beta_df_cols = ['rolling_beta']
 
                     self.latest_beta = float(beta_data.copy()['rolling_beta'].iloc[-1])
 
@@ -992,23 +1068,25 @@ class PortfolioHedge:
                     beta_data.rename(columns={'rolling_beta': 'rolling-beta'}, inplace=True)
 
 
+                # Drop the first observation since it will be NaN after shifting by 1
+                beta_data.dropna(ignore_index=True, inplace=True)
+
+
                 beta_data = beta_data[beta_data["date"] >= pd.Timestamp(self.backtest_start_date)].copy()
                 beta_data = beta_data[beta_data["date"] <= pd.Timestamp(self.backtest_end_date)].copy()
 
-                beta_data = beta_data.reset_index(drop=True)
+
+                
 
                 # Update the actual start and end of backtest to what is available in the dataframe with all merged by date
-                self.backtest_start_date = beta_data['date'].iloc[0].strftime('%Y-%m-%d')
-                self.backtest_end_date = beta_data['date'].iloc[-1].strftime('%Y-%m-%d')
+                self.effective_backtest_start_date = beta_data['date'].iloc[0].strftime('%Y-%m-%d')
+                self.effective_backtest_end_date = beta_data['date'].iloc[-1].strftime('%Y-%m-%d')
 
 
                 # This dataframe gives the actual betas to use on each rebalance date
                 beta_readings = beta_data.iloc[::self.rebalance_freq].copy()
 
                 beta_readings = beta_readings.reset_index(drop=True)
-
-
-                
 
 
             # Returns either a float or a dictionary mapping {ticker}: {beta}   
@@ -1043,6 +1121,8 @@ class PortfolioHedge:
         
 
 
+
+
     def _rolling_window_resolver(self, window:int | None):
         default = self.WINDOW_DEFAULTS[self.freq]
         floor = self.WINDOW_FLOORS[self.freq]
@@ -1058,8 +1138,7 @@ class PortfolioHedge:
             )
 
         return window
-    
-        
+
 
     def _date_resolver(self, backtest_start_date, backtest_end_date, backtest_period):
         # Compute start date
@@ -1084,7 +1163,6 @@ class PortfolioHedge:
                 self.backtest_end_date = (date.fromisoformat(backtest_end_date) - timedelta(days=1)).strftime("%Y-%m-%d")
             else:
                 self.backtest_end_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
-        
 
 
     def _rebalance_freq_resolver(self, rebalance_freq: int | None) -> int:
@@ -1106,13 +1184,145 @@ class PortfolioHedge:
         
 
 
+    def _rolling_beta_plot(self, ax=None):
+
+        if self.hedge_type == 'rolling':
+
+            rolling_beta_df = self.rolling_beta_df
+            rolling_beta_df_cols = self.rolling_beta_df_cols
+
+        else:
+            raise ValueError('cannot plot rolling beta for static hedge!')
+
+
+        if ax is None:
+            ax = plt.gca() # Fallback to the current active axes if none is provided
+
+
+        for col in rolling_beta_df_cols:
+            ax.plot(rolling_beta_df["date"], rolling_beta_df[col], label=col)
+
+
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Rolling beta")
+        ax.legend()
+        ax.grid(True, alpha=0.2)
+
+        ax.set_title(
+            f"Rolling beta with respect to each hedge instrument",
+            pad=10
+        )
+
+        ax.text(0.5, 1.02, f"Rolling window: {self.rolling_window} observations", transform=ax.transAxes, ha="center", va="bottom", fontsize=10, color="gray")
+
+        ax.axhline(y=0, alpha = 0.3, linestyle='--', color='gray')
+        
+        return ax
+
+
+    def _backtest_plot(self,ax=None):
+
+        if ax is None:
+            ax = plt.gca() # Fallback to the current active axes if none is provided
+
+
+        # Plots the price series of the hedged and unhedged portfolio over time
+
+
+        
+        
+        if not hasattr(self, 'hedged_portfolio_price_series'):
+            self._port_val_series_hedged(portfolio_starting_value=100)
+
+        hedged_price_series = self.hedged_portfolio_price_series
+
+        unhedged_price_series = self.unhedged_portfolio_price_series  # guaranteed set as a
+                                                                      # side effect of the call above
+
+
+
+        
+        # Plotting the hedged and unhedged indices
+        df1 = unhedged_price_series
+        df2 = hedged_price_series
+
+        label1 = 'unhedged portfolio'
+        label2 = 'hedged portfolio'
+
+
+
+
+        ax.plot(df1["date"], df1['port-value'], label=label1)
+        ax.plot(df2["date"], df2['port-value'], label=label2)
+
+
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Index")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        if self.hedge_type == 'rolling':
+            ax.set_title(
+                f"Hedged vs Unhedged Portfolio (index start = 100)",
+                
+                pad = 20
+            )
+        else:
+            ax.set_title(
+                "Hedged vs Unhedged Portfolio",
+                pad = 20
+            )
+
+        if self.hedge_type == 'rolling':
+            ax.text(0.5, 1.02, f"Rolling window: {self.rolling_window}; Rebalance: every {self.rebalance_freq} observations", transform=ax.transAxes, ha="center", va="bottom", fontsize=10, color="gray")
+
+
+        
+        return ax
+    
+
+    def _plot(self):
+
+
+        if self.hedge_type == 'rolling':
+
+            self._compute_hedge_ratio()  # idempotent; ensures rolling_beta_df and
+                                         # effective_backtest_start/end_date are resolved
+                                         # before either subplot, regardless of call order between backtest/backtest_plot
+
+
+            fig, (ax1, ax2) = plt.subplots(2,1, figsize=(16, 14))
+
+            self._rolling_beta_plot(ax=ax1)
+            self._backtest_plot(ax=ax2)
+
+        elif self.hedge_type == 'static':
+            fig, ax = plt.subplots(figsize= (10,4) )
+            self._backtest_plot(ax=ax)
+
+
+        fig.autofmt_xdate()
+        plt.tight_layout()
+
+        plt.show()
+        plt.subplots_adjust(hspace=0.4) 
+
+        if self.hedge_type == 'rolling':
+            return fig, (ax1, ax2)
+        elif self.hedge_type == 'static':
+            return fig, ax
+
+
+
+        
+
 
 
 
 if __name__ == '__main__':
     portfolio = PortfolioHedge(
-        target= {'nke':40,'ko':60},
-        hedge_instruments= 'spy',
+        target= {'nke':20,'ko':20, 'aapl':20, 'goog':20, 'nvda':20},
+        hedge_instruments= ['spy','qqqm'],
         backtest_start_date= '2018-09-09',
         backtest_end_date= '2025-09-09',
         frequency='daily',
@@ -1121,5 +1331,5 @@ if __name__ == '__main__':
     )
 
     portfolio.backtest()
-    portfolio.backtest_plot()
+    #portfolio.backtest_plot()
 
