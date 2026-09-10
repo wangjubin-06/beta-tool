@@ -1,5 +1,5 @@
 from regression_beta.beta import Beta
-from regression_beta.multibeta import MultiAssetsRegression
+from regression_beta.multibeta import MultiBeta
 from regression_beta.portfoliobeta import PortfolioBeta
 from dateutil.relativedelta import relativedelta
 from datetime import date, timedelta, datetime
@@ -936,7 +936,7 @@ class PortfolioHedge:
 
                     today = date.today().isoformat()
 
-                    beta_obj = MultiAssetsRegression(
+                    beta_obj = MultiBeta(
                         asset1 = self.target,
                         assets = self.hedge_instruments,
                         frequency = self.freq,
@@ -993,7 +993,7 @@ class PortfolioHedge:
                 else:
 
                     try:
-                        backtest_beta_obj = MultiAssetsRegression(
+                        backtest_beta_obj = MultiBeta(
                             asset1 = self.target,
                             assets = self.hedge_instruments,
                             frequency = self.freq,
@@ -1011,7 +1011,7 @@ class PortfolioHedge:
 
                     today = date.today().isoformat()
 
-                    full_beta_obj = MultiAssetsRegression(
+                    full_beta_obj = MultiBeta(
                         asset1 = self.target,
                         assets = self.hedge_instruments,
                         frequency = self.freq,

@@ -1,14 +1,13 @@
-import pandas as pd
 import matplotlib.pyplot as plt
 from regression_beta.data import AssetData
 from regression_beta.returns import log_returns, simple_returns
 from regression_beta.regression import MultiFactorRegression
 from regression_beta.plotting import mutlifac_ols_plot
 from regression_beta.diagnostics import heteroskedasticity, autocorrelation, multicollinearity, normality
-import statsmodels.api as sm
-from statsmodels.regression.rolling import RollingOLS
+
+
  
-class MultiAssetsRegression:
+class MultiBeta:
     """
     Generic multi-asset factor tool: regresses one asset's returns against N
     other assets' returns simultaneously. Same idea as Beta, just not limited

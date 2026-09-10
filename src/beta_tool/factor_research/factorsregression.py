@@ -1,13 +1,11 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import statsmodels.api as sm
 import os
 from data_collection.tiingo_api import TiingoApi
 from data_collection.fred_api import FredApi
 from data_collection.ff_factors_api import FrenchApi
 from factor_research.factorresults import RegressionSummary, FactorResult, interpret_factor, print_regression_summary
-from pprint import pprint
 from functools import reduce
 
 
