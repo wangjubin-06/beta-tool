@@ -1127,6 +1127,8 @@ def calculate_risk_metrics(
             alpha=0.3
         )
 
+        fig.autofmt_xdate()
+        
         plt.tight_layout()
 
         plt.show()

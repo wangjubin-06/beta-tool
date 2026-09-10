@@ -558,25 +558,25 @@ class PortfolioBeta:
 
 # Example usage
 
-# if __name__ == '__main__':
-#     portfolio_dic = {
-#         'msft': 14.28,
-#         'nvda': 35.79,
-#         'aapl': 8.12,
-#         'ko': 22.45,
-#         'goog': 19.36
-#     }
+if __name__ == '__main__':
+    portfolio_dic = {
+        'msft': 14.28,
+        'nvda': 35.79,
+        'aapl': 8.12,
+        'ko': 22.45,
+        'goog': 19.36
+    }
     
-#     portfolio = PortfolioBeta(
-#         portfolio_dic = portfolio_dic,
-#         frequency = 'daily',
-#         asset_to_be_regressed='spy'
-#     )
+    portfolio = PortfolioBeta(
+        portfolio_dic = portfolio_dic,
+        frequency = 'daily',
+        asset_to_be_regressed=['spy','qqqm','agg']
+    )
     
-#     portfolio.summary()
-#     portfolio.plot_results()
+    portfolio.summary()
+    portfolio.plot_results()
 
-#     portfolio.historical_rolling_beta()
-#     portfolio.rolling_beta_summary()
-#     portfolio.rolling_beta_plot()
+    portfolio.historical_rolling_beta()
+    portfolio.rolling_beta_summary()
+    portfolio.rolling_beta_plot()
 

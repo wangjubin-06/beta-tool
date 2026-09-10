@@ -48,8 +48,9 @@ class PortfolioHedge:
             frequency: str = 'daily',
             return_type: str = 'simple',
             hedge_type:str = 'static',    # "static" | "rolling"
-            window: int | None = None,    # only used if hedge_type="rolling"
+            window: int | None = None,    # the lookback window for rolling regression"
             rebalance_freq: int | None = None,
+            static_lookback_window: int | None = None
     ):
 
         if return_type not in self.RETURN_TYPES:
@@ -119,12 +120,14 @@ class PortfolioHedge:
         self.effective_backtest_end_date = self.backtest_end_date
 
 
+        if self.hedge_type == 'static':
+            self._static_lookback_window(window=static_lookback_window)
 
 
 
     # Public APIs
 
-    def backtest(self):
+    def backtest(self, plot=False):
 
         # Do a comparison between unhedged position and hedged position with static and rolling beta
         
@@ -158,9 +161,9 @@ class PortfolioHedge:
             return_col="port-returns",
             hedged_col="hedged-returns",
             date_col="date",
-            frequency="daily",
+            frequency=self.freq,
             risk_free_rate=0.0,
-            plot=True,
+            plot=plot,
         )
 
         print(metrics_df)
@@ -192,17 +195,9 @@ class PortfolioHedge:
         # )
 
 
-
     def backtest_plot(self):
 
         self._plot()
-
-
-
-
-
-
-
 
 
 
@@ -851,10 +846,13 @@ class PortfolioHedge:
                 # Returns a df with one column 'rolling-beta'
                 if self.hedge_type == 'rolling':
 
+                    today = date.today().isoformat()
+
                     beta_obj = Beta(
                         asset1 = self.target,
                         asset2 = self.hedge_instruments,
                         start_date = self.data_start_date,
+                        end_date = today,
                         return_type = self.return_type,
                         frequency = self.freq,
                     )
@@ -899,24 +897,30 @@ class PortfolioHedge:
                 # Returns a floating point number
                 else:
 
-                    backtest_beta_obj = Beta(
-                        asset1 = self.target,
-                        asset2 = self.hedge_instruments,
-                        end_date = self.backtest_start_date,
-                        return_type = self.return_type,
-                        frequency = self.freq,
-                    )
+                    try:
+                        backtest_beta_obj = Beta(
+                            asset1 = self.target,
+                            asset2 = self.hedge_instruments,
+                            start_date= self.static_start_date,
+                            end_date = self.backtest_start_date,
+                            return_type = self.return_type,
+                            frequency = self.freq,
+                        )
+                    except:
+                        raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.')
                     
                     beta_data = backtest_beta_obj.get_static_beta()
                     
 
                     beta_readings = beta_data
 
+                    today = date.today().isoformat()
 
                     full_beta_obj = Beta(
                         asset1= self.target,
                         asset2= self.hedge_instruments,
                         start_date = self.data_start_date,
+                        end_date = today,
                         return_type= self.return_type,
                         frequency = self.freq
                     )
@@ -930,11 +934,14 @@ class PortfolioHedge:
                 # Returns a df with many columns '{ticker}-rolling-beta'
                 if self.hedge_type == 'rolling':
 
+                    today = date.today().isoformat()
+
                     beta_obj = MultiAssetsRegression(
                         asset1 = self.target,
                         assets = self.hedge_instruments,
                         frequency = self.freq,
                         start_date = self.data_start_date,
+                        end_date = today,
                         return_type = self.return_type,
                     )
 
@@ -985,23 +992,31 @@ class PortfolioHedge:
                 # Returns a dict of {ticker}: {beta}
                 else:
 
-                    backtest_beta_obj = MultiAssetsRegression(
-                        asset1 = self.target,
-                        assets = self.hedge_instruments,
-                        frequency = self.freq,
-                        end_date = self.backtest_start_date,
-                        return_type = self.return_type,
-                    )
+                    try:
+                        backtest_beta_obj = MultiAssetsRegression(
+                            asset1 = self.target,
+                            assets = self.hedge_instruments,
+                            frequency = self.freq,
+                            start_date= self.static_start_date,
+                            end_date = self.backtest_start_date,
+                            return_type = self.return_type,
+                        )
+                    except:
+                        raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.')
                     
                     beta_data = backtest_beta_obj.get_static_beta()
 
                     beta_readings = beta_data
+
+
+                    today = date.today().isoformat()
 
                     full_beta_obj = MultiAssetsRegression(
                         asset1 = self.target,
                         assets = self.hedge_instruments,
                         frequency = self.freq,
                         start_date = self.data_start_date,
+                        end_date = today,
                         return_type = self.return_type,
                     )
                     self.latest_beta = full_beta_obj.get_static_beta()
@@ -1021,11 +1036,14 @@ class PortfolioHedge:
 
             if self.hedge_type == 'rolling':
 
+                today = date.today().isoformat()
+
                 beta_obj = PortfolioBeta(
                     portfolio_dic = self.target,
                     asset_to_be_regressed = self.hedge_instruments,
                     frequency = self.freq,
                     start_date = self.data_start_date,
+                    end_date = today,
                     return_type = self.return_type
                 )
 
@@ -1092,24 +1110,30 @@ class PortfolioHedge:
             # Returns either a float or a dictionary mapping {ticker}: {beta}   
             else:
 
-                backtest_beta_obj = PortfolioBeta(
-                    portfolio_dic = self.target,
-                    asset_to_be_regressed = self.hedge_instruments,
-                    frequency = self.freq,
-                    end_date = self.backtest_start_date,
-                    return_type = self.return_type
-                )
+                try:
+                    backtest_beta_obj = PortfolioBeta(
+                        portfolio_dic = self.target,
+                        asset_to_be_regressed = self.hedge_instruments,
+                        frequency = self.freq,
+                        start_date= self.static_start_date,
+                        end_date = self.backtest_start_date,
+                        return_type = self.return_type
+                    )
+                except:
+                    raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.')
                 
                 beta_data = backtest_beta_obj.get_static_beta()
 
                 beta_readings = beta_data
 
+                today = date.today().isoformat()
 
                 full_beta_obj = PortfolioBeta(
                     portfolio_dic = self.target,
                     asset_to_be_regressed = self.hedge_instruments,
                     frequency = self.freq,
                     start_date = self.data_start_date,
+                    end_date = today,
                     return_type = self.return_type
                 )
                 self.latest_beta = full_beta_obj.get_static_beta()
@@ -1138,6 +1162,32 @@ class PortfolioHedge:
             )
 
         return window
+
+
+    def _static_lookback_window(self, window:int | None):
+        default = self.WINDOW_DEFAULTS[self.freq]
+        floor = self.WINDOW_FLOORS[self.freq]
+
+        if window is None:
+            final_window = default
+        elif not isinstance(window, int) or window < floor:
+            raise ValueError(
+                f"window must be an integer >= {floor} observations for a "
+                f"statistically reliable static regression at '{self.freq}' "
+                f"frequency; got {window}."
+            )
+        else:
+            final_window = window
+
+        dt = datetime.strptime(self.backtest_start_date, "%Y-%m-%d").date()
+
+        if self.freq == 'daily':
+            self.static_start_date = (dt - relativedelta(days=final_window)).strftime("%Y-%m-%d")
+        elif self.freq == 'weekly':
+            self.static_start_date = (dt - relativedelta(weeks=final_window)).strftime("%Y-%m-%d")
+        elif self.freq == 'monthly':
+            self.static_start_date = (dt - relativedelta(months=final_window)).strftime("%Y-%m-%d")
+
 
 
     def _date_resolver(self, backtest_start_date, backtest_end_date, backtest_period):
@@ -1200,7 +1250,7 @@ class PortfolioHedge:
 
 
         for col in rolling_beta_df_cols:
-            ax.plot(rolling_beta_df["date"], rolling_beta_df[col], label=col)
+            ax.plot(rolling_beta_df["date"], rolling_beta_df[col], label=col, linewidth=2)
 
 
         ax.set_xlabel("Date")
@@ -1213,7 +1263,7 @@ class PortfolioHedge:
             pad=10
         )
 
-        ax.text(0.5, 1.02, f"Rolling window: {self.rolling_window} observations", transform=ax.transAxes, ha="center", va="bottom", fontsize=10, color="gray")
+        #ax.text(0.5, 1.02, f"Rolling window: {self.rolling_window} observations", transform=ax.transAxes, ha="center", va="bottom", fontsize=10, color="gray")
 
         ax.axhline(y=0, alpha = 0.3, linestyle='--', color='gray')
         
@@ -1252,8 +1302,8 @@ class PortfolioHedge:
 
 
 
-        ax.plot(df1["date"], df1['port-value'], label=label1)
-        ax.plot(df2["date"], df2['port-value'], label=label2)
+        ax.plot(df1["date"], df1['port-value'], label=label1, linewidth = 2)
+        ax.plot(df2["date"], df2['port-value'], label=label2, linewidth = 2)
 
 
         ax.set_xlabel("Date")
@@ -1291,13 +1341,13 @@ class PortfolioHedge:
                                          # before either subplot, regardless of call order between backtest/backtest_plot
 
 
-            fig, (ax1, ax2) = plt.subplots(2,1, figsize=(16, 14))
+            fig, (ax1, ax2) = plt.subplots(2,1, figsize=(14, 12))
 
             self._rolling_beta_plot(ax=ax1)
             self._backtest_plot(ax=ax2)
 
         elif self.hedge_type == 'static':
-            fig, ax = plt.subplots(figsize= (10,4) )
+            fig, ax = plt.subplots(figsize= (10,8) )
             self._backtest_plot(ax=ax)
 
 
@@ -1322,14 +1372,14 @@ class PortfolioHedge:
 if __name__ == '__main__':
     portfolio = PortfolioHedge(
         target= {'nke':20,'ko':20, 'aapl':20, 'goog':20, 'nvda':20},
-        hedge_instruments= ['spy','qqqm'],
+        hedge_instruments= ['spy','agg','qqqm'],
         backtest_start_date= '2018-09-09',
         backtest_end_date= '2025-09-09',
         frequency='daily',
-        return_type='simple',
         hedge_type='rolling'
     )
 
-    portfolio.backtest()
+    portfolio.backtest(plot=True)
     #portfolio.backtest_plot()
+    
 
