@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from regression_beta.rolling import MultiFactorRollingOLS, SingleFactorRollingOLS
+from .rolling import MultiFactorRollingOLS, SingleFactorRollingOLS
 
 class OLSRegression:
 
@@ -124,6 +124,40 @@ class OLSRegression:
         return ols_df
 
 
+    def static_results_dic(self):
+        
+        # Summarise results in a dict
+
+        ols_dic = {
+                'start_date': self.start_date,
+                'end_date': self.end_date,
+                'frequency': self.freq,
+                'Use HAC': self.hac,
+                'HAC lags': (self.hac_lags if self.hac else 0),
+                'return_type': self.return_type,
+                "n_obs": int(self.results.nobs),
+                'beta': float(self.results.params[self.x_col]),
+                'alpha': float(self.results.params['const']),
+                "alpha_p_value": float(self.results.pvalues['const']),
+                'beta_std_error': float(self.results.bse[self.x_col]),
+                'beta_tstat': float(self.results.tvalues[self.x_col]),
+                'beta_pvalue': float(self.results.pvalues[self.x_col]),
+                "beta_ci_low": float(self.results.conf_int().loc[self.x_col, 0]),
+                "beta_ci_high": float(self.results.conf_int().loc[self.x_col, 1]),
+                'r_squared': float(self.results.rsquared),
+                'residual_volatility': float(np.sqrt(self.results.mse_resid)),
+            }
+        
+
+        # Annualized alpha
+        ols_dic['annualized_alpha'] = ((1 + ols_dic['alpha']) ** 252 - 1) if self.return_type == 'simple' else (ols_dic['alpha'] * 252)
+
+        
+        return ols_dic
+    
+        
+    
+
     def summary(self, asset_1_name, asset_2_name):
         """Return a formatted summary of the regression results."""
 
@@ -188,6 +222,13 @@ class OLSRegression:
     
     def rolling_beta_summary(self):
         self.rolling_ols_obj.rolling_beta_summary()
+
+
+    def rolling_results_dic(self):
+        dic = self.rolling_ols_obj.rolling_results_dic()
+        return dic
+
+
 
 
     def rolling_beta_plot(self):
@@ -419,6 +460,45 @@ class MultiFactorRegression:
             print("\n")
 
 
+    def static_results_dic(self):
+        
+        # Summarise results in a dict
+
+        ols_dic = {
+                'start_date': str(self.start_date),
+                'end_date': str(self.end_date),
+                'frequency': self.freq,
+                'Use HAC': self.hac,
+                'HAC lags': (self.hac_lags if self.hac else 0),
+                'return_type': self.return_type,
+                "n_obs": self.observations,
+                'alpha': self.alpha,
+                'annualized_alpha': self.alpha,
+                "alpha_p_value": self.alpha_p_value,
+                'r_squared': self.r_squared,
+                'residual_volatility': self.residual_vol
+            }
+        
+        for name, stats in self.betas.items():
+            ols_dic[name] = {
+                
+                'beta': stats['beta'],
+                "beta_ci_low": stats['ci_low'],
+                "beta_ci_high": stats['ci_high'],
+                'beta_std_error': stats['std_error'],
+                'beta_tstat': stats['t_stat'],
+                'beta_pvalue': stats['p_value'],
+                
+            }
+        
+
+       
+        
+        return ols_dic
+    
+        
+        
+
     def get_static_beta(self):
         
         betas = {}
@@ -451,6 +531,13 @@ class MultiFactorRegression:
     def rolling_beta_summary(self):
         
         self.rolling_ols_obj.rolling_beta_summary()
+
+
+    def rolling_results_dic(self):
+        
+        dic = self.rolling_ols_obj.rolling_results_dic()
+        
+        return dic
 
 
     def rolling_beta_plot(self):

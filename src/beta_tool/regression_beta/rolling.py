@@ -204,10 +204,51 @@ class MultiFactorRollingOLS:
             print(f"  Minimum:            {float(rolling_df['r_squared'].min()):.3f}")
             print(f"  Maximum:            {float(rolling_df['r_squared'].max()):.3f}")
             
+
+    def rolling_results_dic(self):
+        
+        latest = list(self.rolling_dfs.values())[0].iloc[-1]
+        
+        dic = {
+            'rolling_start' : self.start_date,
+            'rolling_end': self.end_date,
+            'rolling_window': self.window,
+            'n_obs': self.observations,
+            'current_alpha': latest['alpha'].item(),
+            'current_alpha_se': latest['alpha_std_error'],
+            'current_alpha_tstat': latest['alpha_tstat'],
+            'current_alpha_pvalue': latest['alpha_pvalue'],
+            'current_r_squared': latest['r_squared'].item()
             
+        }
+        
+        for ticker, rolling_df in self.rolling_dfs.items():
+            
+            latest = rolling_df.iloc[-1]
+            
+            dic[ticker] = {
+                'current_beta': latest['beta'].item(),
+                'current_beta_ci_lower': latest['beta_ci_lower'].item(),
+                'current_beta_ci_upper': latest['beta_ci_upper'].item(),
+                'current_beta_se': latest['beta_std_error'].item(),
+                'current_beta_tstat': latest['beta_tstat'].item(),
+                'current_beta_p_value': latest['beta_pvalue'].item(),
+                
+                'beta_mean': rolling_df['beta'].mean(),
+                'beta_median': rolling_df['beta'].median(),
+                'beta_min': rolling_df['beta'].min(),
+                'beta_max': rolling_df['beta'].max(),
+                'beta_std_dev': rolling_df['beta'].std(),
+                'beta_rs_mean': rolling_df['r_squared'].mean(),
+                'beta_rs_min': rolling_df['r_squared'].min(),
+                'beta_rs_max': rolling_df['r_squared'].max()
+            }
+        return dic
+    
+    
     
     def rolling_beta_plot(self):
-        fig, ax = plt.subplots(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(16, 9))
         
 
         for ticker, df in self.rolling_dfs.items():
@@ -257,8 +298,8 @@ class MultiFactorRollingOLS:
         plt.gcf().autofmt_xdate()  # Rotates dates automatically for readability
         ax.legend()
 
-        plt.tight_layout()
-        plt.show()
+        # plt.tight_layout()
+        # plt.show()
 
         return fig
 
@@ -469,7 +510,7 @@ class SingleFactorRollingOLS:
         Visualise the rolling beta
         """
 
-        fig, ax = plt.subplots(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(16, 9))
 
         ax.plot(
             self.rolling_df['date'],
@@ -507,8 +548,8 @@ class SingleFactorRollingOLS:
         ax.legend()
         ax.grid(True, alpha=0.3)
 
-        plt.tight_layout()
-        plt.show()
+        #plt.tight_layout()
+        #plt.show()
 
         return fig
     
@@ -558,6 +599,39 @@ class SingleFactorRollingOLS:
         return
 
 
+    def rolling_results_dic(self):
+        
+        latest = self.rolling_df.iloc[-1]
+        
+        results = {
+            'rolling_start' : self.rolling_df['date'].iloc[0].date(),
+            'rolling_end': self.rolling_df['date'].iloc[-1].date(),
+            'rolling_window': self.window,
+            'n_obs': len(self.rolling_df),
+            'current_beta': latest['beta'].item(),
+            'current_beta_ci_lower': latest['beta_ci_lower'].item(),
+            'current_beta_ci_upper': latest['beta_ci_upper'].item(),
+            'current_beta_se': latest['beta_se'].item(),
+            'current_beta_tstat': latest['beta_tstat'].item(),
+            'current_beta_p_value': latest['beta_pvalue'].item(),
+            'current_alpha': latest['alpha'].item(),
+            'current_r_squared': latest['r_squared'].item(),
+            'current_residual_vol': latest['residual_volatility'].item(),
+            'beta_mean': self.rolling_df['beta'].mean(),
+            'beta_median': self.rolling_df['beta'].median(),
+            'beta_min': self.rolling_df['beta'].min(),
+            'beta_max': self.rolling_df['beta'].max(),
+            'beta_std_dev': self.rolling_df['beta'].std(),
+            'beta_rs_mean': self.rolling_df['r_squared'].mean(),
+            'beta_rs_min': self.rolling_df['r_squared'].min(),
+            'beta_rs_max': self.rolling_df['r_squared'].max()
+            
+        }
+        
+        return results
+        
+        
+
     def get_rolling_beta(self):
         date = self.rolling_df['date']
         beta = self.rolling_df['beta']
@@ -577,4 +651,5 @@ class SingleFactorRollingOLS:
 
 
         return rolling_beta_df
-    
+
+

@@ -2,11 +2,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import reduce
-from regression_beta.data import AssetData
-from regression_beta.diagnostics import *
-from regression_beta.plotting import returns_distribution_plot, two_asset_ols_plot
-from regression_beta.returns import log_returns, simple_returns
-from regression_beta.regression import OLSRegression, MultiFactorRegression
+from .data import AssetData
+from .diagnostics import *
+from .plotting import multifac_ols_plot, returns_distribution_plot, two_asset_ols_plot
+from .returns import log_returns, simple_returns
+from .regression import OLSRegression, MultiFactorRegression
 
 class PortfolioBeta:
     """
@@ -183,9 +183,20 @@ class PortfolioBeta:
                 self._diagnostics()
 
 
+    def get_static_results(self):
+        
+        if not self.multi_independent_asset:
+            return self.ols_obj.static_results_dic()
+        
+        elif self.multi_independent_asset:
+            return self.multi_regress_obj.static_results_dic()
+    
+    
+    
     def plot_results(self):
         
         if isinstance(self.independent,str):
+            
             """
             Plot the results of the static regression
             """
@@ -238,10 +249,11 @@ class PortfolioBeta:
                 ax = ax_ols
             )
 
-            plt.show()
+            #plt.show()
             return fig
         
         elif isinstance(self.independent,list):
+        
             try:
                 # Intentionally raising an error
                 raise ValueError("2D plotting for the linear regression is only available for regression of portfolio against one asset only, cannot plot for regression of portfolio against multiple assets!")
@@ -278,7 +290,7 @@ class PortfolioBeta:
             
         
         return
-            
+       
 
     def rolling_beta_summary(self):
         """
@@ -291,7 +303,16 @@ class PortfolioBeta:
             self.multi_regress_obj.rolling_beta_summary()
             
         return
-            
+
+
+    def get_rolling_results(self):
+        
+        if not self.multi_independent_asset:
+            return self.ols_obj.rolling_results_dic()
+        
+        elif self.multi_independent_asset:
+            return self.multi_regress_obj.rolling_results_dic()
+        
 
     def rolling_beta_plot(self):
         """
@@ -299,12 +320,12 @@ class PortfolioBeta:
         
         """
         if not self.multi_independent_asset:
-            self.ols_obj.rolling_beta_plot()
+            return self.ols_obj.rolling_beta_plot()
         
         elif self.multi_independent_asset:
-            self.multi_regress_obj.rolling_beta_plot()
+            return self.multi_regress_obj.rolling_beta_plot()
 
-        return
+        
 
 
     def get_static_beta(self):

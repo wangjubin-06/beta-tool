@@ -1,13 +1,13 @@
-from regression_beta.beta import Beta
-from regression_beta.multibeta import MultiBeta
-from regression_beta.portfoliobeta import PortfolioBeta
+from ..regression_beta.beta import Beta
+from ..regression_beta.multibeta import MultiBeta
+from ..regression_beta.portfoliobeta import PortfolioBeta
 from dateutil.relativedelta import relativedelta
 from datetime import date, timedelta, datetime
 import pandas as pd
 import matplotlib.pyplot as plt
-from regression_beta.data import AssetData
-from regression_beta.returns import simple_returns
-from portfolio_hedge.metrics import *
+from ..regression_beta.data import AssetData
+from ..regression_beta.returns import simple_returns
+from .metrics import *
 
 
 class PortfolioHedge:

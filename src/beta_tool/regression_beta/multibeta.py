@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
-from regression_beta.data import AssetData
-from regression_beta.returns import log_returns, simple_returns
-from regression_beta.regression import MultiFactorRegression
-from regression_beta.plotting import mutlifac_ols_plot
-from regression_beta.diagnostics import heteroskedasticity, autocorrelation, multicollinearity, normality
+from .data import AssetData
+from .returns import log_returns, simple_returns
+from .regression import MultiFactorRegression
+from .plotting import multifac_ols_plot
+from .diagnostics import heteroskedasticity, autocorrelation, multicollinearity, normality
 
 
  
@@ -167,10 +167,23 @@ class MultiBeta:
             self._diagnostics()
 
 
+    def get_static_results(self):
+        
+        results_dic = self.regress_obj.static_results_dic()
+        
+        return results_dic
+
+
     def plot_results(self):
         
-        factor_beta_and_ci_ax = mutlifac_ols_plot(self)
-        plt.show()
+        #factor_beta_and_ci_ax = mutlifac_ols_plot(self)
+        
+        
+        fig, ax = plt.subplots(figsize=(16,9))
+        
+        multifac_ols_plot(self, ax=ax)
+
+        return fig
 
 
     def historical_rolling_beta(self, window=60):
@@ -181,11 +194,19 @@ class MultiBeta:
     def rolling_beta_summary(self):
 
         self.regress_obj.rolling_beta_summary()
+
+
+    def get_rolling_results(self):
+        return self.regress_obj.rolling_results_dic()
         
+
+
 
     def rolling_beta_plot(self):
 
-        self.regress_obj.rolling_beta_plot()
+        return self.regress_obj.rolling_beta_plot()
+        
+
         
 
     def get_static_beta(self):        

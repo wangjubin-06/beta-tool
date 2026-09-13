@@ -7,7 +7,7 @@ import os
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from dateutil import parser
-from data_collection.tiingo_api import TiingoApi
+from ..data_collection.tiingo_api import TiingoApi
 
 class AssetData:
 

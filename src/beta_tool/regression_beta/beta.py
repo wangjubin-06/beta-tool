@@ -1,9 +1,9 @@
-from regression_beta.data import AssetData
-from regression_beta import plotting
-from regression_beta.returns import log_returns, simple_returns
+from .data import AssetData
+from .plotting import *
+from .returns import log_returns, simple_returns
 import matplotlib.pyplot as plt
-from regression_beta.diagnostics import autocorrelation, heteroskedasticity, normality
-from regression_beta.regression import OLSRegression
+from .diagnostics import autocorrelation, heteroskedasticity, normality
+from .regression import OLSRegression
 
 
 class Beta:
@@ -31,7 +31,7 @@ class Beta:
             end_date: str | None = None,
             return_type: str = "log",
             hac: bool = False,
-            hac_lag: int = None
+            hac_lag: int | None = None
         ):
         """
         Parameters:
@@ -144,6 +144,15 @@ class Beta:
             self._diagnostics()
 
 
+    def get_static_results(self):
+        
+        results_dic = self.ols_obj.static_results_dic()
+        
+        return results_dic
+        
+        
+        
+
     def plot_results(self):
         fig = plt.figure(figsize=(20,16), layout="constrained")
 
@@ -161,15 +170,15 @@ class Beta:
         ax_asset_2_qq = fig.add_subplot(gs[1, 3])
         ax_ols = fig.add_subplot(gs[2:4, :])
 
-        plotting.price_series_plot(ticker = self.asset1, data=self.asset_1_prices, data_col="adjClose", ax = ax_asset_1_price)
-        plotting.price_series_plot(ticker = self.asset2, data=self.asset_2_prices, data_col="adjClose", ax = ax_asset_2_price)
+        price_series_plot(ticker = self.asset1, data=self.asset_1_prices, data_col="adjClose", ax = ax_asset_1_price)
+        price_series_plot(ticker = self.asset2, data=self.asset_2_prices, data_col="adjClose", ax = ax_asset_2_price)
 
-        plotting.returns_distribution_plot(ticker = self.asset1, data=self.asset_1_returns, data_col=self.y_col,axes = (ax_asset_1_dist, ax_asset_1_qq), return_type=self.return_type)
-        plotting.returns_distribution_plot(ticker = self.asset2, data=self.asset_2_returns, data_col=self.x_col, axes = (ax_asset_2_dist, ax_asset_2_qq), return_type=self.return_type)
+        returns_distribution_plot(ticker = self.asset1, data=self.asset_1_returns, data_col=self.y_col,axes = (ax_asset_1_dist, ax_asset_1_qq), return_type=self.return_type)
+        returns_distribution_plot(ticker = self.asset2, data=self.asset_2_returns, data_col=self.x_col, axes = (ax_asset_2_dist, ax_asset_2_qq), return_type=self.return_type)
 
-        plotting.beta_obj_ols_plot(beta_obj=self, ax=ax_ols)
+        beta_obj_ols_plot(beta_obj=self, ax=ax_ols)
 
-        plt.show()
+        #plt.show()
         return fig
 
 
@@ -199,6 +208,14 @@ class Beta:
         fig = self.ols_obj.rolling_beta_plot()
         
         return fig
+
+
+    def get_rolling_results(self):
+        
+        results_dic = self.ols_obj.rolling_results_dic()
+        
+        return results_dic
+
 
 
     def get_static_beta(self):

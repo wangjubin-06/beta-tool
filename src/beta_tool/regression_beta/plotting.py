@@ -42,7 +42,7 @@ def price_series_plot(ticker:str, data: pd.DataFrame, data_col=None, ax = None):
     return ax
 
 
-def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="log", data_col:str = None, axes = None):
+def returns_distribution_plot(ticker:str, data: pd.DataFrame, return_type:str="log", data_col:str | None = None, axes = None):
     """
     
     this function plots the distribution histogram/KDE of the asset returns, compared to a normal distribution with the empirical data parameters, and also a Q-Q plot
@@ -282,7 +282,7 @@ def beta_obj_ols_plot(beta_obj, ax=None):
     return ax
 
 
-def mutlifac_ols_plot(multifac_obj, sort=True, ax=None):
+def multifac_ols_plot(multifac_obj, sort=True, ax=None):
 
     """
 
@@ -423,12 +423,13 @@ def mutlifac_ols_plot(multifac_obj, sort=True, ax=None):
         frameon=True,
     )
 
-    #Leave space for title and bottom information/legend
-    fig.subplots_adjust(
-        left=0.15,
-        right=0.85,
-        top=0.85,
-        bottom=0.2,
-    )
+    if ax is None:
+        #Leave space for title and bottom information/legend
+        fig.subplots_adjust(
+            left=0.15,
+            right=0.85,
+            top=0.85,
+            bottom=0.2,
+        )
 
     return ax
