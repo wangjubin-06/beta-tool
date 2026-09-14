@@ -516,7 +516,7 @@ def portfoliobeta(
             output_dir.mkdir(parents=True, exist_ok=True)
             
             if isinstance(x_tickers, list):       
-                name = ' '.join(ticker.upper() for ticker in final_x_tickers)
+                name = '_'.join(ticker.upper() for ticker in final_x_tickers)
             else:
                 name = final_x_tickers.upper()
                 

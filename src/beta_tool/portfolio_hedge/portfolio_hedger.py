@@ -156,7 +156,8 @@ class PortfolioHedge:
 
 
 
-        metrics_df, hedge_df = calculate_risk_metrics(
+        # calculate_risk_metrics will always return 3 things:
+        metrics_df, hedge_df, fig = calculate_risk_metrics(
             hedged_port_return_series,
             return_col="port-returns",
             hedged_col="hedged-returns",
@@ -165,10 +166,14 @@ class PortfolioHedge:
             risk_free_rate=0.0,
             plot=plot,
         )
+        # if plot = False, fig will be None
 
         print(metrics_df)
-        print('\n\n')
-        print(hedge_df)
+
+        return fig
+    
+        #print('\n\n')
+        #print(hedge_df)
 
 
         # FOR WEEKLY
@@ -197,7 +202,9 @@ class PortfolioHedge:
 
     def backtest_plot(self):
 
-        self._plot()
+        fig, axes = self._plot()
+
+        return fig, axes
 
 
 
@@ -1250,7 +1257,7 @@ class PortfolioHedge:
 
 
         for col in rolling_beta_df_cols:
-            ax.plot(rolling_beta_df["date"], rolling_beta_df[col], label=col, linewidth=2)
+            ax.plot(rolling_beta_df["date"], rolling_beta_df[col], label=col, linewidth=1.5)
 
 
         ax.set_xlabel("Date")
@@ -1302,8 +1309,8 @@ class PortfolioHedge:
 
 
 
-        ax.plot(df1["date"], df1['port-value'], label=label1, linewidth = 2)
-        ax.plot(df2["date"], df2['port-value'], label=label2, linewidth = 2)
+        ax.plot(df1["date"], df1['port-value'], label=label1, linewidth = 1.5)
+        ax.plot(df2["date"], df2['port-value'], label=label2, linewidth = 1.5)
 
 
         ax.set_xlabel("Date")
@@ -1341,21 +1348,22 @@ class PortfolioHedge:
                                          # before either subplot, regardless of call order between backtest/backtest_plot
 
 
-            fig, (ax1, ax2) = plt.subplots(2,1, figsize=(14, 12))
+            fig, (ax1, ax2) = plt.subplots(2,1, figsize=(16, 12))
 
             self._rolling_beta_plot(ax=ax1)
             self._backtest_plot(ax=ax2)
 
         elif self.hedge_type == 'static':
-            fig, ax = plt.subplots(figsize= (10,8) )
+            fig, ax = plt.subplots(figsize= (16,9) )
             self._backtest_plot(ax=ax)
 
 
         fig.autofmt_xdate()
         plt.tight_layout()
 
-        plt.show()
-        plt.subplots_adjust(hspace=0.4) 
+        
+        #plt.subplots_adjust(hspace=0.4)
+        #plt.show()
 
         if self.hedge_type == 'rolling':
             return fig, (ax1, ax2)

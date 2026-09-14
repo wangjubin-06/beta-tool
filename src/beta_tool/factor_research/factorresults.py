@@ -357,12 +357,12 @@ def print_regression_summary(result: RegressionSummary):
     # ADVANCED
     # --------------------------------------------------------
 
-    print("\nADVANCED RESULTS")
-    print("-" * 60)
+    # print("\nADVANCED RESULTS")
+    # print("-" * 60)
 
-    print(
-        "Use .advanced_results() "
-        "to view the full regression output."
-    )
+    # #print(
+    #     "Use .advanced_results() "
+    #     "to view the full regression output."
+    # )
 
-    print()
+    #print()

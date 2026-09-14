@@ -1052,7 +1052,7 @@ def calculate_risk_metrics(
         fig, axes = plt.subplots(
             2,
             1,
-            figsize=(12, 9),
+            figsize=(16, 9),
             sharex=True
         )
 
@@ -1064,14 +1064,14 @@ def calculate_risk_metrics(
             unhedged_wealth.index,
             unhedged_wealth,
             label="Unhedged",
-            linewidth=2,
+            linewidth=1.5,
         )
 
         axes[0].plot(
             hedged_wealth.index,
             hedged_wealth,
             label="Hedged",
-            linewidth=2,
+            linewidth=1.5,
         )
 
         axes[0].set_title(
@@ -1096,14 +1096,14 @@ def calculate_risk_metrics(
             unhedged_dd.index,
             unhedged_dd,
             label="Unhedged",
-            linewidth=2,
+            linewidth=1.5,
         )
 
         axes[1].plot(
             hedged_dd.index,
             hedged_dd,
             label="Hedged",
-            linewidth=2,
+            linewidth=1.5,
         )
 
         axes[1].fill_between(
@@ -1129,9 +1129,11 @@ def calculate_risk_metrics(
 
         fig.autofmt_xdate()
         
-        plt.tight_layout()
+        #plt.tight_layout()
 
-        plt.show()
+        #plt.show()
+
+        return fig
 
     # =========================================================================
     # Execute output
@@ -1141,6 +1143,8 @@ def calculate_risk_metrics(
         print_report()
 
     if plot:
-        plot_results()
+        fig = plot_results()
+    else:
+        fig = None
 
-    return metrics_df, hedge_df
+    return metrics_df, hedge_df, fig
