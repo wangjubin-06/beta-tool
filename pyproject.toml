@@ -13,6 +13,12 @@ dependencies = [
     "yfinance>=1.7.0",
 ]
 
+[project.optional-dependencies]
+web = [
+    "plotly>=7.0.0",
+    "streamlit>=1.63.0",
+]
+
 [dependency-groups]
 dev = [
     "ipykernel>=7.3.0",
