@@ -123,6 +123,12 @@ class Beta:
 
         #asset_1_returns is dependent variable (Y), asset_2_returns is independent variable (X)
 
+        self.returns_df = pd.merge(
+            asset_1_returns, asset_2_returns,
+            on="date", how="inner"
+        )
+        
+
         self._regress(
             asset1_df=self.asset_1_returns,
             asset2_df=self.asset_2_returns,

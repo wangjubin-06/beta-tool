@@ -1,6 +1,11 @@
 import streamlit as st
 
-#st.set_page_config(page_title="beta_tool", layout="wide")
+
+st.set_page_config(
+    page_title="beta-tool",
+    page_icon="🚀", # Can be an emoji or a path to an image file
+    layout="centered"
+)
 
 st.title("beta_tool")
 st.write(
