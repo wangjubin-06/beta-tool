@@ -5,7 +5,10 @@ import datetime
 from beta_tool.regression_beta.beta import Beta
 import plotly.express as px
 import plotly.graph_objects as go
+from beta_tool.webapp import theme
 #from beta_tool.webapp.plots import rolling_beta_chart
+
+
 
 
 st.set_page_config(
@@ -29,9 +32,9 @@ st.markdown(
 st.markdown("")
 
 
-#form_zone = st.empty()
 
-with st.form("beta_form"):
+
+with st.form("beta_form", border=True, enter_to_submit=False):
     st.subheader("Regression inputs")
 
     col1, col2 = st.columns(2)
@@ -253,12 +256,12 @@ if 'results' in st.session_state:
 
     st.write()
 
-    # Raw results
+    # Raw results metrics
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Beta", f"{beta_val:.3f}", delta=f"{beta_val - 1:.3f} vs market", delta_color="off")
-    col2.metric("R²", f"{float(df['r_squared'].iloc[0]):.3f}")
-    col3.metric("P-value", f"{float(df["beta_pvalue"].iloc[0]):.2e}")
-    col4.metric("N Obs", f"{int(df["n_obs"].iloc[0])}")
+    col1.metric("Beta", f"{beta_val:.3f}", delta=f"{beta_val - 1:.3f} vs 1.0", delta_color="off", border=True)
+    col2.metric("R²", f"{float(df['r_squared'].iloc[0]):.3f}", border=True, height='stretch')
+    col3.metric("P-value", f"{float(df["beta_pvalue"].iloc[0]):.2e}", border=True, height='stretch')
+    col4.metric("N Obs", f"{int(df["n_obs"].iloc[0])}", border=True, height='stretch')
 
     with st.expander("Full regression stats"):
         st.dataframe(df, width='stretch')
@@ -282,12 +285,12 @@ if 'results' in st.session_state:
         returns_df, x=x_col, y=y_col,
         trendline="ols", opacity=0.5,
         labels={"asset_2_returns": asset2.upper(), "asset_1_returns": asset1.upper()},
-        #template="plotly_white",
         title=f"{asset1.upper()} vs {asset2.upper()} — {frequency} returns",
     )
 
-    fig.update_traces(marker=dict(size=6, color="#4C78A8"), selector=dict(mode="markers"))
-    fig.update_traces(line=dict(color="#F05353", width=2), selector=dict(mode="lines"))
+    fig.update_traces(line=dict(color="#D9663A", width=2), selector=dict(mode="lines"))
+    fig.update_traces(marker=dict(size=6), selector=dict(mode="markers"))
+    
     fig.update_layout(
         xaxis_tickformat=".1%",
         yaxis_tickformat=".1%",
@@ -311,17 +314,18 @@ if 'results' in st.session_state:
     for col, color in zip(cum_df.columns, ["#4C78A8", "#E45756"]):
         fig2.add_trace(go.Scatter(
             x=cum_df.index, y=cum_df[col], mode="lines", name=col,
-            line=dict(width=2, color=color),
+            line=dict(width=2),
         ))
     fig2.update_layout(
         title="Cumulative Returns",
-        template="plotly_white",
         yaxis_tickformat=".0%",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(t=60, l=10, r=10, b=10),
         hovermode="x unified",
     )
+
     st.plotly_chart(fig2, width='stretch')
+
     # st.line_chart(cum_df)
 
     # Raw returns series download
@@ -368,7 +372,7 @@ if 'results' in st.session_state:
             showlegend=False,
             #hoverinfo='skip',
             name='95% CI lower',
-            fillcolor='rgba(100, 10, 90, 0.3)',
+            fillcolor='rgba(0, 0, 0, 0.1)',
         ))
 
         # 2. Add the upper bound trace and fill down to the lower bound trace
@@ -378,7 +382,7 @@ if 'results' in st.session_state:
             mode='lines',
             line= dict(width=0),
             fill='tonexty',
-            fillcolor='rgba(100, 10, 90, 0.3)',  # Semi-transparent color for the band
+            fillcolor='rgba(0, 0, 0, 0.1)',  # Semi-transparent color for the band
             name='95% CI upper',
             showlegend=False,
         ))
@@ -386,19 +390,22 @@ if 'results' in st.session_state:
         # Beta time series
         fig3.add_trace(go.Scatter(
             x=rol_df.index, y=rol_df["beta"], mode="lines", name="beta",
-            line=dict(width=2, color="#4C78A8"),
+            line=dict(width=2),
         ))
 
 
         fig3.update_layout(
             title=f"{rolling_window}-observations Rolling Beta with 95% Confidence Intervals",
-            template="plotly_white",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(t=60, l=10, r=10, b=10),
             hovermode="x unified",
         )
+
+        
+
         st.plotly_chart(fig3, width='stretch')
 
+        # Rolling Beta Dataframe
         st.markdown("")
         with st.expander("Rolling Beta Stats"):
             st.dataframe(r_df, width='stretch')
@@ -420,9 +427,11 @@ if 'results' in st.session_state:
 
         st.markdown("")
         
+    st.markdown("")
+    st.markdown("")
 
     # Reset button
-    if st.button("Reset"):
+    if st.button("Reset Regression", width='stretch'):
         keys_to_clear = [
             "asset1", "asset2", "frequency", "return_type", "period",
             "start_date", "end_date", "hac", "hac_lag", "results",

@@ -4,6 +4,8 @@ import pandas as pd
 import requests
 from io import StringIO
 from pathlib import Path
+import io
+import zipfile
 
 
 class TiingoApi:
@@ -551,3 +553,20 @@ if __name__ == "__main__":
     print("Rows:", len(data))
     print("Start:", data["date"].min())
     print("End:", data["date"].max())
+
+
+def get_tickers():
+    url = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
+    response = requests.get(url)
+    response.raise_for_status()
+
+    # Extract the CSV file from the ZIP archive
+    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+        # Find the CSV file inside the zip
+        csv_filename = [f for f in z.namelist() if f.endswith(".csv")][0]
+
+        with z.open(csv_filename) as f:
+            df = pd.read_csv(f)
+
+    return df
+

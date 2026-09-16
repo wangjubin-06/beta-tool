@@ -50,7 +50,7 @@ class MultiBeta:
  
         self.asset1 = asset1
         
-        self.assets = assets
+        self.assets = list(set(assets)) # Remove duplicates
         
         self.freq = frequency
         
@@ -134,6 +134,7 @@ class MultiBeta:
         # Store the list of independent variable assets that is actually used after combining timestamps
         self.merged_assets_names = regress_obj.x_col
 
+        
         # Store the final merged return dataframe
         self.merged_return_series = regress_obj.merged_df.copy()
 
@@ -189,6 +190,8 @@ class MultiBeta:
     def historical_rolling_beta(self, window=60):
 
         rolling_dfs = self.regress_obj.rolling_ols(window=window)
+
+        return rolling_dfs
         
 
     def rolling_beta_summary(self):

@@ -116,24 +116,24 @@ class MultiFactorRollingOLS:
         for ticker in x_col:
 
             rolling_df = pd.DataFrame({
-                'date': df['date'].values,
-                'beta': params[ticker].values,
-                'beta_std_error': bse[ticker].values,
-                'beta_tstat': tvalues[ticker].values,
-                'beta_pvalue': pvalues[ticker].values,
+                'date': df['date'].to_numpy(),
+                'beta': params[ticker].to_numpy(),
+                'beta_std_error': bse[ticker].to_numpy(),
+                'beta_tstat': tvalues[ticker].to_numpy(),
+                'beta_pvalue': pvalues[ticker].to_numpy(),
                 'alpha': params['const'].values,
-                'alpha_std_error': bse['const'].values,
-                'alpha_tstat': tvalues['const'].values,
-                'alpha_pvalue': pvalues['const'].values,
-                'r_squared': rsquared.values
+                'alpha_std_error': bse['const'].to_numpy(),
+                'alpha_tstat': tvalues['const'].to_numpy(),
+                'alpha_pvalue': pvalues['const'].to_numpy(),
+                'r_squared': rsquared.to_numpy()
             })
 
             # Confidence intervals
-            rolling_df["beta_ci_lower"] = (ci[(ticker, "lower")].values)
-            rolling_df["beta_ci_upper"] = (ci[(ticker, "upper")].values)
+            rolling_df["beta_ci_lower"] = (ci[(ticker, "lower")].to_numpy())
+            rolling_df["beta_ci_upper"] = (ci[(ticker, "upper")].to_numpy())
 
-            rolling_df["alpha_ci_lower"] = (ci[("const", "upper")].values)
-            rolling_df["alpha_ci_upper"] = (ci[("const", "upper")].values)
+            rolling_df["alpha_ci_lower"] = (ci[("const", "upper")].to_numpy())
+            rolling_df["alpha_ci_upper"] = (ci[("const", "upper")].to_numpy())
 
             # Annualized alpha
             if self.return_type == "simple":

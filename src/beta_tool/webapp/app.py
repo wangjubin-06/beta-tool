@@ -1,5 +1,7 @@
 import streamlit as st
+from beta_tool.webapp import theme
 
+theme.apply_theme()
 
 home = st.Page("pages/home.py", title="Overview", icon="😊", default=True)
 beta = st.Page("pages/1_beta.py", title="Beta")
