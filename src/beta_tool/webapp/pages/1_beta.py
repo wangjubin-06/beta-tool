@@ -1,13 +1,9 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
-import datetime
 from beta_tool.regression_beta.beta import Beta
 import plotly.express as px
 import plotly.graph_objects as go
-from beta_tool.webapp import theme
-#from beta_tool.webapp.plots import rolling_beta_chart
-
+from beta_tool.webapp.tickers import get_tickers, find_tickers
 
 
 
@@ -22,117 +18,179 @@ st.title("Single Asset Beta")
 st.markdown(
     """
     Calculate the beta of one asset's returns against another
-    using ordinary least squares (OLS) regression.
+    using ordinary least squares (OLS) regression. This does regression with $$y = \\beta x + \\alpha + \\epsilon $$ 
     
     You can also choose the return frequency, return methodology,
     observation period, and HAC-aware standard errors.
+
+    This tool can provide a visual representation of the regression
     """
 )
 
 st.markdown("")
 
+@st.cache_data
+def tickers():
+    return get_tickers()
+
+# Load tickers
+with st.spinner("Fetching ticker list..."):
+    tickers_df, ticker_list = tickers()
 
 
-
-with st.form("beta_form", border=True, enter_to_submit=False):
+with st.container(border=True):
     st.subheader("Regression inputs")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        asset1 = st.text_input("Dependent (y) ticker:", placeholder="aapl", key="asset1")
-    with col2:
-        asset2 = st.text_input("Independent (x) ticker:", placeholder="spy", key="asset2")
+    # Session state
+    if "beta_asset2" not in st.session_state:
+        st.session_state.beta_asset2 = ""
+
+    if "beta_asset1" not in st.session_state:
+        st.session_state.beta_asset1 = ""
 
 
-    col1, col2 = st.columns(2)
+    # Search
+    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='beta_search_box')
 
-    with col1:
-        frequency = st.radio(
-            "Choose frequency of data",
-            options=["daily", "weekly", "monthly"], key="frequency", index=0, horizontal=True
-        )
-    with col2:
-        return_type = st.radio(
-            "Choose how returns are calculated",
-            options=["log", "simple"], key="return_type", index=1, horizontal=True
-        )
+    dropdown_options = find_tickers(ticker_list,search_query,limit=20)
 
 
-    col1, col2 = st.columns(2)
+    # Y-ticker
+    options_pool_y = dropdown_options.copy()
 
-    with col1:
-        period = st.selectbox("Regression period", options=['1m','3m','6m','1y','2y','3y','5y','10y','20y','30y'], index=3, key='period')
+    if st.session_state.beta_asset1:
+        if st.session_state.beta_asset1 not in options_pool_y:
+            options_pool_y.append(st.session_state.beta_asset1)
+
     
+
+    # X-tickers
+    options_pool_x = dropdown_options.copy()
+
+    if st.session_state.beta_asset2:
+        if st.session_state.beta_asset2 not in options_pool_x:
+            options_pool_x.append(st.session_state.beta_asset2)
+    
+    
+
+    # Ticker Entry fields
+    col1, col2 = st.columns(2)
+
+    with col1:
+        asset1 = st.selectbox(
+            "Dependent (y) ticker:",
+            options=options_pool_y,
+            key='beta_asset1',
+            placeholder="select a ticker from search"
+        )
+    with col2:
+        asset2 = st.selectbox(
+            "Independent (x) ticker:",
+            options=options_pool_x,
+            key='beta_asset2',
+            placeholder="select a ticker from search"
+        )
+
+    
+    
+
+
+
+
+    # Rest of form
+    with st.form(border=False, enter_to_submit=False, key="beta_form"):
         
 
-    st.markdown("**Custom date range**")
+        col1, col2 = st.columns(2)
 
-    col1, col2 = st.columns(2)
+        with col1:
+            frequency = st.radio(
+                "Choose frequency of data",
+                options=["daily", "weekly", "monthly"], key="beta_frequency", index=0, horizontal=True
+            )
+        with col2:
+            return_type = st.radio(
+                "Choose how returns are calculated",
+                options=["log", "simple"], key="beta_return_type", index=1, horizontal=True
+            )
 
-    with col1:
-        start_date = st.date_input("Start date for regression (Optional)", value=None, key="start_date")
-    with col2:
-        end_date = st.date_input("End date for regression (Optional)", value=None, key="end_date")
 
-    st.markdown("")
+        col1, col2 = st.columns(2)
 
-    st.markdown("### Regression errors")
+        with col1:
+            period = st.selectbox("Regression period", options=['1m','3m','6m','1y','2y','3y','5y','10y','20y','30y'], index=3, key='beta_period')
+        
+            
 
-    col1, col2 = st.columns(2)
+        st.markdown("**Custom date range**")
 
-    with col1:
-        hac = st.radio(
-            "Use HAC-aware standard errors?",
-            options=[True, False],
-            format_func=lambda x: "Yes" if x else "No",
-            horizontal=True,
-            index=1,
-            key='hac'
+        col1, col2 = st.columns(2)
+
+        with col1:
+            start_date = st.date_input("Start date for regression (Optional)", value=None, key="beta_start_date")
+        with col2:
+            end_date = st.date_input("End date for regression (Optional)", value=None, key="beta_end_date")
+
+        st.markdown("")
+
+        st.markdown("### Regression errors")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            hac = st.radio(
+                "Use HAC-aware standard errors?",
+                options=[True, False],
+                format_func=lambda x: "Yes" if x else "No",
+                horizontal=True,
+                index=1,
+                key='beta_hac'
+            )
+
+        with col2:
+            hac_lag = st.number_input(
+                "HAC lags",
+                min_value=1,
+                max_value=40,
+                value=5,
+                step=1,
+                key='beta_hac_lag'
+            )
+
+        st.markdown("")
+        st.markdown("#### Rolling Beta")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            rolling = st.radio(
+                "Do rolling beta?",
+                options=[True,False],
+                format_func= lambda x: "Yes" if x else "No",
+                horizontal=True,
+                index=0,
+                key="beta_rolling"
+            )
+
+        with col2:
+            rolling_window = st.number_input(
+                "Lookback window for rolling Beta",
+                min_value=2,
+                max_value=200,
+                value=60,
+                step=1,
+                key="beta_rolling_window"
+            )
+
+        st.markdown("")
+        st.markdown("")
+
+        submitted = st.form_submit_button(
+            "Run Regression",
+            type="primary",
+            use_container_width=True,
+            key="beta_submit_button"
         )
-
-    with col2:
-        hac_lag = st.number_input(
-            "HAC lags",
-            min_value=1,
-            max_value=40,
-            value=5,
-            step=1,
-            key='hac_lag'
-        )
-
-    st.markdown("")
-    st.markdown("#### Rolling Beta")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        rolling = st.radio(
-            "Do rolling beta?",
-            options=[True,False],
-            format_func= lambda x: "Yes" if x else "No",
-            horizontal=True,
-            index=0,
-            key="rolling"
-        )
-
-    with col2:
-        rolling_window = st.number_input(
-            "Lookback window for rolling Beta",
-            min_value=2,
-            max_value=200,
-            value=60,
-            step=1,
-            key="rolling_window"
-        )
-
-    st.markdown("")
-    st.markdown("")
-
-    submitted = st.form_submit_button(
-        "Run Regression",
-        type="primary",
-        use_container_width=True,
-    )
 
     
 if submitted:
@@ -153,9 +211,9 @@ if submitted:
 
     else:
 
-        # Convert tickers to lowercase
-        asset1 = asset1.strip().lower()
-        asset2 = asset2.strip().lower()
+        # # Convert tickers to lowercase
+        # asset1 = asset1.strip().lower()
+        # asset2 = asset2.strip().lower()
 
         # Convert dates
         start_date_str = (
@@ -212,7 +270,7 @@ if submitted:
                 
 
                 # Stash everything the display section needs
-                st.session_state["results"] = {
+                st.session_state["beta_results"] = {
                     "df": df,
                     "returns_df": returns_df,
                     "y_col": y_col,
@@ -224,7 +282,7 @@ if submitted:
                 if rolling:
                     beta_obj.historical_rolling_beta(window=rolling_window)
                     rolling_df = beta_obj.rolling_df.copy()
-                    st.session_state["results"]["rolling_df"] = rolling_df
+                    st.session_state["beta_results"]["rolling_df"] = rolling_df
 
                 
 
@@ -234,8 +292,8 @@ if submitted:
                 st.stop()
 
 
-if 'results' in st.session_state:
-    r = st.session_state["results"]
+if 'beta_results' in st.session_state:
+    r = st.session_state["beta_results"]
     df, returns_df = r["df"], r["returns_df"]
     x_col, y_col = r["x_col"], r["y_col"]
     asset1, asset2 = r["asset1"], r["asset2"]
@@ -433,8 +491,8 @@ if 'results' in st.session_state:
     # Reset button
     if st.button("Reset Regression", width='stretch'):
         keys_to_clear = [
-            "asset1", "asset2", "frequency", "return_type", "period",
-            "start_date", "end_date", "hac", "hac_lag", "results",
+            "beta_asset1", "beta_asset2", "beta_frequency", "beta_return_type", "beta_period",
+            "beta_start_date", "beta_end_date", "beta_hac", "beta_hac_lag", "beta_results",
         ]
         for key in keys_to_clear:
             st.session_state.pop(key, None)

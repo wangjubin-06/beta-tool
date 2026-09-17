@@ -1,6 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import time
 from beta_tool.regression_beta.multibeta import MultiBeta
 import plotly.express as px
 import plotly.graph_objects as go
@@ -9,17 +10,17 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 
 
 st.set_page_config(
-    page_title="Multi-Asset Beta",
+    page_title="Beta Tool",
     page_icon="😻",
     layout="wide",
 )
 
 
-st.title("Multi Asset Beta")
+st.title("Beta Tool")
 
 st.markdown(
     """
-    Calculate the beta of one asset's returns against **multiple** other assets
+    Calculate the beta of one asset's returns against **one** or **multiple** other assets
     using ordinary least squares (OLS) regression. This does regression with $$y = \\beta_1x_1 + \\beta_2x_2 + ... + \\beta_nx_n +  \\alpha + \\epsilon $$ 
     
     You can also choose the return frequency, return methodology,
@@ -39,151 +40,154 @@ with st.spinner("Fetching ticker list..."):
 
 
 
-st.subheader("Regression inputs")
+with st.container(border=True):
+    st.subheader("Regression inputs")
 
 
-# Session state
-if "assets" not in st.session_state:
-    st.session_state.assets = []
+    # Session state
+    if "multibeta_assets" not in st.session_state:
+        st.session_state.multibeta_assets = []
 
-if "asset1" not in st.session_state:
-    st.session_state.asset1 = ""
-
-
-# Search
-search_query = st.text_input("Search for tickers", placeholder="Enter 3 characters to start", key='search_box')
-
-dropdown_options = find_tickers(ticker_list,search_query,limit=20)
+    if "multibeta_asset1" not in st.session_state:
+        st.session_state.multibeta_asset1 = ""
 
 
-# Y-ticker
-options_pool_y = dropdown_options.copy()
+    # Search
+    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='multibeta_search_box')
 
-if (
-    st.session_state.asset1
-    and st.session_state.asset1 not in options_pool_y
-):
-    options_pool_y.append(st.session_state.asset1)
+    dropdown_options = find_tickers(ticker_list,search_query,limit=20)
 
 
-# X-tickers
-options_pool_x = dropdown_options.copy()
+    # Y-ticker
+    options_pool_y = dropdown_options.copy()
 
-# Keep all currently selected X tickers available
-for ticker in st.session_state.assets:
-    if ticker not in options_pool_x:
-        options_pool_x.append(ticker)
-
-
-# Ticker Entry fields
-col1, col2 = st.columns(2)
-
-with col1:
-    asset1 = st.selectbox(
-        "Dependent (y) ticker:",
-        options=options_pool_y,
-        key='asset1'
-    )
-with col2:
-    assets = st.multiselect(
-        "Independent (x) tickers:",
-        options=options_pool_x,
-        key='assets'
-    )
+    if (
+        st.session_state.multibeta_asset1
+        and st.session_state.multibeta_asset1 not in options_pool_y
+    ):
+        options_pool_y.append(st.session_state.multibeta_asset1)
 
 
-# Rest of form
-with st.form("multibeta_form", border=False, enter_to_submit=False):
-    
+    # X-tickers
+    options_pool_x = dropdown_options.copy()
+
+    # Keep all currently selected X tickers available
+    for ticker in st.session_state.multibeta_assets:
+        if ticker not in options_pool_x:
+            options_pool_x.append(ticker)
+
+
+    # Ticker Entry fields
     col1, col2 = st.columns(2)
 
     with col1:
-        frequency = st.radio(
-            "Choose frequency of data",
-            options=["daily", "weekly", "monthly"], key="frequency", index=0, horizontal=True
+        asset1 = st.selectbox(
+            "Dependent (y) ticker:",
+            options=options_pool_y,
+            key='multibeta_asset1',
+            placeholder="select a ticker from search"
         )
     with col2:
-        return_type = st.radio(
-            "Choose how returns are calculated",
-            options=["log", "simple"], key="return_type", index=1, horizontal=True
+        assets = st.multiselect(
+            "Independent (x) ticker(s):",
+            options=options_pool_x,
+            key='multibeta_assets',
+            placeholder="select one or many tickers from search"
         )
 
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        period = st.selectbox("Regression period", options=['1m','3m','6m','1y','2y','3y','5y','10y','20y','30y'], index=3, key='period')
-    
+    # Rest of form
+    with st.form("multibeta_form", border=False, enter_to_submit=False):
         
+        col1, col2 = st.columns(2)
 
-    st.markdown("**Custom date range**")
+        with col1:
+            frequency = st.radio(
+                "Choose frequency of data",
+                options=["daily", "weekly", "monthly"], key="multibeta_frequency", index=0, horizontal=True
+            )
+        with col2:
+            return_type = st.radio(
+                "Choose how returns are calculated",
+                options=["log", "simple"], key="multibeta_return_type", index=1, horizontal=True
+            )
 
-    col1, col2 = st.columns(2)
 
-    with col1:
-        start_date = st.date_input("Start date for regression (Optional)", value=None, key="start_date")
-    with col2:
-        end_date = st.date_input("End date for regression (Optional)", value=None, key="end_date")
+        col1, col2 = st.columns(2)
 
-    st.markdown("")
+        with col1:
+            period = st.selectbox("Regression period", options=['1m','3m','6m','1y','2y','3y','5y','10y','20y','30y'], index=3, key='multibeta_period')
+        
+            
 
-    st.markdown("### Regression errors")
+        st.markdown("**Custom date range**")
 
-    col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-    with col1:
-        hac = st.radio(
-            "Use HAC-aware standard errors?",
-            options=[True, False],
-            format_func=lambda x: "Yes" if x else "No",
-            horizontal=True,
-            index=1,
-            key='hac'
+        with col1:
+            start_date = st.date_input("Start date for regression (Optional)", value=None, key="multibeta_start_date")
+        with col2:
+            end_date = st.date_input("End date for regression (Optional)", value=None, key="multibeta_end_date")
+
+        st.markdown("")
+
+        st.markdown("### Regression errors")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            hac = st.radio(
+                "Use HAC-aware standard errors?",
+                options=[True, False],
+                format_func=lambda x: "Yes" if x else "No",
+                horizontal=True,
+                index=1,
+                key='multibeta_hac'
+            )
+
+        with col2:
+            hac_lag = st.number_input(
+                "HAC lags",
+                min_value=1,
+                max_value=40,
+                value=5,
+                step=1,
+                key='multibeta_hac_lag'
+            )
+
+        st.markdown("")
+        st.markdown("#### Rolling Beta")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            rolling = st.radio(
+                "Do rolling beta?",
+                options=[True,False],
+                format_func= lambda x: "Yes" if x else "No",
+                horizontal=True,
+                index=0,
+                key="multibeta_rolling"
+            )
+
+        with col2:
+            rolling_window = st.number_input(
+                "Lookback window for rolling Beta",
+                min_value=2,
+                max_value=200,
+                value=60,
+                step=1,
+                key="multibeta_rolling_window"
+            )
+
+        st.markdown("")
+        st.markdown("")
+
+        submitted = st.form_submit_button(
+            "Run Regression",
+            type="primary",
+            use_container_width=True,
         )
-
-    with col2:
-        hac_lag = st.number_input(
-            "HAC lags",
-            min_value=1,
-            max_value=40,
-            value=5,
-            step=1,
-            key='hac_lag'
-        )
-
-    st.markdown("")
-    st.markdown("#### Rolling Beta")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        rolling = st.radio(
-            "Do rolling beta?",
-            options=[True,False],
-            format_func= lambda x: "Yes" if x else "No",
-            horizontal=True,
-            index=0,
-            key="rolling"
-        )
-
-    with col2:
-        rolling_window = st.number_input(
-            "Lookback window for rolling Beta",
-            min_value=2,
-            max_value=200,
-            value=60,
-            step=1,
-            key="rolling_window"
-        )
-
-    st.markdown("")
-    st.markdown("")
-
-    submitted = st.form_submit_button(
-        "Run Regression",
-        type="primary",
-        use_container_width=True,
-    )
 
     
 if submitted:
@@ -268,7 +272,7 @@ if submitted:
                 
 
                 # Stash everything the display section needs
-                st.session_state["results"] = {
+                st.session_state["multibeta_results"] = {
                     "results_dic": results_dic,
                     "returns_df": returns_df,
                     "y_col": y_col,
@@ -280,7 +284,7 @@ if submitted:
                 if rolling:
                     rolling_dfs_dic = beta_obj.historical_rolling_beta(window=rolling_window)
                     
-                    st.session_state["results"]["rolling_dfs_dic"] = rolling_dfs_dic
+                    st.session_state["multibeta_results"]["rolling_dfs_dic"] = rolling_dfs_dic
 
                 
 
@@ -288,10 +292,13 @@ if submitted:
                 st.error(f"Regression failed: {e}")
                 st.session_state.pop("results", None)
                 st.stop()
+                time.sleep(5)
+                st.rerun()
 
 
-if 'results' in st.session_state:
-    r = st.session_state["results"]
+
+if 'multibeta_results' in st.session_state:
+    r = st.session_state["multibeta_results"]
     r_dic, returns_df = r["results_dic"], r["returns_df"]
     x_col, y_col = r["x_col"], r["y_col"]
     asset1, assets = r["asset1"], r["assets"]
@@ -329,6 +336,7 @@ if 'results' in st.session_state:
 
     st.markdown("")
     st.markdown("")
+
     with st.expander("Full regression stats"):
 
         st.markdown(f"###### Basic stats")
@@ -338,7 +346,7 @@ if 'results' in st.session_state:
 
         col1, col2, _ = st.columns([1,1,3])
         with col1:
-            st.download_button("Download CSV", basics_df.to_csv(index=False), "basic_regression_stats.csv", key="basic-csv-download")
+            st.download_button("Download CSV", basics_df.to_csv(index=False), "basic_regression_stats.csv", key="multibeta_basic_csv_download")
 
         df_js_str = basics_df.to_json(orient="records", indent=4,date_format='iso')
 
@@ -348,7 +356,7 @@ if 'results' in st.session_state:
                 data=df_js_str,
                 file_name="basic_regression_stats.json",
                 mime="application/json",
-                key="basic-json-download"
+                key="multibeta_basic_json_download"
             )
 
 
@@ -486,15 +494,17 @@ if 'results' in st.session_state:
         st.markdown("")
         st.markdown("")
 
-        # Reset button
-        if st.button("Reset Regression", width='stretch'):
-            keys_to_clear = [
-                "asset1", "assets", "frequency", "return_type", "period",
-                "start_date", "end_date", "hac", "hac_lag", "results",'search_box'
-            ]
-            for key in keys_to_clear:
-                st.session_state.pop(key, None)
-            st.rerun()
+    # Reset button
+    if st.button("Reset Regression", width='stretch'):
+        keys_to_clear = [
+            "multibeta_asset1", "multibeta_assets", "multibeta_frequency", "multibeta_return_type", "multibeta_period",
+            "multibeta_start_date", "multibeta_end_date", "multibeta_hac", "multibeta_hac_lag", "multibeta_results",'multibeta_search_box'
+        ]
+        for key in keys_to_clear:
+            st.session_state.pop(key, None)
+        
+        st.session_state.clear()
+        st.rerun()
 
         
     

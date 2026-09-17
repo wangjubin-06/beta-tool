@@ -146,6 +146,9 @@ class PortfolioBeta:
         
         # Getting relevant returns data
         portfolio_merged_df, independent_data = self._get_data()
+
+        self.portfolio_returns_data = portfolio_merged_df.copy()
+        self.independent_data = independent_data
         
         # Regression
         self._regress(portfolio_merged_df, independent_data)
@@ -279,13 +282,14 @@ class PortfolioBeta:
             
             rolling_df = self.ols_obj.rolling_ols(window=window)
 
-            
+            return rolling_df
             
         
         elif self.multi_independent_asset:
             
             rolling_dfs = self.multi_regress_obj.rolling_ols(window=window)
 
+            return rolling_dfs
             
             
         
@@ -385,10 +389,6 @@ class PortfolioBeta:
             self.olsresults = model
             
             
-
-            ols_obj.results_df()
-
-            #self.ols_df = ols_df
             
             self.ols_obj = ols_obj
         
@@ -416,8 +416,11 @@ class PortfolioBeta:
             
             model = regress_obj.ols()
             self.olsresults = model
-            
+
+
             self.multi_regress_obj = regress_obj
+
+            self.merged_assets_names = regress_obj.x_col
             
 
     def _get_data(self) -> tuple[pd.DataFrame, pd.DataFrame | dict]:
@@ -482,7 +485,7 @@ class PortfolioBeta:
             merged_df = merged_df[['date', 'portfolio_log_returns']].copy()
         
         
-        self.portfolio_returns_data = merged_df
+        
         
         
         # Get returns data for independent variable
@@ -506,7 +509,7 @@ class PortfolioBeta:
             
             
 
-            self.independent_returns_data = independent_returns_df
+            #self.independent_returns_data = independent_returns_df
             
             return merged_df, independent_returns_df
             

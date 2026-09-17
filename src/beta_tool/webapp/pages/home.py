@@ -2,9 +2,9 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="beta-tool",
+    page_title="home",
     page_icon="🚀", # Can be an emoji or a path to an image file
-    layout="centered"
+    layout="wide"
 )
 
 st.title("beta_tool")
@@ -21,3 +21,7 @@ st.markdown("""
 - **Hedge** — beta-weighted hedge construction and backtesting
 - **Factors** — equity vs factor regression
 """)
+
+st.markdown("")
+
+st.markdown("Made by Jubin Wang")
