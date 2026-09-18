@@ -54,10 +54,8 @@ class EquityFactorsRegression:
             "monthly"
             "annually"
     
-    hac : int
-        Choose the lag window for
-        heteroscedasticity and autocorrelation robust (HAC)
-        If left empty, default will be automatic
+    hac : int | None
+        Choose whether to use HAC-aware errors. If want to use HAC-aware errors, input 'auto' if do not know how many lags to use else input a integer if know how many lags to use. Defaults to None.
 
     """
 
@@ -95,7 +93,22 @@ class EquityFactorsRegression:
         "CMA"
     ]
 
-    def __init__(self, factor_source: str = "french", start_date = None, end_date = None, return_type:str = 'simple', frequency:str = 'daily', hac="auto"):
+    def __init__(self, factor_source: str = "french", start_date = None, end_date = None, return_type:str = 'simple', frequency:str = 'daily', hac: str | int | None = None):
+        """Initialise a factor regression object
+
+        Args:
+            factor_source (str, optional): Choose between 'etf' or 'french'. Defaults to "french".
+            start_date (str, optional): Choose start date in YYYY-MM-DD format. Defaults to None.
+            end_date (str, optional): Choose end date in YYYY-MM-DD format. Defaults to None.
+            return_type (str, optional): Choose between 'simple' or 'log'. Defaults to 'simple'.
+            frequency (str, optional): Choose frequency of returns data; 'daily', 'weekly', 'monthly'. Defaults to 'daily'.
+            hac (str | int | None, optional): Choose whether to use HAC-aware errors. If want to use HAC-aware errors, input 'auto' if do not know how many lags to use else input a integer if know how many lags to use. Defaults to None.
+
+        Raises:
+            ValueError: Invalid factor_source
+            ValueError: Invalid return_type
+            ValueError: Invalid frequency
+        """
 
         #if start date is None, API will pull from the oldest date possible of all data sources
         #if end date is None, API will pull till the latest possible date of all data sources
@@ -586,7 +599,7 @@ class EquityFactorsRegression:
                 "inference": {
                     "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
                     "hac_maxlags": f'{self.hac_lags}',
-                    "hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
+                    #"hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
                 },
                 "alpha":{
                     "amount": model.params['const'].item(),
@@ -932,7 +945,7 @@ class EquityFactorsRegression:
                 "inference": {
                     "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
                     "hac_maxlags": f'{self.hac_lags}',
-                    "hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
+                    #"hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
                 },
                 "alpha":{
                     "amount": model.params['const'].item(),
@@ -1447,28 +1460,29 @@ class EquityFactorsRegression:
         #
         # 
 
-    def _resolve_hac_lags(self, hac="auto"):
+    def _resolve_hac_lags(self, hac: None|int|str) -> int:
         if hac is None:
-            return None
+            return 0
 
-        if isinstance(hac, int):
-            if hac < 0:
-                raise ValueError("HAC lags must be non-negative.")
-            return hac
+        elif isinstance(hac, int):
+            if hac > 0:
+                return hac
+            else:
+                raise ValueError("HAC lags must be at least 1.")
+            
 
-        if hac != "auto":
-            raise ValueError(
-                "hac must be 'auto', None, or a non-negative integer."
-            )
+        elif hac == "auto":
+            defaults = {
+                "daily": 3,
+                "weekly": 3,
+                "monthly": 3,
+                "annually": 1,
+            }
 
-        defaults = {
-            "daily": 3,
-            "weekly": 3,
-            "monthly": 3,
-            "annually": 1,
-        }
-
-        return defaults[self.freq]
+            return defaults[self.freq]
+        
+        return 0
+    
 
     def _merge(self, df1, df2):
         df = df1.merge(
@@ -1485,9 +1499,9 @@ class EquityFactorsRegression:
 # -----------------------
 
 if __name__ == "__main__":    
-    fac1 = EquityFactorsRegression(factor_source="etf", frequency='monthly')
-    fac1.asset_list('goog','ko')
-    fac1.reset_assets()
+    fac1 = EquityFactorsRegression(factor_source="french", frequency='monthly')
+    # fac1.asset_list('goog','ko')
+    # fac1.reset_assets()
     fac1.asset_list('nvda','msft')
     data = fac1.regress()
     fac1.results()

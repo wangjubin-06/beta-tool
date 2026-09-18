@@ -12,8 +12,10 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 st.set_page_config(
     page_title="Beta Tool",
     page_icon="😻",
-    layout="wide",
+    layout="centered",
 )
+
+
 
 
 st.title("Beta Tool")
@@ -28,7 +30,7 @@ st.markdown(
     """
 )
 
-st.markdown("")
+st.space("small")
 
 
 with st.container(border=True):
@@ -44,7 +46,7 @@ with st.container(border=True):
 
 
     # Search
-    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='multibeta_search_box')
+    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='multibeta_search_box', icon="🔍")
 
     dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 
@@ -120,7 +122,7 @@ with st.container(border=True):
         with col2:
             end_date = st.date_input("End date for regression (Optional)", value=None, key="multibeta_end_date")
 
-        st.markdown("")
+        st.space("xsmall")
 
         st.markdown("### Regression errors")
 
@@ -146,7 +148,7 @@ with st.container(border=True):
                 key='multibeta_hac_lag'
             )
 
-        st.markdown("")
+        st.space("xsmall")
         st.markdown("#### Rolling Beta")
 
         col1, col2 = st.columns(2)
@@ -217,9 +219,10 @@ if submitted:
         # Run regression
         # -------------------------------------------------
 
-        with st.spinner("Fetching data and running regression..."):
+        try:
+            with st.spinner("Fetching data and running regression..."):
 
-            try:
+            
                 beta_obj = MultiBeta(
                     asset1=asset1,
                     assets=assets,
@@ -274,12 +277,12 @@ if submitted:
 
                 
 
-            except Exception as e:
-                st.error(f"Regression failed: {e}")
-                st.session_state.pop("results", None)
-                st.stop()
-                time.sleep(5)
-                st.rerun()
+        except Exception as e:
+            st.error(f"Regression failed: {e}")
+            st.session_state.pop("results", None)
+            #st.stop()
+            time.sleep(5)
+            st.rerun()
 
 
 
@@ -305,13 +308,13 @@ if 'multibeta_results' in st.session_state:
         st.markdown(f"##### Beta - {col}")
         beta_val = float(r_dic[col]['beta'])
         pval = float(r_dic[col]['beta_pvalue'])
-        sig = "statistically significant" if pval < 0.05 else "not statistically significant at the 5% level"
+        sig = "statistically significant" if pval < 0.05 else "**not** statistically significant at the 5% level"
         st.caption(
             f"A 1% move in {col.upper()} is associated with a {beta_val:.2f}% move in {asset1.upper()}, "
             f"on average ({sig}), keeping all other assets constant."
         )
 
-        st.write()
+        st.space('xxsmall')
 
         # Raw results metrics
         col1, col2 = st.columns(2)
@@ -330,13 +333,13 @@ if 'multibeta_results' in st.session_state:
         basics_df = pd.DataFrame(basic_stats, index=[0])
         st.dataframe(basics_df, hide_index=True)
 
-        col1, col2, _ = st.columns([1,1,3])
-        with col1:
+        
+        with st.container(horizontal=True, horizontal_alignment='right'):
             st.download_button("Download CSV", basics_df.to_csv(index=False), "basic_regression_stats.csv", key="multibeta_basic_csv_download")
 
-        df_js_str = basics_df.to_json(orient="records", indent=4,date_format='iso')
+            df_js_str = basics_df.to_json(orient="records", indent=4,date_format='iso')
 
-        with col2:
+        
             st.download_button(
                 label="Download JSON",
                 data=df_js_str,
@@ -354,13 +357,13 @@ if 'multibeta_results' in st.session_state:
             df = pd.DataFrame(r_dic[x_col[i]], index=[0])
             st.dataframe(df,width='stretch', hide_index=True)
 
-            col1, col2, _ = st.columns([1,1,3])
-            with col1:
+            
+            with st.container(horizontal=True, horizontal_alignment='right'):
                 st.download_button("Download CSV", df.to_csv(index=False), f"{x_col[i]}_regression_stats.csv", key=f"{x_col[i]}-csv-download")
 
-            df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
+                df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
 
-            with col2:
+            
                 st.download_button(
                     label="Download JSON",
                     data=df_js_str,
@@ -374,13 +377,13 @@ if 'multibeta_results' in st.session_state:
     with st.expander("Raw returns data"):
         st.dataframe(returns_df, width='stretch')
 
-        col1, col2, _ = st.columns([1,1,3])
-        with col1:
+        
+        with st.container(horizontal=True, horizontal_alignment='right'):
             st.download_button("Download CSV", returns_df.to_csv(index=False), "returns.csv")
                 
-        returns_js_str = returns_df.to_json(orient="records", indent=4, date_format='iso')
+            returns_js_str = returns_df.to_json(orient="records", indent=4, date_format='iso')
 
-        with col2:
+        
             st.download_button(
                 label="Download JSON",
                 data=returns_js_str,
@@ -460,14 +463,14 @@ if 'multibeta_results' in st.session_state:
                 st.markdown(f"##### {ticker.upper()} Rolling Beta Stats ")
                 st.dataframe(df, width='stretch', hide_index=True)
 
-                col1, col2, _ = st.columns([1,1,3])
+                
 
-                with col1:
+                with st.container(horizontal=True, horizontal_alignment='right'):
                     st.download_button("Download CSV", df.to_csv(index=False), f"{ticker}_rolling_stats.csv")
 
-                rol_js_str = df.to_json(orient="records", indent=4, date_format='iso')
+                    rol_js_str = df.to_json(orient="records", indent=4, date_format='iso')
 
-                with col2:
+                
                     st.download_button(
                         label="Download JSON",
                         data=rol_js_str,

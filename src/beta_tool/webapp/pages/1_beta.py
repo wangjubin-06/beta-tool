@@ -10,8 +10,10 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 st.set_page_config(
     page_title="Single Asset Beta",
     page_icon="📈",
-    layout="wide",
+    layout="centered",
 )
+
+
 
 st.title("Single Asset Beta")
 
@@ -27,7 +29,7 @@ st.markdown(
     """
 )
 
-st.markdown("")
+st.space("small")
 
 
 with st.container(border=True):
@@ -42,7 +44,7 @@ with st.container(border=True):
 
 
     # Search
-    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='beta_search_box')
+    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='beta_search_box',icon="🔍")
 
     dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 
@@ -123,7 +125,7 @@ with st.container(border=True):
         with col2:
             end_date = st.date_input("End date for regression (Optional)", value=None, key="beta_end_date")
 
-        st.markdown("")
+        st.space("xsmall")
 
         st.markdown("### Regression errors")
 
@@ -149,7 +151,7 @@ with st.container(border=True):
                 key='beta_hac_lag'
             )
 
-        st.markdown("")
+        st.space("xsmall")
         st.markdown("#### Rolling Beta")
 
         col1, col2 = st.columns(2)
@@ -229,9 +231,10 @@ if submitted:
         # Run regression
         # -------------------------------------------------
 
-        with st.spinner("Fetching data and running regression..."):
+        try:
+            with st.spinner("Fetching data and running regression..."):
 
-            try:
+            
                 beta_obj = Beta(
                     asset1=asset1,
                     asset2=asset2,
@@ -278,10 +281,12 @@ if submitted:
 
                 
 
-            except Exception as e:
-                st.error(f"Regression failed: {e}")
-                st.session_state.pop("results", None)
-                st.stop()
+        except Exception as e:
+            st.error(f"Regression failed: {e}")
+            st.session_state.pop("results", None)
+            #st.stop()
+            time.sleep(5)
+            st.rerun()
 
 
 if 'beta_results' in st.session_state:
@@ -298,13 +303,13 @@ if 'beta_results' in st.session_state:
     # One line summary
     beta_val = float(df['beta'].iloc[0])
     pval = float(df['beta_pvalue'].iloc[0])
-    sig = "statistically significant" if pval < 0.05 else "not statistically significant at the 5% level"
+    sig = "statistically significant" if pval < 0.05 else "**not** statistically significant at the 5% level"
     st.caption(
         f"A 1% move in {asset2.upper()} is associated with a {beta_val:.2f}% move in {asset1.upper()}, "
         f"on average ({sig})."
     )
 
-    st.write()
+    st.space("xxsmall")
 
     # Raw results metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -314,15 +319,15 @@ if 'beta_results' in st.session_state:
     col4.metric("N Obs", f"{int(df["n_obs"].iloc[0])}", border=True, height='stretch')
 
     with st.expander("Full regression stats"):
-        st.dataframe(df, width='stretch')
+        st.dataframe(df, width='stretch', hide_index=True)
 
-        col1, col2, _ = st.columns([1,1,3])
-        with col1:
+        
+        with st.container(horizontal=True, horizontal_alignment='right'):
             st.download_button("Download CSV", df.to_csv(index=False), "regression_stats.csv")
 
-        df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
+            df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
 
-        with col2:
+        
             st.download_button(
                 label="Download JSON",
                 data=df_js_str,
@@ -330,6 +335,7 @@ if 'beta_results' in st.session_state:
                 mime="application/json"
             )
 
+    st.space('small')
     # Returns visualisation
     fig = px.scatter(
         returns_df, x=x_col, y=y_col,
@@ -350,6 +356,8 @@ if 'beta_results' in st.session_state:
 
     st.plotly_chart(fig, width='stretch')
 
+    st.space('small')
+    
     # Cumulative returns plot
     #st.subheader("Cumulative returns")
     cum_df = returns_df.set_index("date")[[x_col, y_col]].rename(
@@ -376,19 +384,20 @@ if 'beta_results' in st.session_state:
 
     st.plotly_chart(fig2, width='stretch')
 
-    # st.line_chart(cum_df)
-
+    
+    st.space('small')
+    
     # Raw returns series download
     with st.expander("Raw returns data"):
-        st.dataframe(returns_df, width='stretch')
+        st.dataframe(returns_df, width='stretch', hide_index=True)
 
-        col1, col2, _ = st.columns([1,1,3])
-        with col1:
+        
+        with st.container(horizontal=True, horizontal_alignment='right'):
             st.download_button("Download CSV", returns_df.to_csv(index=False), "returns.csv")
                 
-        returns_js_str = returns_df.to_json(orient="records", indent=4, date_format='iso')
+            returns_js_str = returns_df.to_json(orient="records", indent=4, date_format='iso')
 
-        with col2:
+        
             st.download_button(
                 label="Download JSON",
                 data=returns_js_str,
@@ -401,10 +410,9 @@ if 'beta_results' in st.session_state:
     
     # Rolling beta data
     if rolling:
-        st.markdown("")
+        st.space('small')
         st.markdown("##### Rolling Beta Results")
-
-        st.markdown("")
+        st.space("xxsmall")
 
         # Rolling beta plot
         rol_df = r_df.set_index("date")[["beta","beta_ci_upper","beta_ci_lower"]]
@@ -456,18 +464,18 @@ if 'beta_results' in st.session_state:
         st.plotly_chart(fig3, width='stretch')
 
         # Rolling Beta Dataframe
-        st.markdown("")
+        st.space('small')
         with st.expander("Rolling Beta Stats"):
-            st.dataframe(r_df, width='stretch')
+            st.dataframe(r_df, width='stretch', hide_index=True)
 
-            col1, col2, _ = st.columns([1,1,3])
+            
 
-            with col1:
+            with st.container(horizontal=True, horizontal_alignment='right'):
                 st.download_button("Download CSV", r_df.to_csv(index=False), "rolling_stats.csv")
 
-            rol_js_str = r_df.to_json(orient="records", indent=4, date_format='iso')
+                rol_js_str = r_df.to_json(orient="records", indent=4, date_format='iso')
 
-            with col2:
+            
                 st.download_button(
                     label="Download JSON",
                     data=rol_js_str,
@@ -475,10 +483,9 @@ if 'beta_results' in st.session_state:
                     mime="application/json"
                 )
 
-        st.markdown("")
         
-    st.markdown("")
-    st.markdown("")
+        
+    st.space('medium')
 
     # Reset button
     if st.button("Reset Regression", width='stretch'):

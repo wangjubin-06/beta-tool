@@ -5,16 +5,19 @@ import numpy as np
 import plotly.graph_objects as go
 from beta_tool.factor_research.factorsregression import EquityFactorsRegression
 from beta_tool.webapp.tickers import get_tickers, find_tickers
+import time
+import json
 
 
 st.set_page_config(
     page_title="Factor Analysis",
     page_icon="🔥",
-    layout="wide",
+    layout="centered",
 )
 
-st.title("Asset Factor Analysis Tool")
 
+st.title("Asset Factor Analysis Tool")
+st.space("small")
 st.markdown(
     """
     Calculate the betas (factor loadings) of an asset's returns against Fama-French Factors
@@ -25,7 +28,7 @@ st.markdown(
     """
 )
 
-st.markdown("")
+st.space("small")
 
 with st.container(border=True):
     st.subheader("Regression inputs")
@@ -35,7 +38,7 @@ with st.container(border=True):
         st.session_state.factors_assets = []
 
     # Search
-    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='multibeta_search_box')
+    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='factors_search_box', icon="🔍")
 
     dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 
@@ -53,7 +56,8 @@ with st.container(border=True):
         "Ticker(s):",
         options=options_pool,
         key='factors_assets',
-        placeholder="select one or many tickers from search"
+        placeholder="select one or many tickers from search",
+        persist_state='session',
     )
     
 
@@ -65,12 +69,20 @@ with st.container(border=True):
         with col1:
             frequency = st.radio(
                 "Choose frequency of data",
-                options=["daily", "weekly", "monthly"], key="factors_frequency", index=0, horizontal=True
+                options=["daily", "weekly","monthly"],
+                key="factors_frequency",
+                index=0,
+                horizontal=True,
+                persist_state='session'
             )
         with col2:
             return_type = st.radio(
                 "Choose how returns are calculated",
-                options=["log", "simple"], key="factors_return_type", index=1, horizontal=True
+                options=["log", "simple"],
+                key="factors_return_type",
+                index=1,
+                horizontal=True,
+                persist_state='session',
             )
 
 
@@ -78,7 +90,11 @@ with st.container(border=True):
         with col1:
             factor_source = st.radio(
                 "Choose factor data (Note that ETF proxy is not the true FF 5-factors)",
-                options=["french","etf"], key="factors_factor_source", index=0, horizontal=True,
+                options=["french","etf"],
+                key="factors_factor_source",
+                index=0,
+                horizontal=True,
+                persist_state='session'
             )
             
 
@@ -87,9 +103,9 @@ with st.container(border=True):
         col1, col2 = st.columns(2)
 
         with col1:
-            start_date = st.date_input("Start date for regression", value=None, key="factors_start_date")
+            start_date = st.date_input("Start date for regression", value= None, key="factors_start_date", persist_state='session')
         with col2:
-            end_date = st.date_input("End date for regression", value="today", key="factors_end_date")
+            end_date = st.date_input("End date for regression", value="today", key="factors_end_date", persist_state='session')
 
         st.markdown("")
 
@@ -104,17 +120,20 @@ with st.container(border=True):
                 format_func=lambda x: "Yes" if x else "No",
                 horizontal=True,
                 index=1,
-                key='factors_hac'
+                key='factors_hac',
+                persist_state='session'
             )
 
+        
         with col2:
             hac_lag = st.number_input(
                 "HAC lags (optional)",
                 min_value=1,
                 max_value=40,
-                value=False,
+                value=None,
                 step=1,
-                key='factors_hac_lag'
+                key='factors_hac_lag',
+                persist_state='session'
             )
 
 
@@ -135,8 +154,8 @@ if submitted:
         st.error("Please enter asset ticker field.")
 
     
-    elif (start_date is None) and (end_date is None):
-        st.error("Please input start date and end date.")
+    elif (start_date is None) or (end_date is None):
+        st.error("Please input start date and/or end date.")
 
     elif (start_date > end_date):
         st.error("Start date must be earlier than end date.")
@@ -154,36 +173,34 @@ if submitted:
 
 
 
-        with st.spinner("Fetching data and running regression..."):
 
-            try:
-                if hac:
-                    if not hac_lag:
-                        beta_obj = EquityFactorsRegression(
-                            factor_source=factor_source,
-                            frequency=frequency,
-                            start_date=start_date_str,
-                            end_date=end_date_str,
-                            return_type=return_type,
-                            hac="auto",
-                        )
-                    elif hac_lag is not None:
-                        beta_obj = EquityFactorsRegression(
-                            factor_source=factor_source,
-                            frequency=frequency,
-                            start_date=start_date_str,
-                            end_date=end_date_str,
-                            return_type=return_type,
-                            hac=hac_lag,
-                        )
-                elif not hac:
+        
+            
+            
+        try:
+            with st.spinner("Fetching data and running regression..."):
+                
+                if not hac:
                     beta_obj = EquityFactorsRegression(
                         factor_source=factor_source,
                         frequency=frequency,
                         start_date=start_date_str,
                         end_date=end_date_str,
                         return_type=return_type,
-                        hac=None,
+                    )
+                elif hac:
+                    if hac_lag is None:
+                        hac_input = 'auto'
+                    elif isinstance(hac_lag, int) and hac_lag > 0:
+                        hac_input = hac_lag
+                
+                    beta_obj = EquityFactorsRegression(
+                        factor_source=factor_source,
+                        frequency=frequency,
+                        start_date=start_date_str,
+                        end_date=end_date_str,
+                        return_type=return_type,
+                        hac=hac_input
                     )
 
                 beta_obj.asset_list(*assets)
@@ -206,11 +223,12 @@ if submitted:
                 }
 
 
-            except Exception as e:
-                st.error(f"Regression failed: {e}")
-                st.session_state.pop("results", None)
-                st.stop()
-                time.sleep(5)
+        except Exception as e:
+            st.error(f"Regression failed: {e}")
+            st.session_state.pop("results", None)
+            #st.stop()
+            #time.sleep(5)
+            if st.button("try again", icon="😭"):
                 st.rerun()
 
 
@@ -218,9 +236,124 @@ if 'factors_results' in st.session_state:
     r = st.session_state["factors_results"]
     results_dic, returns_dic = r["results_dic"], r["returns_dic"]
     assets = r["assets"]
+    
+    st.space('medium')
+    
+    if st.session_state.factors_factor_source == 'french':
+        
+        st.subheader(f"Fama-French 5 Factors Regression Results")
+        
+    elif st.session_state.factors_factor_source == 'etf':
+        
+        st.subheader(f"ETF-proxy Factors Regression Results")
+    
+    st.markdown(":small[Due to data availability constraints, the dates may not match your chosen start and end dates :(]")
+    
+    for ticker, dict in results_dic.items():
+        
+    
+        st.markdown(f"##### {ticker.upper()} Factors")
+        
+        
+        with st.expander(f"Details", expanded=False):
+            
+            col1, col2 = st.columns(2)
+            col1.markdown(f"Start date: {dict['model']["start_date"]}")
+            col2.markdown(f"End date: {dict['model']["end_date"]}")
+            
+            col1, col2 = st.columns(2)
+            
+            col1.metric("R²", f"{float(dict['model']["r_squared"]):.3f}", border=True)
+            col2.metric("N Obs", f"{int(dict['model']["n_observations"])}", border=True)
+            
+            
+            
+            col1, col2, col3, col4 = st.columns(4)
+            for exposure, exp_dic in dict['exposures'].items():
+                beta_val = float(exp_dic['beta'])
+                pval = float(exp_dic['p-value'])
+                sig = "statistically significant" if pval < 0.05 else "**not** statistically significant at the 5% level"
+                
+                if beta_val > 2:
+                    qualifier = 'strong positive'
+                elif beta_val > 0.4:
+                    qualifier = 'positive'
+                elif beta_val > 0:
+                    qualifier = 'slightly positive'
+                elif beta_val > -0.5:
+                    qualifier = 'slightly negative'
+                elif beta_val > -2:
+                    qualifier = 'negative'
+                else:
+                    qualifier = 'strong negative'
+                
+                #st.space("xsmall")
+                # Raw results metrics
+                with st.container():
+                    st.markdown(f"##### {exposure.title()} Factor")
+                    st.caption(
+                        f"{ticker.upper()} has {qualifier} exposure to {exposure.title()} factor. "
+                        f"It is {sig}."
+                    )
+                    col1, col2 = st.columns(2)
+                    col1.metric("Beta", f"{beta_val:.3f}", delta=f"{beta_val - 1:.3f} vs 1.0", delta_color="off", border=True)     
+                    col2.metric("P-value", f"{float(pval):.2e}", border=True, height='stretch')
+    
+    st.space('xxsmall')
+    #st.json(results_dic)
+    st.markdown("##### Full JSON data")
+    with st.expander("Full JSON data"):
+        
+        with st.expander("JSON code"):
+            st.code(json.dumps(results_dic, indent=4), language="json")
+        
+        with st.container(horizontal_alignment='right'):
+            st.download_button(
+                label="Download JSON",
+                data=json.dumps(results_dic, indent=4),
+                file_name=f"full_factors_data.json",
+                mime="application/json",
+                key=f"full-json-btn"
+            )
+        
 
-    st.subheader('Results')
+    #st.json(returns_dic)
+    st.space('small')
+    
+    st.markdown("##### Raw Returns Data")
+    
+    for ticker, df in returns_dic.items():
+        with st.expander(label=f"{ticker.upper()} returns data"):
+            st.dataframe(data=df.copy(), hide_index=True)
+            
+            
+            
+            with st.container(horizontal=True, horizontal_alignment='right'):
+                st.download_button("Download CSV", df.to_csv(index=False), f"{ticker}_data.csv", key=f"{ticker}-csv-btn")
 
-    st.json(results_dic)
+                df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
 
-    st.json(returns_dic)
+                
+                st.download_button(
+                    label="Download JSON",
+                    data=df_js_str,
+                    file_name=f"{ticker}_data.json",
+                    mime="application/json",
+                    key=f"{ticker}-json-btn"
+                )
+    
+    st.space('medium')
+    # Reset button
+    if st.button("Reset Regression", width='stretch'):
+        keys_to_clear = [
+            "factors_factor_source", "factors_assets", "factors_frequency", "factors_return_type",
+            "factors_start_date", "factors_end_date", "factors_hac", "factors_hac_lag", "factors_results",'factors_search_box',
+            "factors_form"
+        ]
+        for key in keys_to_clear:
+            st.session_state.pop(key, None)
+
+        
+        st.rerun()
+
+

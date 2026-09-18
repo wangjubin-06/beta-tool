@@ -10,8 +10,9 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 st.set_page_config(
     page_title="Portfolio Beta",
     page_icon="😻",
-    layout="wide",
+    layout="centered",
 )
+
 
 
 st.title("Portfolio Beta Tool")
@@ -396,25 +397,37 @@ if 'portfoliobeta_results' in st.session_state:
     if rolling:
         rolling_df_data = r["rolling_dfs"]
 
+    st.space('medium')
+    
     st.subheader('Results')
+    
+    
     col1, col2 = st.columns(2)
+    
     col1.metric("R²", f"{float(r_dic['r_squared']):.3f}", border=True)
+    
     col2.metric("N Obs", f"{int(r_dic["n_obs"])}", border=True)
 
 
 
     for col in x_col:
+        
         if len(x_col) > 1:
+            
             st.markdown(f"##### Beta - {col.upper()}")
+            
             beta_val = float(r_dic[col.lower()]['beta'])
+            
             pval = float(r_dic[col.lower()]['beta_pvalue'])
-            sig = "statistically significant" if pval < 0.05 else "not statistically significant at the 5% level"
+            sig = "statistically significant" if pval < 0.05 else "**not** statistically significant at the 5% level"
+            
             st.caption(
                 f"A 1% move in {col.upper()} is associated with a {beta_val:.2f}% move in portfolio, "
                 f"on average ({sig}), keeping all other assets constant."
             )
 
-            st.write()
+            st.space("xsmall")
+            
             # Raw results metrics
             col1, col2 = st.columns(2)
             col1.metric("Beta", f"{beta_val:.3f}", delta=f"{beta_val - 1:.3f} vs 1.0", delta_color="off", border=True)     
@@ -424,13 +437,13 @@ if 'portfoliobeta_results' in st.session_state:
             st.markdown(f"##### Beta - {col.upper()}")
             beta_val = float(r_dic['beta'])
             pval = float(r_dic['beta_pvalue'])
-            sig = "statistically significant" if pval < 0.05 else "not statistically significant at the 5% level"
+            sig = "statistically significant" if pval < 0.05 else "**not** statistically significant at the 5% level"
             st.caption(
                 f"A 1% move in {col.upper()} is associated with a {beta_val:.2f}% move in portfolio, "
                 f"on average ({sig}), keeping all other assets constant."
             )
 
-            st.write()
+            st.space("xsmall")
             # Raw results metrics
             col1, col2 = st.columns(2)
             col1.metric("Beta", f"{beta_val:.3f}", delta=f"{beta_val - 1:.3f} vs 1.0", delta_color="off", border=True)     
@@ -447,13 +460,13 @@ if 'portfoliobeta_results' in st.session_state:
         basics_df = pd.DataFrame(basic_stats, index=[0])
         st.dataframe(basics_df, hide_index=True)
 
-        col1, col2, _ = st.columns([1,1,3])
-        with col1:
+        
+        with st.container(horizontal=True, horizontal_alignment='right'):
             st.download_button("Download CSV", basics_df.to_csv(index=False), "basic_regression_stats.csv", key="portfoliobeta_basic_csv_download")
 
-        df_js_str = basics_df.to_json(orient="records", indent=4,date_format='iso')
+            df_js_str = basics_df.to_json(orient="records", indent=4,date_format='iso')
 
-        with col2:
+        
             st.download_button(
                 label="Download JSON",
                 data=df_js_str,
@@ -469,13 +482,13 @@ if 'portfoliobeta_results' in st.session_state:
                 df = pd.DataFrame(r_dic[x_col[i]], index=[0])
                 st.dataframe(df,width='stretch', hide_index=True)
 
-                col1, col2, _ = st.columns([1,1,3])
-                with col1:
+                
+                with st.container(horizontal=True, horizontal_alignment='right'):
                     st.download_button("Download CSV", df.to_csv(index=False), f"{x_col[i]}_regression_stats.csv", key=f"{x_col[i]}-csv-download")
 
-                df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
+                    df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
 
-                with col2:
+                
                     st.download_button(
                         label="Download JSON",
                         data=df_js_str,
@@ -489,13 +502,13 @@ if 'portfoliobeta_results' in st.session_state:
             df = pd.DataFrame(r_dic, index=[0])
             st.dataframe(df,width='stretch', hide_index=True)
 
-            col1, col2, _ = st.columns([1,1,3])
-            with col1:
+            
+            with st.container(horizontal=True, horizontal_alignment='right'):
                 st.download_button("Download CSV", df.to_csv(index=False), f"{x_col[0]}_regression_stats.csv", key=f"{x_col[0]}-csv-download")
 
-            df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
+                df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
 
-            with col2:
+            
                 st.download_button(
                     label="Download JSON",
                     data=df_js_str,
@@ -571,13 +584,13 @@ if 'portfoliobeta_results' in st.session_state:
     with st.expander("Raw returns data"):
         st.dataframe(port_returns_df, width="stretch", hide_index=True)
 
-        col1, col2, _ = st.columns([1,1,3])
-        with col1:
-            st.download_button("Download CSV", df.to_csv(index=False), "returns.csv", key=f"portfolio-returns-csv-download-btn")
+        
+        with st.container(horizontal=True, horizontal_alignment='right'):
+            st.download_button("Download CSV", port_returns_df.to_csv(index=False), "returns.csv", key=f"portfolio-returns-csv-download-btn")
                 
-        returns_js_str = df.to_json(orient="records", indent=4, date_format='iso')
+            returns_js_str = port_returns_df.to_json(orient="records", indent=4, date_format='iso')
 
-        with col2:
+        
             st.download_button(
                 label="Download JSON",
                 data=returns_js_str,
@@ -593,13 +606,13 @@ if 'portfoliobeta_results' in st.session_state:
             for ticker, df in ind_returns_df.items():
                 st.dataframe(df, width='stretch', hide_index=True)
 
-                col1, col2, _ = st.columns([1,1,3])
-                with col1:
+                
+                with st.container(horizontal=True, horizontal_alignment='right'):
                     st.download_button("Download CSV", df.to_csv(index=False), "returns.csv", key=f"{ticker}-returns-csv-download-btn")
                         
-                returns_js_str = df.to_json(orient="records", indent=4, date_format='iso')
+                    returns_js_str = df.to_json(orient="records", indent=4, date_format='iso')
 
-                with col2:
+                
                     st.download_button(
                         label="Download JSON",
                         data=returns_js_str,
@@ -614,13 +627,13 @@ if 'portfoliobeta_results' in st.session_state:
         else:
             st.dataframe(ind_returns_df, width='stretch', hide_index=True)
 
-            col1, col2, _ = st.columns([1,1,3])
-            with col1:
+            
+            with st.container(horizontal=True, horizontal_alignment='right'):
                 st.download_button("Download CSV", ind_returns_df.to_csv(index=False), "returns.csv")
                     
-            returns_js_str = ind_returns_df.to_json(orient="records", indent=4, date_format='iso')
+                returns_js_str = ind_returns_df.to_json(orient="records", indent=4, date_format='iso')
 
-            with col2:
+            
                 st.download_button(
                     label="Download JSON",
                     data=returns_js_str,
@@ -699,14 +712,14 @@ if 'portfoliobeta_results' in st.session_state:
                 st.markdown(f"##### {x_col[0].upper()} Rolling Beta Stats ")
                 st.dataframe(df, width='stretch', hide_index=True)
 
-                col1, col2, _ = st.columns([1,1,3])
+                
 
-                with col1:
+                with st.container(horizontal=True, horizontal_alignment='right'):
                     st.download_button("Download CSV", df.to_csv(index=False), f"{ticker}_rolling_stats.csv")
 
-                rol_js_str = df.to_json(orient="records", indent=4, date_format='iso')
+                    rol_js_str = df.to_json(orient="records", indent=4, date_format='iso')
 
-                with col2:
+                
                     st.download_button(
                         label="Download JSON",
                         data=rol_js_str,
@@ -777,14 +790,14 @@ if 'portfoliobeta_results' in st.session_state:
                     st.markdown(f"##### {ticker.upper()} Rolling Beta Stats ")
                     st.dataframe(df, width='stretch', hide_index=True)
 
-                    col1, col2, _ = st.columns([1,1,3])
+                    
 
-                    with col1:
+                    with st.container(horizontal=True, horizontal_alignment='right'):
                         st.download_button("Download CSV", df.to_csv(index=False), f"{ticker}_rolling_stats.csv")
 
-                    rol_js_str = df.to_json(orient="records", indent=4, date_format='iso')
+                        rol_js_str = df.to_json(orient="records", indent=4, date_format='iso')
 
-                    with col2:
+                    
                         st.download_button(
                             label="Download JSON",
                             data=rol_js_str,
@@ -794,8 +807,8 @@ if 'portfoliobeta_results' in st.session_state:
 
                 st.markdown("")
 
-    st.markdown("")
-    st.markdown("")
+    st.space('medium')
+    
     # Reset button
     if st.button("Reset Regression", width='stretch'):
         keys_to_clear = [

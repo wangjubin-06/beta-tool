@@ -17,7 +17,7 @@ portfolio_beta = st.Page("pages/3_portfoliobeta.py", title="Portfolio Beta")
 hedge = st.Page("pages/4_hedge.py", title="Hedge")
 factors = st.Page("pages/5_factors.py", title="Factor Analysis")
 
-pg = st.navigation([home, beta, multibeta, portfolio_beta, hedge, factors])
+pg = st.navigation([home, beta, multibeta, portfolio_beta, hedge, factors], position='sidebar')
 
 try:
     tickers_df, ticker_list = tickers()
@@ -26,7 +26,7 @@ try:
         st.session_state.ticker_list = ticker_list
 
 except ConnectionError:
-    pg.markdown("Error: device is not connected to internet! Please try again with an internet connection")
+    st.markdown("Error: device is not connected to internet! Please try again with an internet connection")
 
 
 
