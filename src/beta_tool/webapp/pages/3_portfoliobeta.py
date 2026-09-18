@@ -8,7 +8,7 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 
 
 st.set_page_config(
-    page_title="Beta Tool",
+    page_title="Portfolio Beta",
     page_icon="😻",
     layout="wide",
 )
@@ -28,15 +28,6 @@ st.markdown(
 
 st.markdown("")
 
-@st.cache_data
-def tickers():
-    return get_tickers()
-    
-# Load tickers
-with st.spinner("Fetching ticker list..."):
-    tickers_df, ticker_list = tickers()
-
-
 
 with st.container(border=True):
     st.subheader("Regression inputs")
@@ -52,7 +43,7 @@ with st.container(border=True):
     # Search
     search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='portfoliobeta_search_box', icon="🔍")
 
-    dropdown_options = find_tickers(ticker_list,search_query,limit=20)
+    dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 
 
     # Y-ticker
@@ -90,7 +81,7 @@ with st.container(border=True):
             )
         with add_col2:
             staged_weight = st.number_input(
-                label="Weight in %", min_value=0.0, max_value=100.0, step=0.1,
+                label="Weight in %", min_value=0.01, max_value=100.0, step=0.1,
                 key="portfoliobeta_staged_weight", label_visibility="collapsed",
             )
         with add_col3:
@@ -809,12 +800,14 @@ if 'portfoliobeta_results' in st.session_state:
     if st.button("Reset Regression", width='stretch'):
         keys_to_clear = [
             "portfoliobeta_portdf", "portfoliobeta_assets", "portfoliobeta_frequency", "portfoliobeta_return_type", "portfoliobeta_period",
-            "portfoliobeta_start_date", "portfoliobeta_end_date", "portfoliobeta_hac", "portfoliobeta_hac_lag", "portfoliobeta_results",'portfoliobeta_search_box'
+            "portfoliobeta_start_date", "portfoliobeta_end_date", "portfoliobeta_hac", "portfoliobeta_hac_lag", "portfoliobeta_results",'portfoliobeta_search_box','portfoliobeta_staged_ticker',
+            "portfoliobeta_staged_weight", "portfoliobeta_add_btn","portfoliobeta_port_editor", "portfoliobeta_remove_ticker","portfoliobeta_remove_btn",
+            'portfoliobeta_assets',"portfoliobeta_form","portfoliobeta_rolling","portfoliobeta_rolling_window"
         ]
         for key in keys_to_clear:
             st.session_state.pop(key, None)
 
-        st.session_state.clear()
+        
         st.rerun()
 
 

@@ -29,14 +29,6 @@ st.markdown(
 
 st.markdown("")
 
-@st.cache_data
-def tickers():
-    return get_tickers()
-
-# Load tickers
-with st.spinner("Fetching ticker list..."):
-    tickers_df, ticker_list = tickers()
-
 
 with st.container(border=True):
     st.subheader("Regression inputs")
@@ -52,7 +44,7 @@ with st.container(border=True):
     # Search
     search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='beta_search_box')
 
-    dropdown_options = find_tickers(ticker_list,search_query,limit=20)
+    dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 
 
     # Y-ticker

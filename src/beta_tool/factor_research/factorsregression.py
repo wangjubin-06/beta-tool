@@ -191,9 +191,10 @@ class EquityFactorsRegression:
 
 
         if self.factor_source == 'etf':
-            return self._etf_regress()
+            self._etf_regress()
+
         elif self.factor_source == 'french':
-            return self._french_regress()
+            self._french_regress()
 
 
     # ====================================
@@ -433,7 +434,7 @@ class EquityFactorsRegression:
             )
             
             merged_df_dic[asset] = final_merged_df
-            
+
             
 
             # alert users which date rows are collapsed due to the inner merging
@@ -505,28 +506,30 @@ class EquityFactorsRegression:
 
 
 
-            if actual_start > asset_start_period:
-                print(f'Start date of {asset} observation window has been\n',
-                        f'pushed forward from {asset_start_str} to {actual_start_str}\n',
-                        f'due to data range overlap compatibility.\n'
-                )
+            # if actual_start > asset_start_period:
+            #     print(f'Start date of {asset} observation window has been\n',
+            #             f'pushed forward from {asset_start_str} to {actual_start_str}\n',
+            #             f'due to data range overlap compatibility.\n'
+            #     )
                 
                 
                 
-            if actual_end < asset_end_period:
-                print(f'End date of {asset} observation window has been\n',
-                        f'pushed back from {asset_end_str} to {actual_end_str}\n',
-                        f'due to data range overlap compatibility.\n'
-                )
+            # if actual_end < asset_end_period:
+            #     print(f'End date of {asset} observation window has been\n',
+            #             f'pushed back from {asset_end_str} to {actual_end_str}\n',
+            #             f'due to data range overlap compatibility.\n'
+            #     )
                 
                 
                 
-            print(f'{asset} observation window is from\n',
-                    f'{actual_start_str} to {actual_end_str}\n\n'
-            )
+            # print(f'{asset} observation window is from\n',
+            #         f'{actual_start_str} to {actual_end_str}\n\n'
+            # )
 
 
             
+        self.merged_df_dic = merged_df_dic
+
 
         model_results = {}
 
@@ -737,19 +740,19 @@ class EquityFactorsRegression:
                 actual_start = merged_df['date'].min()
                 actual_end = merged_df['date'].max()
 
-                if actual_start > asset_start:
-                    print(f'Start date of {ticker} observation window has been\n',
-                            f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
-                            f'due to data range overlap compatibility.\n'
-                    )
-                if actual_end < asset_end:
-                    print(f'End date of {ticker} observation window has been\n',
-                            f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
-                            f'due to data range overlap compatibility.\n'
-                    )
-                print(f'{ticker} observation window is from\n',
-                        f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n\n'
-                )
+                # if actual_start > asset_start:
+                #     print(f'Start date of {ticker} observation window has been\n',
+                #             f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
+                #             f'due to data range overlap compatibility.\n'
+                #     )
+                # if actual_end < asset_end:
+                #     print(f'End date of {ticker} observation window has been\n',
+                #             f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
+                #             f'due to data range overlap compatibility.\n'
+                #     )
+                # print(f'{ticker} observation window is from\n',
+                #         f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n\n'
+                # )
 
 
             
@@ -790,19 +793,19 @@ class EquityFactorsRegression:
                 actual_start = merged_df['date'].min()
                 actual_end = merged_df['date'].max()
 
-                if actual_start > asset_start:
-                    print(f'Start date of {ticker} observation window has been\n',
-                            f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
-                            f'due to data range overlap compatibility.\n'
-                    )
-                if actual_end < asset_end:
-                    print(f'End date of {ticker} observation window has been\n',
-                            f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
-                            f'due to data range overlap compatibility.\n'
-                    )
-                print(f'{ticker} observation window is from\n',
-                        f'{actual_start.strftime('%Y-%m')} to {actual_end.strftime('%Y-%m')}'
-                )
+                # if actual_start > asset_start:
+                #     print(f'Start date of {ticker} observation window has been\n',
+                #             f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
+                #             f'due to data range overlap compatibility.\n'
+                #     )
+                # if actual_end < asset_end:
+                #     print(f'End date of {ticker} observation window has been\n',
+                #             f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
+                #             f'due to data range overlap compatibility.\n'
+                #     )
+                # print(f'{ticker} observation window is from\n',
+                #         f'{actual_start.strftime('%Y-%m')} to {actual_end.strftime('%Y-%m')}'
+                # )
 
             
             
@@ -843,19 +846,22 @@ class EquityFactorsRegression:
                 actual_start = merged_df['date'].min()
                 actual_end = merged_df['date'].max()
                 
-                if actual_start > asset_start:
-                    print(f'Start date of {ticker} observation window has been\n',
-                            f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
-                            f'due to data range overlap compatibility.\n'
-                    )
-                if actual_end < asset_end:
-                    print(f'End date of {ticker} observation window has been\n',
-                            f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
-                            f'due to data range overlap compatibility.\n'
-                    )
-                    print(f'{ticker} observation window is from\n',
-                            f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
-                    )
+                # if actual_start > asset_start:
+                #     print(f'Start date of {ticker} observation window has been\n',
+                #             f'pushed forward from {asset_start.strftime('%Y-%m-%d')} to {actual_start.strftime('%Y-%m-%d')}\n',
+                #             f'due to data range overlap compatibility.\n'
+                #     )
+                # if actual_end < asset_end:
+                #     print(f'End date of {ticker} observation window has been\n',
+                #             f'pushed back from {asset_end.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}\n',
+                #             f'due to data range overlap compatibility.\n'
+                #     )
+                #     print(f'{ticker} observation window is from\n',
+                #             f'{actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}'
+                #     )
+
+
+        self.merged_df_dic = merged_df_dic
 
 
 

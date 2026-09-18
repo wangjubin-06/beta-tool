@@ -30,15 +30,6 @@ st.markdown(
 
 st.markdown("")
 
-@st.cache_data
-def tickers():
-    return get_tickers()
-    
-# Load tickers
-with st.spinner("Fetching ticker list..."):
-    tickers_df, ticker_list = tickers()
-
-
 
 with st.container(border=True):
     st.subheader("Regression inputs")
@@ -55,7 +46,7 @@ with st.container(border=True):
     # Search
     search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='multibeta_search_box')
 
-    dropdown_options = find_tickers(ticker_list,search_query,limit=20)
+    dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 
 
     # Y-ticker
@@ -204,11 +195,6 @@ if submitted:
         st.error("Start date must be earlier than end date.")
 
     else:
-
-        # # Convert tickers to lowercase
-        # asset1 = asset1.strip().lower()
-        # assets = list(set(list(ticker.lower() for ticker in assets)))
-        
         # Convert dates
         start_date_str = (
             start_date.strftime("%Y-%m-%d")
@@ -498,12 +484,11 @@ if 'multibeta_results' in st.session_state:
     if st.button("Reset Regression", width='stretch'):
         keys_to_clear = [
             "multibeta_asset1", "multibeta_assets", "multibeta_frequency", "multibeta_return_type", "multibeta_period",
-            "multibeta_start_date", "multibeta_end_date", "multibeta_hac", "multibeta_hac_lag", "multibeta_results",'multibeta_search_box'
+            "multibeta_start_date", "multibeta_end_date", "multibeta_hac", "multibeta_hac_lag", "multibeta_results",'multibeta_search_box',
+            'multibeta_form', 'multibeta_rolling', 'multibeta_rolling_window'
         ]
         for key in keys_to_clear:
             st.session_state.pop(key, None)
-        
-        st.session_state.clear()
         st.rerun()
 
         
