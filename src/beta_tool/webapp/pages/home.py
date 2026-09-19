@@ -31,14 +31,15 @@ with st.container(height='content'):
     if "tiingo_key" not in st.session_state:
         st.session_state.tiingo_key = ""
     
-    st.markdown("If you are facing issues, you may wish to use your own Tiingo API key for the data. This tool pulls asset data live from Tiingo, and currently it is using my personal API key which may run into rate limits since it is on their free plan. 😿")
-    st.link_button("Get free Tiingo API key", "https://www.tiingo.com/")
-    user_tiingo = st.text_input(
-        label='enter your Tiingo API key',
-        type='password',
-        value= st.session_state.tiingo_key,
-        help="Your key remains hidden and is stored only for this session.",
-    )
+    with st.expander("📢 **A note on rate limits**", expanded=False):
+        st.markdown("If you are facing issues, you may wish to use your own Tiingo API key for the data. This tool pulls asset data live from Tiingo, and currently it is using my personal API key which may run into rate limits since it is on their free plan. 😿")
+        st.link_button("Get your free Tiingo API key", "https://www.tiingo.com/")
+        user_tiingo = st.text_input(
+            label='enter your Tiingo API key',
+            type='password',
+            value= st.session_state.tiingo_key,
+            help="Your key remains hidden and is stored only for this session.",
+        )
     
     if user_tiingo:
         st.session_state.tiingo_key = user_tiingo
