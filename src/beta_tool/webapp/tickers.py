@@ -4,6 +4,29 @@ import io
 import bisect
 import pandas as pd
 
+def is_valid_tiingo_key(api_key: str) -> bool:
+    url = "https://api.tiingo.com/api/test/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Token {api_key}"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        
+        # Valid keys return a 200 status code
+        if response.status_code == 200:
+            # Expected payload: {'message': 'You successfully sent a request'}
+            return True
+            
+        # Invalid keys usually return 401 Unauthorized
+        return False
+        
+    except requests.RequestException:
+        # Handle network or connection errors safely
+        return False
+
+
 def get_tickers():
     url = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
     response = requests.get(url)

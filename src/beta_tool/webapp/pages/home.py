@@ -1,4 +1,8 @@
 import streamlit as st
+import requests
+from beta_tool.webapp.tickers import is_valid_tiingo_key
+
+
 
 
 st.set_page_config(
@@ -25,7 +29,7 @@ with st.container(height='content'):
     - **Factor Analysis** — equity vs factor regression
     """)
 
-    st.space('medium')
+    st.space('large')
     
     
     if "tiingo_key" not in st.session_state:
@@ -42,16 +46,15 @@ with st.container(height='content'):
         )
     
     if user_tiingo:
-        st.session_state.tiingo_key = user_tiingo
-        
-        if st.session_state.tiingo_key:
+        if is_valid_tiingo_key(user_tiingo):
+            st.session_state.tiingo_key = user_tiingo
             st.success("API key saved successfully for this session!")
         else:
-            st.warning("API key not captured. Please try again!")
+            st.warning("API key does not work. Please try again!")
     
     
-    st.space("large")
-
+    
+    st.space('xsmall')
     with st.container(width='content', gap="xxsmall"):
         st.markdown("😎😂🤣🤨😐😶‍🌫️😮😪🫩😭😨🥵🤪🤕🤡👹👺😈💩😹😻😿🧟‍♂️👨‍🌾🙇‍♂️🤦‍♂️")
         st.markdown("Made by Jubin Wang")
