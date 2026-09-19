@@ -11,8 +11,8 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 
 st.set_page_config(
     page_title="Beta Tool",
-    page_icon="😻",
-    layout="centered",
+    layout="wide",
+    page_icon="😻"
 )
 
 
@@ -484,7 +484,7 @@ if 'multibeta_results' in st.session_state:
         st.markdown("")
 
     # Reset button
-    if st.button("Reset Regression", width='stretch'):
+    if st.button("Reset Regression"):
         keys_to_clear = [
             "multibeta_asset1", "multibeta_assets", "multibeta_frequency", "multibeta_return_type", "multibeta_period",
             "multibeta_start_date", "multibeta_end_date", "multibeta_hac", "multibeta_hac_lag", "multibeta_results",'multibeta_search_box',

@@ -3,14 +3,15 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 import plotly.graph_objects as go
+import time
 from beta_tool.regression_beta.portfoliobeta import PortfolioBeta
-from beta_tool.webapp.tickers import get_tickers, find_tickers
+from beta_tool.webapp.tickers import find_tickers
 
 
 st.set_page_config(
     page_title="Portfolio Beta",
-    page_icon="😻",
-    layout="centered",
+    layout="wide",
+    page_icon="😈"
 )
 
 
@@ -27,7 +28,7 @@ st.markdown(
     """
 )
 
-st.markdown("")
+st.space("xsmall")
 
 
 with st.container(border=True):
@@ -38,7 +39,7 @@ with st.container(border=True):
         st.session_state.portfoliobeta_assets = []
 
     if "portfoliobeta_portdf" not in st.session_state:
-        st.session_state.portfoliobeta_portdf = pd.DataFrame({"ticker": pd.Series(dtype="str"),"weight": pd.Series(dtype="float64"),}) 
+        st.session_state.portfoliobeta_portdf = pd.DataFrame({"ticker": pd.Series(dtype="str"),"weight": pd.Series(dtype="float64"),})
 
 
     # Search
@@ -111,7 +112,7 @@ with st.container(border=True):
 
 
 
-        st.markdown("")
+        st.space("xsmall")
 
 
         # options = full static ticker_list, NOT the live search results —
@@ -167,7 +168,7 @@ with st.container(border=True):
 
     # Rest of form
     with st.form("portfoliobeta_form", border=False, enter_to_submit=False):
-        
+        st.space('xsmall')
         col1, col2 = st.columns(2)
 
         with col1:
@@ -182,23 +183,22 @@ with st.container(border=True):
             )
 
 
-        col1, col2 = st.columns(2)
+        
 
-        with col1:
-            period = st.selectbox("Regression period", options=['1m','3m','6m','1y','2y','3y','5y','10y','20y','30y'], index=3, key='portfoliobeta_period')
+        period = st.selectbox("Regression period", options=['1m','3m','6m','1y','2y','3y','5y','10y','20y','30y'], index=3, key='portfoliobeta_period')
         
             
-
+        st.space('xsmall')
         st.markdown("**Custom date range**")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            start_date = st.date_input("Start date for regression (Optional)", value=None, key="portfoliobeta_start_date")
+            start_date = st.date_input("Start date for regression (optional)", value=None, key="portfoliobeta_start_date")
         with col2:
-            end_date = st.date_input("End date for regression (Optional)", value=None, key="portfoliobeta_end_date")
+            end_date = st.date_input("End date for regression (optional)", value=None, key="portfoliobeta_end_date")
 
-        st.markdown("")
+        st.space("xsmall")
 
         st.markdown("### Regression errors")
 
@@ -224,7 +224,7 @@ with st.container(border=True):
                 key='portfoliobeta_hac_lag'
             )
 
-        st.markdown("")
+        st.space("xsmall")
         st.markdown("#### Rolling Beta")
 
         col1, col2 = st.columns(2)
@@ -249,8 +249,7 @@ with st.container(border=True):
                 key="portfoliobeta_rolling_window"
             )
 
-        st.markdown("")
-        st.markdown("")
+        st.space('small')
 
         submitted = st.form_submit_button(
             "Run Regression",
@@ -308,9 +307,9 @@ if submitted:
         # Run regression
         # -------------------------------------------------
 
-        with st.spinner("Fetching data and running regression..."):
-
-            try:
+        try:
+        
+            with st.spinner("Fetching data and running regression..."):
                 beta_obj = PortfolioBeta(
                     portfolio_dic=port_dict,
                     asset_to_be_regressed=assets,
@@ -376,12 +375,11 @@ if submitted:
 
                  
 
-            except Exception as e:
-                st.error(f"Regression failed: {e}")
-                st.session_state.pop("results", None)
-                st.stop()
-                time.sleep(5)
-                st.rerun()
+        except Exception as e:
+            st.error(f"Regression failed: {e}")
+            st.session_state.pop("results", None)
+            time.sleep(5)
+            st.rerun()
 
 
 if 'portfoliobeta_results' in st.session_state:
@@ -397,7 +395,7 @@ if 'portfoliobeta_results' in st.session_state:
     if rolling:
         rolling_df_data = r["rolling_dfs"]
 
-    st.space('medium')
+    st.space('small')
     
     st.subheader('Results')
     
@@ -521,7 +519,7 @@ if 'portfoliobeta_results' in st.session_state:
 
 
     # Portfolio cumulative returns plot
-    st.markdown("")
+    st.space("small")
     cum_df = port_returns_df.set_index("date")[[f'portfolio_{return_type}_returns']]
     
     if return_type == "log":
@@ -567,17 +565,19 @@ if 'portfoliobeta_results' in st.session_state:
         )
         
     fig2.update_layout(
-        title="Cumulative Returns",
+        #title="Cumulative Returns",
         yaxis_tickformat=".0%",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(t=60, l=10, r=10, b=10),
         hovermode="x unified",
     )
-
+    st.space("small")
+    st.markdown('##### Cumulative Returns')
+    
     st.plotly_chart(fig2, width='stretch')
 
 
-    st.markdown("")
+    st.space('small')
 
 
     # Returns data
@@ -694,12 +694,13 @@ if 'portfoliobeta_results' in st.session_state:
 
 
             fig.update_layout(
-                title=f"{rolling_window}-observations Rolling Beta with 95% Confidence Intervals",
+                #title=f"{rolling_window}-observations Rolling Beta with 95% Confidence Intervals",
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 margin=dict(t=60, l=10, r=10, b=10),
                 hovermode="x unified",
             )
-
+            st.space("small")
+            st.markdown(f"##### {rolling_window}-observations Rolling Beta with 95% Confidence Intervals")
             st.plotly_chart(fig, width='stretch')
 
 
@@ -727,7 +728,7 @@ if 'portfoliobeta_results' in st.session_state:
                         mime="application/json"
                     )
 
-            st.markdown("")
+            st.space("small")
 
 
         elif len(x_col) > 1:
@@ -769,16 +770,17 @@ if 'portfoliobeta_results' in st.session_state:
                 ))
 
             fig.update_layout(
-                title=f"{rolling_window}-observations Rolling Beta with 95% Confidence Intervals",
+                #title=f"{rolling_window}-observations Rolling Beta with 95% Confidence Intervals",
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 margin=dict(t=60, l=10, r=10, b=10),
                 hovermode="x unified",
             )
-
+            st.space("small")
+            st.markdown(f"##### {rolling_window}-observations Rolling Beta with 95% Confidence Intervals")
             st.plotly_chart(fig, width='stretch')
 
             # Rolling beta stats
-            st.markdown("")
+            st.space("small")
             with st.expander("Rolling Beta Stats"):
 
                 for ticker, df in rolling_df_data.items():
@@ -805,12 +807,12 @@ if 'portfoliobeta_results' in st.session_state:
                             mime="application/json"
                         )
 
-                st.markdown("")
+                st.space("xsmall")
 
     st.space('medium')
     
     # Reset button
-    if st.button("Reset Regression", width='stretch'):
+    if st.button("Reset Regression"):
         keys_to_clear = [
             "portfoliobeta_portdf", "portfoliobeta_assets", "portfoliobeta_frequency", "portfoliobeta_return_type", "portfoliobeta_period",
             "portfoliobeta_start_date", "portfoliobeta_end_date", "portfoliobeta_hac", "portfoliobeta_hac_lag", "portfoliobeta_results",'portfoliobeta_search_box','portfoliobeta_staged_ticker',

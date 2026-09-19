@@ -10,7 +10,7 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 st.set_page_config(
     page_title="Single Asset Beta",
     page_icon="📈",
-    layout="centered",
+    layout="wide",
 )
 
 
@@ -488,7 +488,7 @@ if 'beta_results' in st.session_state:
     st.space('medium')
 
     # Reset button
-    if st.button("Reset Regression", width='stretch'):
+    if st.button("Reset Regression"):
         keys_to_clear = [
             "beta_asset1", "beta_asset2", "beta_frequency", "beta_return_type", "beta_period",
             "beta_start_date", "beta_end_date", "beta_hac", "beta_hac_lag", "beta_results",

@@ -168,7 +168,10 @@ class PortfolioHedge:
         )
         # if plot = False, fig will be None
 
-        print(metrics_df)
+        #print(metrics_df)
+        
+        self.metrics_df = metrics_df.copy()
+        self.hedge_df = hedge_df.copy()
 
         return fig
     
@@ -1185,6 +1188,8 @@ class PortfolioHedge:
             )
         else:
             final_window = window
+        
+        self.static_lookback_window = final_window
 
         dt = datetime.strptime(self.backtest_start_date, "%Y-%m-%d").date()
 

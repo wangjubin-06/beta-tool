@@ -12,7 +12,7 @@ import json
 st.set_page_config(
     page_title="Factor Analysis",
     page_icon="🔥",
-    layout="centered",
+    layout="wide",
 )
 
 
@@ -344,7 +344,7 @@ if 'factors_results' in st.session_state:
     
     st.space('medium')
     # Reset button
-    if st.button("Reset Regression", width='stretch'):
+    if st.button("Reset Regression"):
         keys_to_clear = [
             "factors_factor_source", "factors_assets", "factors_frequency", "factors_return_type",
             "factors_start_date", "factors_end_date", "factors_hac", "factors_hac_lag", "factors_results",'factors_search_box',
