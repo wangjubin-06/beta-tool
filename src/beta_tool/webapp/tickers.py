@@ -11,6 +11,9 @@ def is_valid_tiingo_key(api_key: str) -> bool:
         "Authorization": f"Token {api_key}"
     }
     
+    if not api_key or not isinstance(api_key, str):
+        return False
+    
     try:
         response = requests.get(url, headers=headers, timeout=5)
         
