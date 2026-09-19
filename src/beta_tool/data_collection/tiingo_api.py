@@ -1,4 +1,8 @@
+import logging
 import os
+import threading
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import timedelta, date, datetime
 import pandas as pd
 import requests
@@ -6,6 +10,68 @@ from io import StringIO
 from pathlib import Path
 import io
 import zipfile
+
+logger = logging.getLogger(__name__)
+
+
+# ==============================================================
+# Cache location
+# ==============================================================
+
+def _cache_root() -> Path:
+    """
+    Directory holding the Tiingo Parquet cache.
+
+    Set the BETA_TOOL_DATA_DIR environment variable to relocate it;
+    the cache lives in a 'tiingo' subfolder of that directory.
+
+    Defaults to ./data relative to the current working directory
+    (the project root when launching with `uv run streamlit run ...`).
+
+    Resolved at call time (not import time) so tests can point it at a
+    temporary directory.
+    """
+
+    base = os.getenv("BETA_TOOL_DATA_DIR")
+    root = Path(base) if base else Path.cwd() / "data"
+
+    return root / "tiingo"
+
+
+# ==============================================================
+# Per-session API key override (for hosted apps)
+# ==============================================================
+
+_key_override: ContextVar[str | None] = ContextVar(
+    "tiingo_key_override",
+    default=None,
+)
+
+
+@contextmanager
+def tiingo_key_override(key):
+    """
+    Use `key` for every TiingoApi created inside this block.
+
+    The override is stored in a ContextVar, so it only applies to the
+    current thread / Streamlit session and never leaks to other visitors
+    (unlike setting os.environ, which is shared by the whole process).
+
+    While active, it takes precedence over any key passed to TiingoApi.
+    An empty / None key means "no override".
+
+    Example (in a Streamlit page):
+
+        with tiingo_key_override(user_key):
+            result = Beta(...)
+    """
+
+    token = _key_override.set(key or None)
+
+    try:
+        yield
+    finally:
+        _key_override.reset(token)
 
 
 class TiingoApi:
@@ -21,7 +87,8 @@ class TiingoApi:
     Parameters
     ----------
     api_key : str
-        Tiingo API key.
+        Tiingo API key. Ignored if a tiingo_key_override(...) block is
+        active, in which case the override key is used instead.
 
     frequency : str
         One of:
@@ -82,6 +149,10 @@ class TiingoApi:
                 "daily, weekly, monthly, annually"
             )
 
+        # A per-session override (see tiingo_key_override) wins over
+        # whatever key the caller passed in.
+        api_key = _key_override.get() or api_key
+
         if not api_key:
             raise ValueError(
                 "Tiingo API key is missing. "
@@ -111,6 +182,10 @@ class TiingoApi:
         This explicit design is chosen to balance
         between conserving API call limits and having enough data points
         for regression.
+
+        Writing the cache is best-effort: if the cache folder is missing,
+        read-only or otherwise unwritable (e.g. on a hosted app), a warning
+        is logged and the freshly downloaded data is used directly.
         
         """
 
@@ -147,16 +222,22 @@ class TiingoApi:
             if df.empty:
                 return self._empty_dataframe()
 
+            # Best-effort: a failed write must not fail the request.
             self._save_cache(df, cache_file)
+
+            # Use the frame we just downloaded instead of re-reading
+            # it from disk.
+            data = df
 
         # ------------------------------------------------------
         # Cache is fresh -> use local data
         # ------------------------------------------------------
 
-        cached = self._load_cache(cache_file)
+        else:
+            data = self._load_cache(cache_file)
         
         return self._filter_date_range(
-            cached,
+            data,
             requested_start,
             requested_end,
         )
@@ -387,13 +468,26 @@ class TiingoApi:
     def _get_cache_file(self, ticker):
         """
         Return the cache path for a ticker.
+
+        The cache folder is created if possible. If it cannot be created
+        (read-only filesystem etc.) a warning is logged and the path is
+        still returned: the cache then simply never exists, so data is
+        downloaded each time instead of the request failing.
         """
 
-        cache_dir = Path("../../data/tiingo")
-        cache_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+        cache_dir = _cache_root()
+
+        try:
+            cache_dir.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+        except OSError as exc:
+            logger.warning(
+                "Could not create Tiingo cache folder %s: %s",
+                cache_dir,
+                exc,
+            )
 
         label = (
             "simple" if self.simplified else "detailed"
@@ -447,6 +541,14 @@ class TiingoApi:
     def _save_cache(self, df, cache_file):
         """
         Save DataFrame to Parquet cache.
+
+        The write is atomic: data goes to a uniquely named temporary file
+        in the same folder and is then moved into place with os.replace,
+        so a concurrent reader never sees a half-written Parquet file.
+
+        The write is also best-effort: any failure is logged as a warning
+        and swallowed, because the cache is an optimisation, not a
+        requirement for producing a result.
         """
 
         if df.empty:
@@ -460,11 +562,30 @@ class TiingoApi:
             .reset_index(drop=True)
         )
 
-        df.to_parquet(
-            cache_file,
-            engine="pyarrow",
-            index=False,
+        tmp_file = cache_file.with_name(
+            f"{cache_file.name}.{os.getpid()}.{threading.get_ident()}.tmp"
         )
+
+        try:
+            df.to_parquet(
+                tmp_file,
+                engine="pyarrow",
+                index=False,
+            )
+
+            os.replace(tmp_file, cache_file)
+
+        except Exception as exc:
+            logger.warning(
+                "Could not write Tiingo cache %s: %s",
+                cache_file,
+                exc,
+            )
+
+            try:
+                tmp_file.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     # ==========================================================
     # Utility
@@ -555,18 +676,17 @@ if __name__ == "__main__":
     print("End:", data["date"].max())
 
 
-def get_tickers():
-    url = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
-    response = requests.get(url)
-    response.raise_for_status()
+# def get_tickers():
+#     url = "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
+#     response = requests.get(url)
+#     response.raise_for_status()
 
-    # Extract the CSV file from the ZIP archive
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-        # Find the CSV file inside the zip
-        csv_filename = [f for f in z.namelist() if f.endswith(".csv")][0]
+#     # Extract the CSV file from the ZIP archive
+#     with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+#         # Find the CSV file inside the zip
+#         csv_filename = [f for f in z.namelist() if f.endswith(".csv")][0]
 
-        with z.open(csv_filename) as f:
-            df = pd.read_csv(f)
+#         with z.open(csv_filename) as f:
+#             df = pd.read_csv(f)
 
-    return df
-
+#     return df

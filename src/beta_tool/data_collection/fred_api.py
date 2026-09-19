@@ -1,9 +1,34 @@
+import logging
+import os
+import threading
 import requests
 import pandas as pd
-import os
 from pathlib import Path
 from datetime import datetime, timedelta, date
 
+logger = logging.getLogger(__name__)
+
+
+# ==============================================================
+# Cache location
+# ==============================================================
+
+def _cache_root() -> Path:
+    """
+    Directory holding the FRED Parquet cache.
+
+    Uses the same BETA_TOOL_DATA_DIR environment variable as the other
+    data modules, with a 'fred' subfolder. Defaults to ./data relative to
+    the current working directory (the project root when launching with
+    `uv run streamlit run ...`).
+
+    Resolved at call time so tests can point it at a temporary directory.
+    """
+
+    base = os.getenv("BETA_TOOL_DATA_DIR")
+    root = Path(base) if base else Path.cwd() / "data"
+
+    return root / "fred"
 
 
 class FredApi:
@@ -32,6 +57,12 @@ class FredApi:
         }
         if not frequency in allowed_freq:
             raise ValueError("input valid data frequencies: d, w, bw, m, q, sa, a")
+
+        if not api_key:
+            raise ValueError(
+                "FRED API key is missing. "
+                "Set the FRED_API_KEY environment variable."
+            )
         
         self.api_key = api_key
 
@@ -45,6 +76,24 @@ class FredApi:
         # q = Quarterly
         # sa = Semiannual
         # a = Annual
+
+    def _redact(self, text):
+        """
+        Remove the API key from a piece of text.
+
+        FRED takes the key as a URL query parameter, so it appears in
+        request URLs and inside the messages of exceptions raised by
+        requests. Anything that ends up in an error message (which a
+        hosted app may show to visitors or write to logs) goes through
+        here first.
+        """
+
+        text = str(text)
+
+        if not self.api_key:
+            return text
+
+        return text.replace(str(self.api_key), "***")
 
     def _get_full_history(self, ticker):
         """
@@ -83,20 +132,30 @@ class FredApi:
 
         if end_date is not None:
             params["observation_end"] = pd.Timestamp(end_date).strftime("%Y-%m-%d")
-            
-        response = requests.get(url, params=params)
+
+        # `from None` below is deliberate: the original requests exception
+        # contains the full URL, including the API key, and must not be
+        # chained into the traceback.
+        try:
+            response = requests.get(url, params=params, timeout=30)
+
+        except requests.RequestException as exc:
+
+            raise RuntimeError(
+                f"Fred request failed for {ticker}: {self._redact(exc)}"
+            ) from None
 
         try:
             response.raise_for_status()
 
-        except requests.HTTPError as exc:
+        except requests.HTTPError:
 
             raise RuntimeError(
                 f"Fred HTTP error for {ticker}.\n"
                 f"Status: {response.status_code}\n"
-                f"URL: {response.url}\n"
-                f"Response: {response.text[:500]}"
-            ) from exc
+                f"URL: {self._redact(response.url)}\n"
+                f"Response: {self._redact(response.text[:500])}"
+            ) from None
 
 
 
@@ -106,7 +165,7 @@ class FredApi:
         
         if "observations" not in data:
             raise RuntimeError(
-                f"Unexpected FRED response:\n{data}"
+                f"Unexpected FRED response:\n{self._redact(data)}"
             )
 
         observations = data["observations"]
@@ -149,6 +208,10 @@ class FredApi:
 
         If the requested range extends beyond the cached range,
         only the missing portion is downloaded.
+
+        Writing the cache is best-effort: if the cache folder is missing,
+        read-only or otherwise unwritable (e.g. on a hosted app), a warning
+        is logged and the downloaded data is used directly.
 
         Args:
             ticker (str): ticker of series data
@@ -303,14 +366,27 @@ class FredApi:
     def _get_cache_file(self, ticker):
         """ Return the cache path for a ticker
 
+        The cache folder is created if possible. If it cannot be created
+        (read-only filesystem etc.) a warning is logged and the path is
+        still returned: the cache then simply never exists, so data is
+        downloaded each time instead of the request failing.
+
         Args:
             ticker (str)
         """
-        cache_dir = Path("../../data/fred")
-        cache_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+        cache_dir = _cache_root()
+
+        try:
+            cache_dir.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+        except OSError as exc:
+            logger.warning(
+                "Could not create FRED cache folder %s: %s",
+                cache_dir,
+                exc,
+            )
 
         return cache_dir / (
             f"{ticker}_{self.freq}.parquet"
@@ -360,6 +436,14 @@ class FredApi:
     def _save_cache(self, df, cache_file):
         """
         Save DataFrame to Parquet cache.
+
+        The write is atomic: data goes to a uniquely named temporary file
+        in the same folder and is then moved into place with os.replace,
+        so a concurrent reader never sees a half-written Parquet file.
+
+        The write is also best-effort: any failure is logged as a warning
+        and swallowed, because the cache is an optimisation, not a
+        requirement for producing a result.
         """
 
         if df.empty:
@@ -373,11 +457,30 @@ class FredApi:
             .reset_index(drop=True)
         )
 
-        df.to_parquet(
-            cache_file,
-            engine="pyarrow",
-            index=False,
+        tmp_file = cache_file.with_name(
+            f"{cache_file.name}.{os.getpid()}.{threading.get_ident()}.tmp"
         )
+
+        try:
+            df.to_parquet(
+                tmp_file,
+                engine="pyarrow",
+                index=False,
+            )
+
+            os.replace(tmp_file, cache_file)
+
+        except Exception as exc:
+            logger.warning(
+                "Could not write FRED cache %s: %s",
+                cache_file,
+                exc,
+            )
+
+            try:
+                tmp_file.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 

@@ -1,10 +1,39 @@
+import logging
+import os
+import threading
 import requests
 import pandas as pd
-import os
 from pathlib import Path
 import io
 import zipfile
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
+
+# Seconds to wait for the Ken French download before giving up.
+REQUEST_TIMEOUT = 60
+
+
+# ==============================================================
+# Cache location
+# ==============================================================
+
+def _cache_root() -> Path:
+    """
+    Directory holding the French factor Parquet cache.
+
+    Uses the same BETA_TOOL_DATA_DIR environment variable as the other
+    data modules, with a 'french' subfolder. Defaults to ./data relative
+    to the current working directory (the project root when launching with
+    `uv run streamlit run ...`).
+
+    Resolved at call time so tests can point it at a temporary directory.
+    """
+
+    base = os.getenv("BETA_TOOL_DATA_DIR")
+    root = Path(base) if base else Path.cwd() / "data"
+
+    return root / "french"
 
 
 class FrenchApi:
@@ -25,7 +54,7 @@ class FrenchApi:
     #----------------------------------------------------------
 
     
-    # How often we are willing to check Tiingo for new data
+    # How often we are willing to check the French data library for new data
     REFRESH_INTERVALS = {
         "daily": timedelta(days=15),
         "monthly": timedelta(days=15),
@@ -102,7 +131,7 @@ class FrenchApi:
         """
 
         if self.freq == 'daily':
-            response = requests.get(self.link)
+            response = requests.get(self.link, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
 
             with zipfile.ZipFile(io.BytesIO(response.content)) as z:
@@ -135,7 +164,7 @@ class FrenchApi:
             return df
 
         elif self.freq == 'monthly':
-            response = requests.get(self.link)
+            response = requests.get(self.link, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
 
             with zipfile.ZipFile(io.BytesIO(response.content)) as z:
@@ -171,7 +200,7 @@ class FrenchApi:
             return df
     
         elif self.freq == 'annually':
-            response = requests.get(self.link)
+            response = requests.get(self.link, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
         
             with zipfile.ZipFile(io.BytesIO(response.content)) as z:
@@ -220,6 +249,10 @@ class FrenchApi:
         This explicit design is chosen to balance
         between conserving API call and having enough data points
         for regression.
+
+        Writing the cache is best-effort: if the cache folder is missing,
+        read-only or otherwise unwritable (e.g. on a hosted app), a warning
+        is logged and the freshly downloaded data is used directly.
         
         """
 
@@ -255,9 +288,19 @@ class FrenchApi:
             if df.empty:
                 return self._empty_dataframe()
 
+            # Best-effort: a failed write must not fail the request.
             self._save_cache(df, cache_file)
 
-        cached = self._load_cache(cache_file)
+            # Use the frame we just downloaded instead of re-reading
+            # it from disk (same clean-up as _load_cache applies).
+            cached = self._normalise(df)
+
+        # ------------------------------------------------------
+        # Cache is fresh -> use local data
+        # ------------------------------------------------------
+
+        else:
+            cached = self._load_cache(cache_file)
 
         return self._filter_date_range(
             cached,
@@ -271,7 +314,7 @@ class FrenchApi:
         Return an empty DataFrame with the correct schema.
         """
 
-        columns = ['date',self.FACTOR_COLS]
+        columns = ['date', *self.FACTOR_COLS]
 
         return pd.DataFrame(columns=columns)
 
@@ -309,6 +352,27 @@ class FrenchApi:
             .reset_index(drop=True)
         )
 
+    @staticmethod
+    def _normalise(df):
+        """
+        Standard clean-up applied to factor data: normalised dates,
+        no duplicate dates, sorted by date.
+        """
+
+        df = df.copy()
+
+        df["date"] = (
+            pd.to_datetime(df["date"])
+            .dt.normalize()
+        )
+
+        return (
+            df
+            .drop_duplicates(subset=["date"])
+            .sort_values("date")
+            .reset_index(drop=True)
+        )
+
     
     # ==========================================================
     # Cache
@@ -316,14 +380,27 @@ class FrenchApi:
 
     def _get_cache_file(self):
         """
-        Return the cache path for a ticker.
+        Return the cache path for this region / frequency.
+
+        The cache folder is created if possible. If it cannot be created
+        (read-only filesystem etc.) a warning is logged and the path is
+        still returned: the cache then simply never exists, so data is
+        downloaded each time instead of the request failing.
         """
 
-        cache_dir = Path("../../data/french")
-        cache_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+        cache_dir = _cache_root()
+
+        try:
+            cache_dir.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+        except OSError as exc:
+            logger.warning(
+                "Could not create French factor cache folder %s: %s",
+                cache_dir,
+                exc,
+            )
 
         return cache_dir / (
             f"{self.region}_{self.freq}_.parquet"
@@ -358,21 +435,19 @@ class FrenchApi:
                 f"{cache_file}"
             )
 
-        cached["date"] = (
-            pd.to_datetime(cached["date"])
-            .dt.normalize()
-        )
-
-        return (
-            cached
-            .drop_duplicates(subset=["date"])
-            .sort_values("date")
-            .reset_index(drop=True)
-        )
+        return self._normalise(cached)
 
     def _save_cache(self, df, cache_file):
         """
         Save DataFrame to Parquet cache.
+
+        The write is atomic: data goes to a uniquely named temporary file
+        in the same folder and is then moved into place with os.replace,
+        so a concurrent reader never sees a half-written Parquet file.
+
+        The write is also best-effort: any failure is logged as a warning
+        and swallowed, because the cache is an optimisation, not a
+        requirement for producing a result.
         """
 
         if df.empty:
@@ -386,9 +461,27 @@ class FrenchApi:
             .reset_index(drop=True)
         )
 
-        df.to_parquet(
-            cache_file,
-            engine="pyarrow",
-            index=False,
+        tmp_file = cache_file.with_name(
+            f"{cache_file.name}.{os.getpid()}.{threading.get_ident()}.tmp"
         )
-    
+
+        try:
+            df.to_parquet(
+                tmp_file,
+                engine="pyarrow",
+                index=False,
+            )
+
+            os.replace(tmp_file, cache_file)
+
+        except Exception as exc:
+            logger.warning(
+                "Could not write French factor cache %s: %s",
+                cache_file,
+                exc,
+            )
+
+            try:
+                tmp_file.unlink(missing_ok=True)
+            except OSError:
+                pass
