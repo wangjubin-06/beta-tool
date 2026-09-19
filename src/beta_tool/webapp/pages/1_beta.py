@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from beta_tool.webapp.tickers import get_tickers, find_tickers
 from beta_tool.data_collection.tiingo_api import tiingo_key_override
+import time
 
 # with tiingo_key_override(st.session_state.get("tiingo_key")):
 #     result = Beta(...)
@@ -238,7 +239,7 @@ if submitted:
         try:
             with st.spinner("Fetching data and running regression..."):
 
-                with tiingo_key_override()
+                
                 beta_obj = Beta(
                     asset1=asset1,
                     asset2=asset2,

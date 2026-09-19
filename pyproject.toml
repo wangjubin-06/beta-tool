@@ -11,6 +11,8 @@ dependencies = [
     "statsmodels>=0.15.0",
     "typer>=0.27.2",
     "yfinance>=1.7.0",
+    "plotly>=7.0.0",
+    "streamlit>=1.63.0",
 ]
 
 [project.optional-dependencies]
