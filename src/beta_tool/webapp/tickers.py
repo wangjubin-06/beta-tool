@@ -5,29 +5,22 @@ import bisect
 import pandas as pd
 
 def is_valid_tiingo_key(api_key: str) -> bool:
-    url = "https://api.tiingo.com/api/test/"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Token {api_key}"
-    }
     
-    if not api_key or not isinstance(api_key, str):
-        return False
+    headers = {
+        'Content-Type': 'application/json'
+        }
+    msg = {'message': 'You successfully sent a request'}
     
     try:
-        response = requests.get(url, headers=headers, timeout=5)
+        requestResponse = requests.get(f"https://api.tiingo.com/api/test?token={api_key}", headers=headers)
         
-        # Valid keys return a 200 status code
-        if response.status_code == 200:
-            # Expected payload: {'message': 'You successfully sent a request'}
-            return True
-            
-        # Invalid keys usually return 401 Unauthorized
-        return False
-        
+        return requestResponse.json() == msg
+    
     except requests.RequestException:
         # Handle network or connection errors safely
         return False
+    
+    
 
 
 def get_tickers():
