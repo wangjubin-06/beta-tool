@@ -27,7 +27,7 @@ st.markdown(
     
     This does regression with $$y = \\beta_1x_1 + \\beta_2x_2 + ... + \\beta_nx_n +  \\alpha + \\epsilon $$ 
     
-    You can also choose the return frequency, return methodology, observation period, and HAC-aware standard errors.
+    You can also choose the return frequency and backtest observation period.
     """
 )
 
