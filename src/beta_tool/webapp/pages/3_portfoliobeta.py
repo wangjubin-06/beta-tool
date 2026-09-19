@@ -377,9 +377,11 @@ if submitted:
 
         except Exception as e:
             st.error(f"Regression failed: {e}")
-            st.session_state.pop("results", None)
-            time.sleep(5)
-            st.rerun()
+            st.session_state.pop("portfoliobeta_results", None)
+            # time.sleep(5)
+            # st.rerun()
+            if st.button("try again", icon="😭"):
+                st.rerun()
 
 
 if 'portfoliobeta_results' in st.session_state:

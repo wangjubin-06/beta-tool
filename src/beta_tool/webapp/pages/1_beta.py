@@ -7,10 +7,6 @@ from beta_tool.webapp.tickers import get_tickers, find_tickers
 from beta_tool.data_collection.tiingo_api import tiingo_key_override
 import time
 
-# with tiingo_key_override(st.session_state.get("tiingo_key")):
-#     result = Beta(...)
-
-
 
 st.set_page_config(
     page_title="Single Asset Beta",
@@ -239,18 +235,18 @@ if submitted:
         try:
             with st.spinner("Fetching data and running regression..."):
 
-                
-                beta_obj = Beta(
-                    asset1=asset1,
-                    asset2=asset2,
-                    period=period,
-                    frequency=frequency,
-                    start_date=start_date_str,
-                    end_date=end_date_str,
-                    return_type=return_type,
-                    hac=hac,
-                    hac_lag=selected_hac_lag,
-                )
+                with tiingo_key_override(st.session_state.get("tiingo_key")):
+                    beta_obj = Beta(
+                        asset1=asset1,
+                        asset2=asset2,
+                        period=period,
+                        frequency=frequency,
+                        start_date=start_date_str,
+                        end_date=end_date_str,
+                        return_type=return_type,
+                        hac=hac,
+                        hac_lag=selected_hac_lag,
+                    )
 
                 # Results dataframe
                 df = beta_obj.ols_df.copy()
@@ -288,10 +284,12 @@ if submitted:
 
         except Exception as e:
             st.error(f"Regression failed: {e}")
-            st.session_state.pop("results", None)
+            st.session_state.pop("beta_results", None)
             #st.stop()
-            time.sleep(5)
-            st.rerun()
+            # time.sleep(5)
+            # st.rerun()
+            if st.button("try again", icon="😭"):
+                st.rerun()
 
 
 if 'beta_results' in st.session_state:

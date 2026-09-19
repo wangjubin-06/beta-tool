@@ -225,7 +225,7 @@ if submitted:
 
         except Exception as e:
             st.error(f"Regression failed: {e}")
-            st.session_state.pop("results", None)
+            st.session_state.pop("factors_results", None)
             #st.stop()
             #time.sleep(5)
             if st.button("try again", icon="😭"):

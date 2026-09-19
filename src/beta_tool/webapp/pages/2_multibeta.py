@@ -279,10 +279,12 @@ if submitted:
 
         except Exception as e:
             st.error(f"Regression failed: {e}")
-            st.session_state.pop("results", None)
+            st.session_state.pop("multibeta_results", None)
             #st.stop()
-            time.sleep(5)
-            st.rerun()
+            # time.sleep(5)
+            # st.rerun()
+            if st.button("try again", icon="😭"):
+                st.rerun()
 
 
 
