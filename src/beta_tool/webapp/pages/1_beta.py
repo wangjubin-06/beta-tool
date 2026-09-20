@@ -191,10 +191,10 @@ with st.container(border=True):
 if submitted:
 
     # Basic validation
-    if not asset1.strip() or not asset2.strip():
+    if not asset1 or not asset2:
         st.error("Please enter both asset tickers.")
 
-    elif asset1.strip().upper() == asset2.strip().upper():
+    elif asset1 == asset2:
         st.error("The dependent and independent assets must be different.")
 
     elif (
@@ -205,10 +205,6 @@ if submitted:
         st.error("Start date must be earlier than end date.")
 
     else:
-
-        # # Convert tickers to lowercase
-        # asset1 = asset1.strip().lower()
-        # asset2 = asset2.strip().lower()
 
         # Convert dates
         start_date_str = (

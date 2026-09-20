@@ -509,7 +509,7 @@ class PortfolioBeta:
             
             
 
-            #self.independent_returns_data = independent_returns_df
+            self.independent_returns_data = independent_returns_df
             
             return merged_df, independent_returns_df
             
@@ -538,7 +538,7 @@ class PortfolioBeta:
                 
                 independent_returns_dic[asset] = independent_returns_df
                 
-            #self.independent_returns_dic = independent_returns_dic
+            self.independent_returns_dic = independent_returns_dic
                 
             return merged_df, independent_returns_dic
         

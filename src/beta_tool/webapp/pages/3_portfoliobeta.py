@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import time
 from beta_tool.regression_beta.portfoliobeta import PortfolioBeta
 from beta_tool.webapp.tickers import find_tickers
+from beta_tool.data_collection.tiingo_api import tiingo_key_override
 
 
 st.set_page_config(
@@ -310,17 +311,19 @@ if submitted:
         try:
         
             with st.spinner("Fetching data and running regression..."):
-                beta_obj = PortfolioBeta(
-                    portfolio_dic=port_dict,
-                    asset_to_be_regressed=assets,
-                    period=period,
-                    frequency=frequency,
-                    start_date=start_date_str,
-                    end_date=end_date_str,
-                    return_type=return_type,
-                    hac=hac,
-                    hac_lag=selected_hac_lag,
-                )
+                
+                with tiingo_key_override(st.session_state.get("tiingo_key")):
+                    beta_obj = PortfolioBeta(
+                        portfolio_dic=port_dict,
+                        asset_to_be_regressed=assets,
+                        period=period,
+                        frequency=frequency,
+                        start_date=start_date_str,
+                        end_date=end_date_str,
+                        return_type=return_type,
+                        hac=hac,
+                        hac_lag=selected_hac_lag,
+                    )
 
                 # Results dict
                 results_dic = beta_obj.get_static_results()

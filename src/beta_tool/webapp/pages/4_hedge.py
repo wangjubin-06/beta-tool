@@ -4,6 +4,7 @@ import time
 import plotly.graph_objects as go
 from beta_tool.portfolio_hedge.portfolio_hedger import PortfolioHedge
 from beta_tool.webapp.tickers import find_tickers
+from beta_tool.data_collection.tiingo_api import tiingo_key_override
 
 WINDOW_DEFAULTS = {'daily': 126, 'weekly': 52, 'monthly': 24}
 WINDOW_FLOORS   = {'daily': 30,  'weekly': 20, 'monthly': 12}
@@ -290,14 +291,14 @@ if submitted:
             if isinstance(rolling_window, int):
                 if rolling_window < WINDOW_FLOORS[frequency]:
                     rolling_window = WINDOW_DEFAULTS[frequency]
-                    st.toast(f"Chosen lookback window for rolling hedge is too low which will reduce hedge effectiveness. Reverted to default {WINDOW_DEFAULTS[period]}.")
+                    st.toast(f"Chosen lookback window for rolling hedge is too low which will reduce hedge effectiveness. Reverted to default {WINDOW_DEFAULTS[frequency]}.")
             elif rolling_window is None:
                 rolling_window = WINDOW_DEFAULTS[frequency]
         elif hedge_type == 'static':
             if isinstance(static_window, int):
                 if static_window < WINDOW_FLOORS[frequency]:
                     static_window = WINDOW_DEFAULTS[frequency]
-                    st.toast(f"Chosen lookback window for rolling hedge is too low which will reduce hedge effectiveness. Reverted to default {WINDOW_DEFAULTS[period]}.")
+                    st.toast(f"Chosen lookback window for static hedge is too low which will reduce hedge effectiveness. Reverted to default {WINDOW_DEFAULTS[frequency]}.")
             elif static_window is None:
                 static_window = WINDOW_DEFAULTS[frequency]
     
@@ -311,30 +312,32 @@ if submitted:
                 
                 if hedge_type == 'static':
                     
-                    beta_obj = PortfolioHedge(
-                        target=port_dict,
-                        hedge_instruments=assets,
-                        backtest_period=period,
-                        frequency=frequency,
-                        backtest_start_date=start_date_str,
-                        backtest_end_date=end_date_str,
-                        hedge_type="static",
-                        static_lookback_window=static_window,
-                    )
+                    with tiingo_key_override(st.session_state.get("tiingo_key")):
+                        beta_obj = PortfolioHedge(
+                            target=port_dict,
+                            hedge_instruments=assets,
+                            backtest_period=period,
+                            frequency=frequency,
+                            backtest_start_date=start_date_str,
+                            backtest_end_date=end_date_str,
+                            hedge_type="static",
+                            static_lookback_window=static_window,
+                        )
                     
                 elif hedge_type == 'rolling':
                     
-                    beta_obj = PortfolioHedge(
-                        target=port_dict,
-                        hedge_instruments=assets,
-                        backtest_period=period,
-                        frequency=frequency,
-                        backtest_start_date=start_date_str,
-                        backtest_end_date=end_date_str,
-                        hedge_type="rolling",
-                        window=rolling_window,
-                        rebalance_freq=rebalance_freq
-                    )
+                    with tiingo_key_override(st.session_state.get("tiingo_key")):
+                        beta_obj = PortfolioHedge(
+                            target=port_dict,
+                            hedge_instruments=assets,
+                            backtest_period=period,
+                            frequency=frequency,
+                            backtest_start_date=start_date_str,
+                            backtest_end_date=end_date_str,
+                            hedge_type="rolling",
+                            window=rolling_window,
+                            rebalance_freq=rebalance_freq
+                        )
                 
                 beta_obj.backtest(plot=False)
                 

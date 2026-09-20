@@ -66,7 +66,7 @@ class Beta:
         if hac is True:
             self.hac = True
             if hac_lag is not None:
-                if type(hac_lag) == int:
+                if isinstance(hac_lag, int):
                     self.hac_lags = self._resolve_hac_lags(hac_lag)
                 else:
                     raise ValueError('hac_lag has to be integer!')
@@ -285,7 +285,7 @@ class Beta:
         print('\n\n\n')
 
 
-    def _resolve_hac_lags(self, hac="auto"):
+    def _resolve_hac_lags(self, hac:int | str ="auto"):
         if hac is None:
             return None
 

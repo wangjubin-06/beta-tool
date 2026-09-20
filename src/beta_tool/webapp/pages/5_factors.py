@@ -7,6 +7,7 @@ from beta_tool.factor_research.factorsregression import EquityFactorsRegression
 from beta_tool.webapp.tickers import get_tickers, find_tickers
 import time
 import json
+from beta_tool.data_collection.tiingo_api import tiingo_key_override
 
 
 st.set_page_config(
@@ -181,27 +182,29 @@ if submitted:
             with st.spinner("Fetching data and running regression..."):
                 
                 if not hac:
-                    beta_obj = EquityFactorsRegression(
-                        factor_source=factor_source,
-                        frequency=frequency,
-                        start_date=start_date_str,
-                        end_date=end_date_str,
-                        return_type=return_type,
-                    )
+                    with tiingo_key_override(st.session_state.get("tiingo_key")):
+                        beta_obj = EquityFactorsRegression(
+                            factor_source=factor_source,
+                            frequency=frequency,
+                            start_date=start_date_str,
+                            end_date=end_date_str,
+                            return_type=return_type,
+                        )
                 elif hac:
                     if hac_lag is None:
                         hac_input = 'auto'
                     elif isinstance(hac_lag, int) and hac_lag > 0:
                         hac_input = hac_lag
                 
-                    beta_obj = EquityFactorsRegression(
-                        factor_source=factor_source,
-                        frequency=frequency,
-                        start_date=start_date_str,
-                        end_date=end_date_str,
-                        return_type=return_type,
-                        hac=hac_input
-                    )
+                    with tiingo_key_override(st.session_state.get("tiingo_key")):
+                        beta_obj = EquityFactorsRegression(
+                            factor_source=factor_source,
+                            frequency=frequency,
+                            start_date=start_date_str,
+                            end_date=end_date_str,
+                            return_type=return_type,
+                            hac=hac_input
+                        )
 
                 beta_obj.asset_list(*assets)
 

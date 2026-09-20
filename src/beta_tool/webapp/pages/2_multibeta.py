@@ -6,6 +6,7 @@ from beta_tool.regression_beta.multibeta import MultiBeta
 import plotly.express as px
 import plotly.graph_objects as go
 from beta_tool.webapp.tickers import get_tickers, find_tickers
+from beta_tool.data_collection.tiingo_api import tiingo_key_override
 
 
 
@@ -223,17 +224,18 @@ if submitted:
             with st.spinner("Fetching data and running regression..."):
 
             
-                beta_obj = MultiBeta(
-                    asset1=asset1,
-                    assets=assets,
-                    period=period,
-                    frequency=frequency,
-                    start_date=start_date_str,
-                    end_date=end_date_str,
-                    return_type=return_type,
-                    hac=hac,
-                    hac_lag=selected_hac_lag,
-                )
+                with tiingo_key_override(st.session_state.get("tiingo_key")):
+                    beta_obj = MultiBeta(
+                        asset1=asset1,
+                        assets=assets,
+                        period=period,
+                        frequency=frequency,
+                        start_date=start_date_str,
+                        end_date=end_date_str,
+                        return_type=return_type,
+                        hac=hac,
+                        hac_lag=selected_hac_lag,
+                    )
 
                 # Results dict
                 results_dic = beta_obj.get_static_results()
