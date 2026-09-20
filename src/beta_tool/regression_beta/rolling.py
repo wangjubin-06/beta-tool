@@ -132,7 +132,7 @@ class MultiFactorRollingOLS:
             rolling_df["beta_ci_lower"] = (ci[(ticker, "lower")].to_numpy())
             rolling_df["beta_ci_upper"] = (ci[(ticker, "upper")].to_numpy())
 
-            rolling_df["alpha_ci_lower"] = (ci[("const", "upper")].to_numpy())
+            rolling_df["alpha_ci_lower"] = (ci[("const", "lower")].to_numpy())
             rolling_df["alpha_ci_upper"] = (ci[("const", "upper")].to_numpy())
 
             # Annualized alpha

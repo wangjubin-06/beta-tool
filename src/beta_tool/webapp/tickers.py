@@ -7,12 +7,13 @@ import pandas as pd
 def is_valid_tiingo_key(api_key: str) -> bool:
     
     headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        "Authorization": f"Token {api_key}"
         }
     msg = {'message': 'You successfully sent a request'}
     
     try:
-        requestResponse = requests.get(f"https://api.tiingo.com/api/test?token={api_key}", headers=headers)
+        requestResponse = requests.get(f"https://api.tiingo.com/api/test/", headers=headers, timeout=30)
         
         return requestResponse.json() == msg
     

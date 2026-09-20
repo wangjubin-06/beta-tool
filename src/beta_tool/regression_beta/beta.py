@@ -35,8 +35,8 @@ class Beta:
         ):
         """
         Parameters:
-            asset1: ticker of independent variable asset (string)
-            asset2: ticker of dependent variable asset (string)
+            asset1: ticker of dependent variable asset (string)
+            asset2: ticker of independent variable asset (string)
             period: optional - the data lookback period (string)
             interval: frequency of returns data (string)
             start_date: optional - start date of data (string in YYYY-MM-DD)
@@ -269,8 +269,8 @@ class Beta:
         self.ols_df = ols_df
 
 
-    def __str__(self):
-        self.summary()
+    # def __str__(self):
+    #     self.summary()
 
     def _diagnostics(self):
         """This prints the results of analysis on the regression results.

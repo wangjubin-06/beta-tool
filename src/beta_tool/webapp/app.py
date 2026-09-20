@@ -25,8 +25,9 @@ try:
     if 'ticker_list' not in st.session_state:
         st.session_state.ticker_list = ticker_list
 
-except ConnectionError:
+except:
     st.markdown("Error: device is not connected to internet! Please try again with an internet connection")
+    st.stop()
 
 
 

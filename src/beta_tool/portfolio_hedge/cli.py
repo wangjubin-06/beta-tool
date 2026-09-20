@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 
 
 def hedge(
-    holding: list[str] = typer.Option(..., "--holding", help="Ticker: percentage pair, e.g. --holding AAPL:40"),
+    holding: list[str] = typer.Option(None, "--holding", help="Ticker: percentage pair, e.g. --holding AAPL:40"),
     holdings_file: Path = typer.Option(None, "--holdings-file", help="Path to TOML file mapping ticker to percentage"),
     x_tickers: list[str] = typer.Option(..., "--x-ticker", "-x", help="Independent asset ticker (repeatable)"),
-    period:str = typer.Option("1y", "--period", "-p", help="Period of backtest window"),
+    period:str = typer.Option(None, "--period", "-p", help="Period of backtest window"),
     frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Available in 'daily', 'weekly', 'monthly' (optional, defaults to 'daily')"),
     start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose when to start backtest (optional)"),
     end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose when to end backtest (optional)"),
@@ -65,10 +65,10 @@ def hedge(
     if not x_tickers:
         raise typer.BadParameter("At least one x_ticker is required.")
     
-    if output_dir is None and not show:
-        raise typer.BadParameter(
-            "Specify --output_dir to save the plot, --show to display it, or both."
-        )
+    # if output_dir is None and not show:
+    #     raise typer.BadParameter(
+    #         "Specify --output_dir to save the plot, --show to display it, or both."
+    #     )
 
     if len(x_tickers) == 1:
         x_tickers = x_tickers[0].lower()
@@ -79,7 +79,7 @@ def hedge(
     if rolling:
         hedge_type = 'rolling'
     else:
-        hedge_type - 'static'
+        hedge_type = 'static'
         
     
     with console.status("[bold green]Fetching price data and running regression..."):

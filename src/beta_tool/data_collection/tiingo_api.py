@@ -3,6 +3,7 @@ import os
 import threading
 from contextlib import contextmanager
 from contextvars import ContextVar
+from .errors import *
 from datetime import timedelta, date, datetime
 import pandas as pd
 import requests
@@ -148,10 +149,12 @@ class TiingoApi:
                 "input valid data frequencies: "
                 "daily, weekly, monthly, annually"
             )
-
+            
         # A per-session override (see tiingo_key_override) wins over
         # whatever key the caller passed in.
         api_key = _key_override.get() or api_key
+        
+        api_key = require_api_key(api_key, "TIINGO_API_KEY", "Tiingo")
 
         if not api_key:
             raise ValueError(
@@ -329,45 +332,55 @@ class TiingoApi:
         # Make request
         # ------------------------------------------------------
 
-        response = requests.get(
-            url,
-            headers=headers,
-            params=params,
-            timeout=30,
-        )
-
-        # ------------------------------------------------------
-        # HTTP-level errors
-        # ------------------------------------------------------
-
         try:
-            response.raise_for_status()
-
-        except requests.HTTPError as exc:
-
-            raise RuntimeError(
-                f"Tiingo HTTP error for {ticker}.\n"
-                f"Status: {response.status_code}\n"
-                f"URL: {response.url}\n"
-                f"Response: {response.text[:500]}"
-            ) from exc
-
-        # ------------------------------------------------------
-        # Body-level errors
-        #
-        # Tiingo can return HTTP 200 while putting the error
-        # message in the response body.
-        # ------------------------------------------------------
-
+            response = requests.get(
+                url,
+                headers=headers,
+                params=params,
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            raise DataError(f"Could not reach Tiingo for {ticker}: {exc}") from None
+        
+        
+        check_response(response, provider="Tiingo", var="TIINGO_API_KEY", what=ticker)
+        check_body(response, provider="Tiingo", var="TIINGO_API_KEY", what=ticker)
+        
+        
         text = response.text.strip()
 
-        if text.lower().startswith("error:"):
+        # # ------------------------------------------------------
+        # # HTTP-level errors
+        # # ------------------------------------------------------
 
-            raise RuntimeError(
-                f"Tiingo API error for {ticker}.\n"
-                f"Date range: {start_date} -> {end_date}\n"
-                f"Response: {text}"
-            )
+        # try:
+        #     response.raise_for_status()
+
+        # except requests.HTTPError as exc:
+
+        #     raise RuntimeError(
+        #         f"Tiingo HTTP error for {ticker}.\n"
+        #         f"Status: {response.status_code}\n"
+        #         f"URL: {response.url}\n"
+        #         f"Response: {response.text[:500]}"
+        #     ) from exc
+
+        # # ------------------------------------------------------
+        # # Body-level errors
+        # #
+        # # Tiingo can return HTTP 200 while putting the error
+        # # message in the response body.
+        # # ------------------------------------------------------
+
+        # text = response.text.strip()
+
+        # if text.lower().startswith("error:"):
+
+        #     raise RuntimeError(
+        #         f"Tiingo API error for {ticker}.\n"
+        #         f"Date range: {start_date} -> {end_date}\n"
+        #         f"Response: {text}"
+        #     )
 
         # ------------------------------------------------------
         # Empty response
@@ -429,9 +442,9 @@ class TiingoApi:
                     "date",
                     "adjClose",
                 ]
-            ]
+            ].copy()
         else:
-            df = df[self.FULL_COLUMNS]
+            df = df[self.FULL_COLUMNS].copy()
 
         # ------------------------------------------------------
         # Clean data

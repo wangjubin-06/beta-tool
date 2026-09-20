@@ -86,7 +86,7 @@ class AssetData:
                 # Formats the datetime object into strictly 'yyyy-mm-dd'
                 end = parsed_date.date()
             except (ValueError, TypeError):
-                return None  # Handles invalid date strings gracefully
+                raise ValueError("invalid end date input")  # Handles invalid date strings gracefully
         else:
             end = date.today()
 
@@ -97,7 +97,7 @@ class AssetData:
                 # Formats the datetime object into strictly 'yyyy-mm-dd'
                 start = parsed_date.date()
             except (ValueError, TypeError):
-                return None  # Handles invalid date strings gracefully
+                raise ValueError("invalid start date input")  # Handles invalid date strings gracefully
             start = start - timedelta(days = 1)
         else:
             start = end - self.ALLOWED_PERIODS[period] - timedelta(days=1)

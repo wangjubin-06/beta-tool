@@ -30,8 +30,8 @@ class MultiBeta:
         ):
         """
         Parameters:
-            asset1: ticker of independent variable asset (string)
-            assets: list of tickers of dependent variable assets (list)
+            asset1: list of tickers of dependent variable assets (list)
+            assets: ticker of independent variable asset (string)
             period: optional - the data lookback period (string)
             frequency: frequency of returns data (string)
             start_date: optional - start date of data (string in YYYY-MM-DD)
@@ -225,8 +225,8 @@ class MultiBeta:
 
 
     # Private methods
-    def __str__(self):
-        self.summary()
+    # def __str__(self):
+    #     self.summary()
 
 
     def _diagnostics(self):

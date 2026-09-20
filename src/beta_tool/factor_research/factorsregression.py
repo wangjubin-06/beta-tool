@@ -139,7 +139,14 @@ class EquityFactorsRegression:
         # this is for the regression;
         #
         # users can override their hac lag number, but default will be automatic
+        
         self.hac_lags = self._resolve_hac_lags(hac)
+        
+        if self.hac_lags is None:
+            self.use_hac = False
+        else:
+            self.use_hac = True
+            
         self.hac_auto = True if hac == 'auto' else False
 
 
@@ -290,10 +297,16 @@ class EquityFactorsRegression:
                             interpretation = interpret_factor(factor_name = 'momentum', beta = dic['exposures']['momentum']['beta'], p_value = dic['exposures']['momentum']['p-value'])
                         ),
                     ],
-
-                    covariance_type="HAC",
-                    hac_lags=dic['inference']['hac_maxlags'],
+                    
                 )
+                
+                if self.use_hac:
+                    result.covariance_type = "HAC"
+                    result.hac_lags = dic['inference']['hac_maxlags']
+                elif not self.use_hac:
+                    result.covariance_type = "Classical"
+                    result.hac_lags = None
+                
                 
                 print_regression_summary(result)
 
@@ -372,9 +385,15 @@ class EquityFactorsRegression:
                         ),
                     ],
 
-                    covariance_type="HAC",
-                    hac_lags=dic['inference']['hac_maxlags'],
                 )
+                
+                if self.use_hac:
+                    result.covariance_type = "HAC"
+                    result.hac_lags = dic['inference']['hac_maxlags']
+                elif not self.use_hac:
+                    result.covariance_type = "Classical"
+                    result.hac_lags = None
+                    
                 
                 print_regression_summary(result)
 
@@ -596,11 +615,6 @@ class EquityFactorsRegression:
                     "independent_variables": ["SPY excess return", "ETF size proxy", "ETF value/growth proxy", "momentum ETF proxy","profitability ETF proxy"],
                     "intercept": True,
                 },
-                "inference": {
-                    "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
-                    "hac_maxlags": f'{self.hac_lags}',
-                    #"hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
-                },
                 "alpha":{
                     "amount": model.params['const'].item(),
                     "standard_error": model.bse['const'].item(),
@@ -652,6 +666,17 @@ class EquityFactorsRegression:
                     }
                 }
             }
+            
+            if self.use_hac:
+                grand_results[asset]["inference"] = {
+                    "covariance_type": f'{"HAC"}',
+                    "hac_maxlags": f'{self.hac_lags}',
+                    "hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
+                }
+            elif not self.use_hac:
+                grand_results[asset]["inference"] = {
+                    "covariance_type": "Classical"
+                }
 
 
         self._model_results_dic = model_results
@@ -942,11 +967,6 @@ class EquityFactorsRegression:
                     "independent_variables": ["Mkt-RF", "SMB", "HML", "RMW","CMA"],
                     "intercept": True,
                 },
-                "inference": {
-                    "covariance_type": f'{"HAC" if self.hac_lags > 0 else 'Standard'}',
-                    "hac_maxlags": f'{self.hac_lags}',
-                    #"hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
-                },
                 "alpha":{
                     "amount": model.params['const'].item(),
                     "standard_error": model.bse['const'].item(),
@@ -998,6 +1018,18 @@ class EquityFactorsRegression:
                     }
                 }
             }
+            
+            if self.use_hac:
+                grand_results[ticker]["inference"] = {
+                    "covariance_type": f'{"HAC"}',
+                    "hac_maxlags": f'{self.hac_lags}',
+                    "hac_selection": f'{'frequency_default' if self.hac_auto else 'user_defined'}'
+                }
+            elif not self.use_hac:
+                grand_results[ticker]["inference"] = {
+                    "covariance_type": "Classical"
+                }
+            
 
         self._model_results_dic = model_results
         self._grand_results = grand_results
@@ -1007,7 +1039,7 @@ class EquityFactorsRegression:
     def _ols_regression(self, y, X):
         X = sm.add_constant(X)
 
-        if self.hac_lags is None:
+        if not self.use_hac:
             model = sm.OLS(y, X, missing="drop").fit()
         else:
             model = sm.OLS(y, X, missing="drop").fit(
@@ -1460,9 +1492,9 @@ class EquityFactorsRegression:
         #
         # 
 
-    def _resolve_hac_lags(self, hac: None|int|str) -> int:
+    def _resolve_hac_lags(self, hac: None|int|str) -> int | None:
         if hac is None:
-            return 0
+            return None
 
         elif isinstance(hac, int):
             if hac > 0:
@@ -1481,7 +1513,7 @@ class EquityFactorsRegression:
 
             return defaults[self.freq]
         
-        return 0
+        return None
     
 
     def _merge(self, df1, df2):

@@ -70,7 +70,7 @@ with st.container(border=True):
         with col1:
             frequency = st.radio(
                 "Choose frequency of data",
-                options=["daily", "weekly","monthly"],
+                options=["daily", "monthly", "annually"],
                 key="factors_frequency",
                 index=0,
                 horizontal=True,

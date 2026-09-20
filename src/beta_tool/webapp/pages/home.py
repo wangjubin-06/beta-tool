@@ -1,8 +1,5 @@
 import streamlit as st
-import time
 from beta_tool.webapp.tickers import is_valid_tiingo_key
-
-
 
 
 st.set_page_config(
@@ -10,7 +7,6 @@ st.set_page_config(
     page_icon="🚀", # Can be an emoji or a path to an image file
     layout="centered"
 )
-
 
 
 with st.container(height='content'):
@@ -27,49 +23,55 @@ with st.container(height='content'):
     st.page_link("pages/4_hedge.py", label="**Hedge** — beta-weighted hedge construction and backtesting", icon=":material/finance_mode:")
     st.page_link("pages/5_factors.py", label="**Factor Analysis** — equity vs factor regression", icon=":material/analytics:")
     
-    # st.markdown("""
-    # - **Single Asset Beta** — two-asset return regression
-    # - **Beta Tool** — multi-asset regression
-    # - **Portfolio Beta** — weighted portfolio vs benchmark asset(s)
-    # - **Hedge** — beta-weighted hedge construction and backtesting
-    # - **Factor Analysis** — equity vs factor regression
-    # """)
 
     st.space('large')
     
     
-    
+    # user supplied API key section
     # User supplied API key section
-    
     if "tiingo_key" not in st.session_state:
         st.session_state.tiingo_key = ""
-    
 
+    if "tiingo_key_input" not in st.session_state:
+        st.session_state.tiingo_key_input = st.session_state.tiingo_key
+
+
+    def validate_tiingo_key():
+        user_tiingo = st.session_state.tiingo_key_input
+
+        if user_tiingo == st.session_state.tiingo_key:
+            return
+
+        if not user_tiingo:
+            return
+
+        with st.spinner("Validating key", show_time=True):
+            is_valid = is_valid_tiingo_key(user_tiingo)
+
+        if is_valid:
+            st.session_state.tiingo_key = user_tiingo
+            st.toast(
+                "API key saved successfully for this session!",
+                icon=":material/verified:",
+            )
+        else:
+            st.toast(
+                "Entered API key does not work. Please try again!",
+                icon=":material/warning:",
+            )
+    
     with st.expander("📢 **A note on rate limits**", expanded=False):
         st.markdown("If you are facing issues, you may wish to use your own Tiingo API key for the data. This tool pulls asset data live from Tiingo, and currently it is using my personal API key which may run into rate limits since it is on their free plan. 😿")
         st.link_button("Get your free Tiingo API key", "https://www.tiingo.com/", icon=":material/arrow_outward:", icon_position="right")
-        user_tiingo = st.text_input(
-            label='Enter your Tiingo API key:',
-            type='password',
-            value= st.session_state.tiingo_key,
+        
+        
+        st.text_input(
+            label="Enter your Tiingo API key:",
+            type="password",
+            key="tiingo_key_input",
             help="Your key remains hidden and is stored only for this session.",
+            on_change=validate_tiingo_key,
         )
-    
-        if user_tiingo:
-            with st.spinner("Validating key", show_time=True):
-                is_valid = is_valid_tiingo_key(user_tiingo)
-                
-            if is_valid:
-                st.session_state.tiingo_key = user_tiingo
-                success_placeholder = st.empty()
-                success_placeholder.success("API key saved successfully for this session!", icon=":material/verified:")
-                time.sleep(3)
-                success_placeholder.empty()
-            else:
-                warning_placeholder = st.empty()
-                warning_placeholder.warning("Entered API key does not work. Please try again!", icon=":material/warning:")
-                time.sleep(3)
-                warning_placeholder.empty()
                 
     
     

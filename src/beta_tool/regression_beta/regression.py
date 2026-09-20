@@ -3,6 +3,13 @@ import pandas as pd
 import statsmodels.api as sm
 from .rolling import MultiFactorRollingOLS, SingleFactorRollingOLS
 
+PERIODS_PER_YEAR = {
+    'daily': 252,
+    'weekly': 52,
+    'monthly': 12,
+    'annually': 1
+}
+
 class OLSRegression:
 
     def __init__(self, asset1: pd.DataFrame, asset2: pd.DataFrame, asset_1_col, asset_2_col, frequency, return_type: str ="log", hac=False, hac_lags=None):
@@ -117,7 +124,13 @@ class OLSRegression:
         )
 
         # Annualized alpha
-        ols_df['annualized_alpha'] = ((1 + ols_df['alpha']) ** 252 - 1) if self.return_type == 'simple' else (ols_df['alpha'] * 252)
+        ols_df['annualized_alpha'] = (
+            (1 + ols_df['alpha']) ** PERIODS_PER_YEAR[self.freq] - 1
+            if self.return_type == 'simple'
+            else ols_df['alpha'] * PERIODS_PER_YEAR[self.freq]
+        )
+        
+        
 
         self.ols_df = ols_df
 
@@ -148,9 +161,13 @@ class OLSRegression:
                 'residual_volatility': float(np.sqrt(self.results.mse_resid)),
             }
         
-
         # Annualized alpha
-        ols_dic['annualized_alpha'] = ((1 + ols_dic['alpha']) ** 252 - 1) if self.return_type == 'simple' else (ols_dic['alpha'] * 252)
+        ols_dic['annualized_alpha'] = (
+            (1 + ols_dic['alpha']) ** PERIODS_PER_YEAR[self.freq] - 1
+            if self.return_type == 'simple'
+            else ols_dic['alpha'] * PERIODS_PER_YEAR[self.freq]
+        )
+        
 
         
         return ols_dic
@@ -376,7 +393,14 @@ class MultiFactorRegression:
         self.alpha = float(results.params["const"])
         self.alpha_p_value = float(results.pvalues['const'])
         
-        self.annualized_alpha = ((1 + float(results.params["const"])) ** 252 - 1) if self.return_type == 'simple' else (float(results.params["const"]) * 252)
+        # Annualized alpha
+        self.annualized_alpha = (
+            (1 + float(results.params["const"])) ** PERIODS_PER_YEAR[self.freq] - 1
+            if self.return_type == 'simple'
+            else float(results.params["const"]) * PERIODS_PER_YEAR[self.freq]
+        )
+        
+        
         
         self.r_squared = float(results.rsquared)
         self.observations = int(results.nobs)
@@ -473,7 +497,7 @@ class MultiFactorRegression:
                 'return_type': self.return_type,
                 "n_obs": self.observations,
                 'alpha': self.alpha,
-                'annualized_alpha': self.alpha,
+                'annualized_alpha': self.annualized_alpha,
                 "alpha_p_value": self.alpha_p_value,
                 'r_squared': self.r_squared,
                 'residual_volatility': self.residual_vol

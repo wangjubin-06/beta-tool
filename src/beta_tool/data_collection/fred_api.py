@@ -5,6 +5,7 @@ import requests
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta, date
+from .errors import *
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,8 @@ class FredApi:
         if not frequency in allowed_freq:
             raise ValueError("input valid data frequencies: d, w, bw, m, q, sa, a")
 
-        if not api_key:
-            raise ValueError(
-                "FRED API key is missing. "
-                "Set the FRED_API_KEY environment variable."
-            )
+            
+        api_key = require_api_key(api_key, "FRED_API_KEY", "FRED")
         
         self.api_key = api_key
 
@@ -138,35 +136,16 @@ class FredApi:
         # chained into the traceback.
         try:
             response = requests.get(url, params=params, timeout=30)
-
         except requests.RequestException as exc:
-
-            raise RuntimeError(
-                f"Fred request failed for {ticker}: {self._redact(exc)}"
-            ) from None
-
-        try:
-            response.raise_for_status()
-
-        except requests.HTTPError:
-
-            raise RuntimeError(
-                f"Fred HTTP error for {ticker}.\n"
-                f"Status: {response.status_code}\n"
-                f"URL: {self._redact(response.url)}\n"
-                f"Response: {self._redact(response.text[:500])}"
-            ) from None
-
-
-
+            raise DataError(f"Could not reach FRED for {ticker}: {self._redact(exc)}") from None
+        
+        check_response(response, provider="FRED", var="FRED_API_KEY", what=ticker)
 
         data = response.json()
-        
-        
+        check_payload(data, provider="FRED", var="FRED_API_KEY", what=ticker)
+
         if "observations" not in data:
-            raise RuntimeError(
-                f"Unexpected FRED response:\n{self._redact(data)}"
-            )
+            raise DataError(f"Unexpected FRED response:\n{self._redact(data)}")
 
         observations = data["observations"]
 
@@ -189,8 +168,8 @@ class FredApi:
                 f"Received: {df.columns.tolist()}\n"
             )
                     
-                    
-        df = df[["date", "value"]]
+        
+        df = df[["date", "value"]].copy()
 
         df["value"] = pd.to_numeric(df["value"], errors="coerce")
         

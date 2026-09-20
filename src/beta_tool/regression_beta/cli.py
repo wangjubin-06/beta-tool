@@ -31,10 +31,10 @@ def beta(
     console = Console()
 
 
-    if output_dir is None and not show:
-        raise typer.BadParameter(
-            "Specify --output_dir to save the plot, --show to display it, or both."
-        )
+    # if output_dir is None and not show:
+    #     raise typer.BadParameter(
+    #         "Specify --output_dir to save the plot, --show to display it, or both."
+    #     )
         
     with console.status("[bold green]Fetching price data and running regression..."):
         
@@ -125,6 +125,10 @@ def beta(
         beta_obj._diagnostics()
         
     
+    fig1 = beta_obj.plot_results()
+    
+    if rolling:
+        fig2 = beta_obj.rolling_beta_plot()
     
     if output_dir:
         with console.status("[bold green]Saving regression plots..."):
@@ -132,12 +136,11 @@ def beta(
             
             path1 = output_dir / f"{y_ticker}_{x_ticker}_static_plot.png"
             
-            fig1 = beta_obj.plot_results()
             fig1.savefig(path1, dpi=150, bbox_inches="tight")
             
             if rolling:
                 path2 = output_dir / f"{y_ticker}_{x_ticker}_rolling_{window}_plot.png"
-                fig2 = beta_obj.rolling_beta_plot()
+                
                 fig2.savefig(path2, dpi=150, bbox_inches="tight")
             
         console.print(f"Saved plot(s) to {output_dir}")
@@ -174,10 +177,10 @@ def multibeta(
     if not x_tickers:
         raise typer.BadParameter("At least one x_ticker is required.")
     
-    if output_dir is None and not show:
-        raise typer.BadParameter(
-            "Specify --output_dir to save the plot, --show to display it, or both."
-        )
+    # if output_dir is None and not show:
+    #     raise typer.BadParameter(
+    #         "Specify --output_dir to save the plot, --show to display it, or both."
+    #     )
         
     
     with console.status("[bold green]Fetching price data and running regression..."):
@@ -286,6 +289,10 @@ def multibeta(
         beta_obj._diagnostics()
         
     
+    fig1 = beta_obj.plot_results()
+    if rolling:
+        fig2 = beta_obj.rolling_beta_plot()
+    
     
     if output_dir:
         with console.status("[bold green]Saving regression plots..."):
@@ -293,26 +300,25 @@ def multibeta(
             
             path1 = output_dir / f"{y_ticker}_{''.join(ticker for ticker in x_tickers)}_static_plot.png"
             
-            fig1 = beta_obj.plot_results()
             fig1.savefig(path1, dpi=150, bbox_inches="tight")
             
             if rolling:
                 path2 = output_dir / f"{y_ticker}_{''.join(ticker for ticker in x_tickers)}_rolling_{window}_plot.png"
-                fig2 = beta_obj.rolling_beta_plot()
+                
                 fig2.savefig(path2, dpi=150, bbox_inches="tight")
             
         console.print(f"Saved plot(s) to {output_dir}")
         
-        if show:
-            plt.show()
-        else:
-            plt.close(fig1)
-            if rolling:
-                plt.close(fig2)
+    if show:
+        plt.show()
+    else:
+        plt.close(fig1)
+        if rolling:
+            plt.close(fig2)
 
 
 def portfoliobeta(
-    holding: list[str] = typer.Option(..., "--holding", help="Ticker: percentage pair, e.g. --holding AAPL:40"),
+    holding: list[str] = typer.Option(None, "--holding", help="Ticker: percentage pair, e.g. --holding AAPL:40"),
     holdings_file: Path = typer.Option(None, "--holdings-file", help="Path to TOML file mapping ticker to percentage"),
     x_tickers: list[str] = typer.Option(..., "--x-ticker", "-x", help="Independent asset ticker (repeatable)"),
     period:str = typer.Option("1y", "--period", "-p", help="Period of observation"),
@@ -362,10 +368,10 @@ def portfoliobeta(
     if not x_tickers:
         raise typer.BadParameter("At least one x_ticker is required.")
     
-    if output_dir is None and not show:
-        raise typer.BadParameter(
-            "Specify --output_dir to save the plot, --show to display it, or both."
-        )
+    # if output_dir is None and not show:
+    #     raise typer.BadParameter(
+    #         "Specify --output_dir to save the plot, --show to display it, or both."
+    #     )
         
     
     with console.status("[bold green]Fetching price data and running regression..."):
@@ -398,6 +404,7 @@ def portfoliobeta(
             name = ' '.join(ticker.upper() for ticker in final_x_tickers)
         else:
             name = x_tickers.upper()
+            final_x_tickers = [x_tickers.upper()]
     
         table1 = Table(title=f"Static OLS Regression: Portfolio consisting of {list(weights.keys())} vs {name}")
         table1.add_column("Metric", style="bold")
@@ -451,7 +458,7 @@ def portfoliobeta(
                 r_x_tickers = beta_obj.multi_regress_obj.rolling_ols_obj.x_col
                 name = ' '.join(ticker.upper() for ticker in final_x_tickers)
             else:
-                name = final_x_tickers.upper()
+                name = final_x_tickers[0]
         
 
         
@@ -510,6 +517,13 @@ def portfoliobeta(
     
     if not hac:
         beta_obj._diagnostics()
+    
+    
+    if isinstance(x_tickers, str):
+        fig1 = beta_obj.plot_results()
+    
+    if rolling:
+        fig2 = beta_obj.rolling_beta_plot()
         
     if output_dir:
         with console.status("[bold green]Saving regression plots..."):
@@ -518,13 +532,12 @@ def portfoliobeta(
             if isinstance(x_tickers, list):       
                 name = '_'.join(ticker.upper() for ticker in final_x_tickers)
             else:
-                name = final_x_tickers.upper()
+                name = final_x_tickers[0]
                 
             
             path1 = output_dir / f"portfolio_{"_".join(ticker for ticker in weights.keys())}_{name}_static_plot.png"
             
             if isinstance(x_tickers, str):
-                fig1 = beta_obj.plot_results()
                 fig1.savefig(path1, dpi=150, bbox_inches="tight")
                 console.print(f"Saved plot(s) to {output_dir}")
             else:
@@ -532,19 +545,19 @@ def portfoliobeta(
             
             if rolling:
                 path2 = output_dir / f"portfolio_{"_".join(ticker for ticker in weights.keys())}_{name}_rolling_{window}_plot.png"
-                fig2 = beta_obj.rolling_beta_plot()
+                
                 fig2.savefig(path2, dpi=150, bbox_inches="tight")
                 console.print(f"Saved rolling plot to {output_dir}")
             
         
         
-        if show:
-            plt.show()
-        else:
-            if isinstance(x_tickers, str):
-                plt.close(fig1)
-            if rolling:
-                plt.close(fig2)
+    if show:
+        plt.show()
+    else:
+        if isinstance(x_tickers, str):
+            plt.close(fig1)
+        if rolling:
+            plt.close(fig2)
 
 
 

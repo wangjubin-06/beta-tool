@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from ..regression_beta.data import AssetData
 from ..regression_beta.returns import simple_returns
 from .metrics import *
+from pandas.tseries.offsets import BDay
+
+
 
 
 class PortfolioHedge:
@@ -916,8 +919,8 @@ class PortfolioHedge:
                             return_type = self.return_type,
                             frequency = self.freq,
                         )
-                    except:
-                        raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.')
+                    except Exception as e:
+                        raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.') from e
                     
                     beta_data = backtest_beta_obj.get_static_beta()
                     
@@ -1011,8 +1014,8 @@ class PortfolioHedge:
                             end_date = self.backtest_start_date,
                             return_type = self.return_type,
                         )
-                    except:
-                        raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.')
+                    except Exception as e:
+                        raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.') from e
                     
                     beta_data = backtest_beta_obj.get_static_beta()
 
@@ -1129,8 +1132,8 @@ class PortfolioHedge:
                         end_date = self.backtest_start_date,
                         return_type = self.return_type
                     )
-                except:
-                    raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.')
+                except Exception as e:
+                    raise ValueError('Error during finding beta for selected assets. May be due to lack of data in date range requested. Try adjusting the backtest start and end dates and/or static_lookback_window.') from e
                 
                 beta_data = backtest_beta_obj.get_static_beta()
 
@@ -1180,9 +1183,11 @@ class PortfolioHedge:
 
         if window is None:
             final_window = default
-        elif not isinstance(window, int) or window < floor:
+        elif not isinstance(window, int):
+            raise ValueError("Window must be an integer!")
+        elif window < floor:
             raise ValueError(
-                f"window must be an integer >= {floor} observations for a "
+                f"window must be >= {floor} observations for a "
                 f"statistically reliable static regression at '{self.freq}' "
                 f"frequency; got {window}."
             )
@@ -1194,12 +1199,13 @@ class PortfolioHedge:
         dt = datetime.strptime(self.backtest_start_date, "%Y-%m-%d").date()
 
         if self.freq == 'daily':
-            self.static_start_date = (dt - relativedelta(days=final_window)).strftime("%Y-%m-%d")
+            target_date = pd.Timestamp(dt) - BDay(final_window)
         elif self.freq == 'weekly':
-            self.static_start_date = (dt - relativedelta(weeks=final_window)).strftime("%Y-%m-%d")
+            target_date = dt - relativedelta(weeks=final_window)
         elif self.freq == 'monthly':
-            self.static_start_date = (dt - relativedelta(months=final_window)).strftime("%Y-%m-%d")
+            target_date = dt - relativedelta(months=final_window)
 
+        self.static_start_date = target_date.strftime("%Y-%m-%d")
 
 
     def _date_resolver(self, backtest_start_date, backtest_end_date, backtest_period):
