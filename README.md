@@ -7,6 +7,8 @@
 ![uv](https://img.shields.io/badge/packaging-uv-purple.svg)
 ![CLI](https://img.shields.io/badge/CLI-Typer%20%2B%20Rich-success.svg)
 
+License: MIT
+
 <!-- Add a screenshot or GIF of the web app and CLI output here, e.g. ![Web app](docs/webapp.png) -->
 <img src="docs/webapp.png" alt="Webapp" width="300">
 <img src="docs/cli.png" alt="CLI tool" width="620">

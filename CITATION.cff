@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "beta-tool"
+abstract: >-
+  A quantitative finance toolkit for beta estimation, portfolio hedge
+  backtesting and Fama-French factor analysis, available as a command-line
+  tool, a Python library and a Streamlit web app.
+type: software
+authors:
+  - family-names: "Wang"
+    given-names: "Jubin"
+repository-code: "https://github.com/wangjubin-06/beta-tool"
+url: "https://beta-tool.streamlit.app"
+license: MIT
+version: "0.1.0"
+date-released: "2026-09-21"
+keywords:
+  - beta
+  - regression
+  - hedging
+  - factor models
+  - quantitative finance
+  - Fama-French
