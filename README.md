@@ -8,9 +8,9 @@
 ![CLI](https://img.shields.io/badge/CLI-Typer%20%2B%20Rich-success.svg)
 
 <!-- Add a screenshot or GIF of the web app and CLI output here, e.g. ![Web app](docs/webapp.png) -->
+<img src="docs/webapp.png" alt="Webapp" width="300">
+<img src="docs/cli.png" alt="CLI tool" width="620">
 
-
-<img src="docs/webapp.png" alt="Alt Text" width="300">
 
 ## Contents
 
