@@ -1,6 +1,6 @@
 import typer
 from rich.console import Console
-from .factorsregression import EquityFactorsRegression
+
 
 
 
@@ -15,7 +15,7 @@ def factors(
 ):
     """Analyses the factor loadings of assets.
     """
-
+    from .factorsregression import EquityFactorsRegression
     console = Console()
 
     with console.status("[bold green]Fetching price data and running regression..."):

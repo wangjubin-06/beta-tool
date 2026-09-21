@@ -1,13 +1,8 @@
 import typer
 from rich.console import Console
 from rich.table import Table
-from .beta import Beta
 from pathlib import Path
 import tomllib
-from .multibeta import MultiBeta
-import matplotlib.pyplot as plt
-from .portfoliobeta import PortfolioBeta
-
 
 
 
@@ -28,6 +23,8 @@ def beta(
 ):
     """Computes static or rolling beta using standard Ordinary Least Squares regression of an asset's returns against that of another.
     """
+    from .beta import Beta
+    import matplotlib.pyplot as plt
     console = Console()
 
 
@@ -171,6 +168,9 @@ def multibeta(
 ):
     """Computes static or rolling beta using standard Ordinary Least Squares regression of an asset's returns against that of a list of assets.
     """
+    
+    from .multibeta import MultiBeta
+    import matplotlib.pyplot as plt
     console = Console()
 
     
@@ -336,7 +336,8 @@ def portfoliobeta(
     
     """Computes static or rolling beta using standard Ordinary Least Squares regression of a portfolio's returns against that of a single asset or a list of assets.
     """
-    
+    from .portfoliobeta import PortfolioBeta
+    import matplotlib.pyplot as plt
     console = Console()
     
     if holding and holdings_file:

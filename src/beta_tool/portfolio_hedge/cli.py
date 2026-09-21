@@ -2,9 +2,8 @@ import typer
 from pathlib import Path
 from rich.console import Console
 from rich.table import Table
-from .portfolio_hedger import PortfolioHedge
 import tomllib
-import matplotlib.pyplot as plt
+
 
 
 def hedge(
@@ -24,7 +23,8 @@ def hedge(
 ):
     """Hedges a portfolio by computes static or rolling beta using standard Ordinary Least Squares regression of a portfolio's returns against that of a single asset or a list of assets.
     """
-
+    from .portfolio_hedger import PortfolioHedge
+    import matplotlib.pyplot as plt
     console = Console()
 
     if holding and holdings_file:
