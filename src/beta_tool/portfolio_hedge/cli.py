@@ -4,20 +4,32 @@ from rich.console import Console
 from rich.table import Table
 import tomllib
 
+ALLOWED_PERIODS = {
+    "1m",
+    "3m",
+    "6m",
+    "1y",
+    "2y",
+    "3y",
+    "5y",
+    "10y",
+    "20y",
+    "30y"
+}
 
 
 def hedge(
     holding: list[str] = typer.Option(None, "--holding", help="Ticker: percentage pair, e.g. --holding AAPL:40"),
     holdings_file: Path = typer.Option(None, "--holdings-file", help="Path to TOML file mapping ticker to percentage"),
-    x_tickers: list[str] = typer.Option(..., "--x-ticker", "-x", help="Independent asset ticker (repeatable)"),
-    period:str = typer.Option(None, "--period", "-p", help="Period of backtest window"),
-    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Available in 'daily', 'weekly', 'monthly' (optional, defaults to 'daily')"),
-    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose when to start backtest (optional)"),
-    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose when to end backtest (optional)"),
+    x_tickers: list[str] = typer.Option(..., "--x-ticker", "-x", help="Independent asset ticker (repeatable), e.g. -x GOOG -x SPY -x KO"),
+    period:str = typer.Option(None, "--period", "-p", help="Period of backtest window. Options: 1m, 3m, 6m, 1y, 2y, 3y, 5y, 10y, 20y, 30y. (optional)"),
+    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Options: daily, weekly, monthly (optional, defaults to 'daily')"),
+    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose date (YYYY-MM-DD) to start backtest (optional)"),
+    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose date (YYYY-MM-DD) to end backtest (optional)"),
     rolling:bool = typer.Option(False, "--rolling", "-r", help="Choose whether to use rolling hedge"),
     rolling_window: int = typer.Option(None, "--rolling_window", "-rw", help="Choose the lookback window for rolling regression for the rolling hedge (optional)"),
-    rebalance: int = typer.Option(None, "--rebalance", help="Choose the period (in number of observations) for each rebalance"),
-    static_lookback: int = typer.Option(None, "--static_lookback", "-sl", help = "Choose the lookback period for beta estimation for static hedging (optional)"),
+    rebalance: int = typer.Option(None, "--rebalance", help="Choose the period (in integer number of observations) for each rebalance"),
+    static_lookback: int = typer.Option(None, "--static_lookback", "-sl", help = "Choose the lookback period (in integer number of observations) for beta estimation for static hedging (optional)"),
     output_dir: Path = typer.Option(None, "--output_dir", "-o", help="Directory to save plot(s)"),
     show: bool = typer.Option(False, "--show", help="Open plot(s) in an interactive window"),
 ):
@@ -35,6 +47,9 @@ def hedge(
     if rolling and static_lookback:
         raise typer.BadParameter("Do not provide static_lookback if --rolling or -r is chosen. Only provide static_lookback if --rolling or -r is not chosen.")
 
+    if period is not None:
+        if period not in ALLOWED_PERIODS:
+            raise typer.BadParameter("Invalid period selection")
 
     if holdings_file:
         if not holdings_file.exists():

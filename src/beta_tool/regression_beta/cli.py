@@ -4,20 +4,31 @@ from rich.table import Table
 from pathlib import Path
 import tomllib
 
-
+ALLOWED_PERIODS = {
+    "1m",
+    "3m",
+    "6m",
+    "1y",
+    "2y",
+    "3y",
+    "5y",
+    "10y",
+    "20y",
+    "30y"
+}
 
 def beta(
-    y_ticker:str = typer.Argument(..., help="Ticker of the dependent asset"),
-    x_ticker:str = typer.Argument(..., help="Ticker of the independent asset"),
-    period:str = typer.Option("1y", "--period", "-p", help="Period of observation"),
-    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Available in 'daily', 'weekly', 'monthly' (optional, defaults to 'daily')"),
-    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose when to start observation (optional)"),
-    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose when to end observation (optional)"),
-    return_type: str = typer.Option("simple", "--return_type", "-r", help="Calculate returns in 'simple' or 'log' (optional, defaults to 'simple')"),
+    y_ticker:str = typer.Argument(..., help="Ticker of the dependent asset, e.g. --y_ticker AAPL"),
+    x_ticker:str = typer.Argument(..., help="Ticker of the independent asset, e.g. --x_ticker SPY"),
+    period:str = typer.Option("1y", "--period", "-p", help="Period of observation window. Options: 1m, 3m, 6m, 1y, 2y, 3y, 5y, 10y, 20y, 30y. (optional, defaults to 1y)"),
+    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Options: daily, weekly, monthly. (optional, defaults to 'daily')"),
+    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose date (YYYY-MM-DD) to start observation (optional)"),
+    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose date (YYYY-MM-DD) to end observation (optional)"),
+    return_type: str = typer.Option("simple", "--return_type", "-r", help="Returns calculation methodology. Options: simple, log. (optional, defaults to 'simple')"),
     hac:bool = typer.Option(False, "--hac", help="Use HAC-aware statistics (optional, defaults to False)"),
-    hac_lag:int | None = typer.Option(None, "--hac_lag", "-hl", help="Choose lag for HAC-aware statistics (optional)"),
+    hac_lag:int | None = typer.Option(None, "--hac_lag", "-hl", help="Choose lag (in integer numbers) for HAC-aware statistics (optional)"),
     rolling: bool = typer.Option(False, "--rolling", help="Choose whether to do rolling regression (optional, defaults to False)"),
-    rolling_window: int | None = typer.Option(None, "--rolling_window", help="Choose rolling window for rolling regression if rolling regression is enabled (optional)"),
+    rolling_window: int | None = typer.Option(None, "--rolling_window", help="Choose rolling window (in integer numbers) for rolling regression if rolling regression is enabled (optional)"),
     output_dir: Path = typer.Option(None, "--output_dir", "-o", help="Directory to save plot(s)"),
     show: bool = typer.Option(False, "--show", help="Open plot(s) in an interactive window"),
 ):
@@ -27,11 +38,10 @@ def beta(
     import matplotlib.pyplot as plt
     console = Console()
 
+    if period not in ALLOWED_PERIODS:
+        raise typer.BadParameter("Invalid period selection")
 
-    # if output_dir is None and not show:
-    #     raise typer.BadParameter(
-    #         "Specify --output_dir to save the plot, --show to display it, or both."
-    #     )
+    
         
     with console.status("[bold green]Fetching price data and running regression..."):
         
@@ -152,17 +162,17 @@ def beta(
         
 
 def multibeta(
-    y_ticker:str = typer.Argument(..., help="Ticker of the dependent asset"),
-    x_tickers:list[str] = typer.Option(..., "--x-ticker", "-x", help="Independent asset ticker (repeatable)"),
-    period:str = typer.Option("1y", "--period", "-p", help="Period of observation"),
-    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Available in 'daily', 'weekly', 'monthly' (optional, defaults to 'daily')"),
-    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose when to start observation (optional)"),
-    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose when to end observation (optional)"),
-    return_type: str = typer.Option("simple", "--return_type", "-r", help="Calculate returns in 'simple' or 'log' (optional, defaults to 'simple')"),
+    y_ticker:str = typer.Argument(..., help="Ticker of the dependent asset, e.g. --y_ticker AAPL"),
+    x_tickers:list[str] = typer.Option(..., "--x-ticker", "-x", help="Ticker of the independent asset, (repeatable), e.g. -x SPY -x GOOG -x KO"),
+    period:str = typer.Option("1y", "--period", "-p", help="Period of observation window. Options: 1m, 3m, 6m, 1y, 2y, 3y, 5y, 10y, 20y, 30y. (optional, defaults to 1y)"),
+    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Options: daily, weekly, monthly. (optional, defaults to 'daily')"),
+    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose date (YYYY-MM-DD) to start observation (optional)"),
+    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose date (YYYY-MM-DD) to end observation (optional)"),
+    return_type: str = typer.Option("simple", "--return_type", "-r", help="Returns calculation methodology. Options: simple, log. (optional, defaults to 'simple')"),
     hac:bool = typer.Option(False, "--hac", help="Use HAC-aware statistics (optional, defaults to False)"),
-    hac_lag:int | None = typer.Option(None, "--hac_lag", "-hl", help="Choose lag for HAC-aware statistics (optional)"),
+    hac_lag:int | None = typer.Option(None, "--hac_lag", "-hl", help="Choose lag (in integer numbers) for HAC-aware statistics (optional)"),
     rolling: bool = typer.Option(False, "--rolling", help="Choose whether to do rolling regression (optional, defaults to False)"),
-    rolling_window: int | None = typer.Option(None, "--rolling_window", help="Choose rolling window for rolling regression if rolling regression is enabled (optional)"),
+    rolling_window: int | None = typer.Option(None, "--rolling_window", help="Choose rolling window (in integer numbers) for rolling regression if rolling regression is enabled (optional)"),
     output_dir: Path = typer.Option(None, "--output_dir", "-o", help="Directory to save plot(s)"),
     show: bool = typer.Option(False, "--show", help="Open plot(s) in an interactive window"),
 ):
@@ -173,14 +183,12 @@ def multibeta(
     import matplotlib.pyplot as plt
     console = Console()
 
+    if period not in ALLOWED_PERIODS:
+        raise typer.BadParameter("Invalid period selection")
     
     if not x_tickers:
         raise typer.BadParameter("At least one x_ticker is required.")
     
-    # if output_dir is None and not show:
-    #     raise typer.BadParameter(
-    #         "Specify --output_dir to save the plot, --show to display it, or both."
-    #     )
         
     
     with console.status("[bold green]Fetching price data and running regression..."):
@@ -320,16 +328,16 @@ def multibeta(
 def portfoliobeta(
     holding: list[str] = typer.Option(None, "--holding", help="Ticker: percentage pair, e.g. --holding AAPL:40"),
     holdings_file: Path = typer.Option(None, "--holdings-file", help="Path to TOML file mapping ticker to percentage"),
-    x_tickers: list[str] = typer.Option(..., "--x-ticker", "-x", help="Independent asset ticker (repeatable)"),
-    period:str = typer.Option("1y", "--period", "-p", help="Period of observation"),
-    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Available in 'daily', 'weekly', 'monthly' (optional, defaults to 'daily')"),
-    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose when to start observation (optional)"),
-    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose when to end observation (optional)"),
-    return_type: str = typer.Option("simple", "--return_type", "-r", help="Calculate returns in 'simple' or 'log' (optional, defaults to 'simple')"),
+    x_tickers: list[str] = typer.Option(..., "--x-ticker", "-x", help="Ticker of the independent asset, (repeatable), e.g. -x SPY -x GOOG -x KO"),
+    period:str = typer.Option("1y", "--period", "-p", help="Period of observation window. Options: 1m, 3m, 6m, 1y, 2y, 3y, 5y, 10y, 20y, 30y. (optional, defaults to 1y)"),
+    frequency:str = typer.Option("daily", "--frequency", "-f", help="Frequency of data. Options: daily, weekly, monthly. (optional, defaults to 'daily')"),
+    start_date:str | None = typer.Option(None, "--start_date", "-s", help="Choose date (YYYY-MM-DD) to start observation (optional)"),
+    end_date:str | None = typer.Option(None, "--end_date", "-e", help="Choose date (YYYY-MM-DD) to end observation (optional)"),
+    return_type: str = typer.Option("simple", "--return_type", "-r", help="Returns calculation methodology. Options: simple, log. (optional, defaults to 'simple')"),
     hac:bool = typer.Option(False, "--hac", help="Use HAC-aware statistics (optional, defaults to False)"),
-    hac_lag:int | None = typer.Option(None, "--hac_lag", "-hl", help="Choose lag for HAC-aware statistics (optional)"),
+    hac_lag:int | None = typer.Option(None, "--hac_lag", "-hl", help="Choose lag (in integer numbers) for HAC-aware statistics (optional)"),
     rolling: bool = typer.Option(False, "--rolling", help="Choose whether to do rolling regression (optional, defaults to False)"),
-    rolling_window: int | None = typer.Option(None, "--rolling_window", help="Choose rolling window for rolling regression if rolling regression is enabled (optional)"),
+    rolling_window: int | None = typer.Option(None, "--rolling_window", help="Choose rolling window (in integer numbers) for rolling regression if rolling regression is enabled (optional)"),
     output_dir: Path = typer.Option(None, "--output_dir", "-o", help="Directory to save plot(s)"),
     show: bool = typer.Option(False, "--show", help="Open plot(s) in an interactive window"),
 ):
@@ -339,6 +347,9 @@ def portfoliobeta(
     from .portfoliobeta import PortfolioBeta
     import matplotlib.pyplot as plt
     console = Console()
+    
+    if period not in ALLOWED_PERIODS:
+        raise typer.BadParameter("Invalid period selection")
     
     if holding and holdings_file:
         raise typer.BadParameter("Use either --holding or --holdings-file, not both.")
