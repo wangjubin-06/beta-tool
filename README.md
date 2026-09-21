@@ -9,6 +9,9 @@
 
 <!-- Add a screenshot or GIF of the web app and CLI output here, e.g. ![Web app](docs/webapp.png) -->
 
+
+<img src="docs/webapp.png" alt="Alt Text" width="300">
+
 ## Contents
 
 - [What is it?](#what-is-it)
@@ -113,6 +116,12 @@ uv tool upgrade beta-tool
 uv tool uninstall beta-tool
 ```
 
+### Where your data is cached
+
+Downloaded prices are cached in a data/ folder inside the directory you run the command from.
+
+To reuse one cache from any folder, set `BETA_TOOL_DATA_DIR` to a fixed folder, the same way you set the API key (for example `setx BETA_TOOL_DATA_DIR "C:\beta-tool-data"` in PowerShell). It is safe to delete the folder, and it's rebuilt on the next run.
+
 ---
 
 ## Using the CLI
@@ -142,8 +151,8 @@ beta-tool portfoliobeta --holding AAPL:40 --holding MSFT:35 --holding NVDA:25 -x
 # Backtest a rolling hedge over the last 5 years
 beta-tool hedge --holding NKE:20 --holding KO:20 --holding AAPL:20 --holding GOOG:20 --holding NVDA:20 -x SPY -x AGG -x QQQM --rolling --period 5y -o plots
 
-# Backtest a static hedge that estimates beta from the 126 days before the start
-beta-tool hedge --holding AAPL:50 --holding MSFT:50 -x SPY --static_lookback 126 -o plots
+# Backtest a static hedge over the last 5 years, estimating beta from the 126 days before the start
+beta-tool hedge --holding AAPL:50 --holding MSFT:50 -x SPY --period 5y --static_lookback 126 -o plots
 
 # Fama-French 5-factor loadings, then ETF-proxy factors with advanced output
 beta-tool factors --holding NVDA --holding MSFT -f monthly
@@ -177,7 +186,7 @@ NVDA = 25
 | `--output_dir`         | `-o`  | -        | Folder for saved PNG plots                                |
 | `--show`               |       | off      | Open plots in an interactive window                       |
 
-Either `--output_dir` or `--show` is required.
+If you pass neither `--output_dir` nor  `--show`, the tables print in your terminal and no plots are saved or shown.
 
 ### Options for `hedge`
 
@@ -194,6 +203,8 @@ Either `--output_dir` or `--show` is required.
 | `--rebalance`       |       | window ÷ 6 | Observations between hedge-ratio updates                                    |
 | `--static_lookback` | `-sl` | by frequency | Beta lookback for a static hedge (cannot be combined with `--rolling`)    |
 | `--output_dir` / `--show` | `-o` | -    | Save or display the plots                                                   |
+
+If you pass neither `--output_dir` nor  `--show`, the tables print in your terminal and no plots are saved or shown.
 
 ### Options for `factors`
 
@@ -212,7 +223,7 @@ Either `--output_dir` or `--show` is required.
 - **Static table**: window, frequency, return type, HAC settings, beta, alpha (and annualised alpha), R², p-values, t-stats, standard errors, 95% confidence intervals, observations and residual volatility.
 - **Rolling table** (with `--rolling`): the current beta with its confidence interval and significance, alpha, R², plus the mean, median, min, max and standard deviation of the rolling beta.
 - **Diagnostic checks** when HAC is off.
-- **Charts** saved as 150 dpi PNGs in your `--output_dir`, for example `msft_spy_static_plot.png` and `msft_spy_rolling_60_plot.png`.
+- **Charts** saved as 150 dpi PNGs in your `--output_dir`, for example `MSFT_SPY_static_plot.png` and `MSFT_SPY_rolling_60_plot.png`.
 
 ---
 
@@ -256,17 +267,16 @@ Everything above is a thin layer over a Python library. If you want to extend it
 Requires **Python 3.12+** and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/<your-username>/beta-tool.git
+git clone https://github.com/wangjubin-06/beta-tool.git
 cd beta-tool
 
 uv sync                # core library + CLI
-uv sync --extra web    # also installs Streamlit and Plotly
 
 uv run beta-tool --help
 uv run streamlit run src/beta_tool/webapp/app.py
 ```
 
-Prefer pip? `pip install -e .` and `pip install -e ".[web]"` work too. From source, export `TIINGO_API_KEY` (and `FRED_API_KEY` for the ETF factor mode) in your shell as described in step 3 above.
+Prefer pip? `pip install -e .` works too. From source, export `TIINGO_API_KEY` (and `FRED_API_KEY` for the ETF factor mode) in your shell as described in step 3 above.
 
 ### The five tools
 
