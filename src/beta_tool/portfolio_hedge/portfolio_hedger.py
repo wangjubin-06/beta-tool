@@ -130,7 +130,7 @@ class PortfolioHedge:
 
     # Public APIs
 
-    def backtest(self, plot=False):
+    def backtest(self, plot=False, print_report = True):
 
         # Do a comparison between unhedged position and hedged position with static and rolling beta
         
@@ -168,6 +168,7 @@ class PortfolioHedge:
             frequency=self.freq,
             risk_free_rate=0.0,
             plot=plot,
+            print_report=print_report,
         )
         # if plot = False, fig will be None
 

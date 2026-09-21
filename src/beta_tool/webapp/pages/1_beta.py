@@ -229,7 +229,7 @@ if submitted:
         # -------------------------------------------------
 
         try:
-            with st.spinner("Fetching data and running regression..."):
+            with st.spinner("Fetching data and running regression...", show_time=True):
 
                 with tiingo_key_override(st.session_state.get("tiingo_key")):
                     beta_obj = Beta(
@@ -269,6 +269,10 @@ if submitted:
                     "x_col": x_col,
                     "asset1": asset1,
                     "asset2": asset2,
+                    "frequency": frequency,
+                    "return_type": return_type,
+                    "rolling": rolling,
+                    "rolling_window": rolling_window,
                 }
 
                 if rolling:
@@ -281,9 +285,6 @@ if submitted:
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("beta_results", None)
-            #st.stop()
-            # time.sleep(5)
-            # st.rerun()
             if st.button("try again", icon="😭"):
                 st.rerun()
 
@@ -293,6 +294,8 @@ if 'beta_results' in st.session_state:
     df, returns_df = r["df"], r["returns_df"]
     x_col, y_col = r["x_col"], r["y_col"]
     asset1, asset2 = r["asset1"], r["asset2"]
+    frequency, return_type = r["frequency"], r["return_type"]
+    rolling, rolling_window = r["rolling"], r["rolling_window"]
 
     if rolling:
         r_df = r["rolling_df"]

@@ -107,7 +107,7 @@ def calculate_risk_metrics(
 
     if date_col in data.columns:
         data[date_col] = pd.to_datetime(data[date_col])
-        data = data.sort_values(date_col)
+        data = data.sort_values(date_col).set_index(date_col)
 
     data[return_col] = pd.to_numeric(
         data[return_col],
@@ -740,7 +740,7 @@ def calculate_risk_metrics(
 
         return f"{x:,.2f}"
 
-    def print_report():
+    def _print_report():
 
         width = 78
 
@@ -1140,7 +1140,7 @@ def calculate_risk_metrics(
     # =========================================================================
 
     if print_report:
-        print_report()
+        _print_report()
 
     if plot:
         fig = plot_results()

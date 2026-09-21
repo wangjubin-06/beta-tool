@@ -310,7 +310,7 @@ if submitted:
 
         try:
         
-            with st.spinner("Fetching data and running regression..."):
+            with st.spinner("Fetching data and running regression...", show_time=True):
                 
                 with tiingo_key_override(st.session_state.get("tiingo_key")):
                     beta_obj = PortfolioBeta(
@@ -341,7 +341,7 @@ if submitted:
                         independent_returns_dic[ticker.upper()] = df.copy()
                 else:
                     independent_returns_data = independent_returns_data.copy()
-                    independent_returns_data.rename(columns={"independent_variable_returns": f"{ticker.upper()}-returns"}, inplace=True)
+                    independent_returns_data.rename(columns={"independent_variable_returns": f"{assets.upper()}-returns"}, inplace=True)
 
 
                 
@@ -362,6 +362,8 @@ if submitted:
                     "port_dict": port_dict,
                     "assets": assets,
                     "return_type": return_type,
+                    "rolling": rolling,
+                    "rolling_window": rolling_window,
                 }
 
                 if isinstance(independent_returns_data,dict):
@@ -381,8 +383,6 @@ if submitted:
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("portfoliobeta_results", None)
-            # time.sleep(5)
-            # st.rerun()
             if st.button("try again", icon="😭"):
                 st.rerun()
 
@@ -396,6 +396,8 @@ if 'portfoliobeta_results' in st.session_state:
     assets = r["assets"]
     return_type = r['return_type']
     x_col = r['x_col']
+    rolling = r["rolling"]
+    rolling_window = r["rolling_window"]
 
     if rolling:
         rolling_df_data = r["rolling_dfs"]
@@ -664,6 +666,8 @@ if 'portfoliobeta_results' in st.session_state:
         #st.write(rolling_df_data)
 
         if len(x_col) == 1:
+            x_name = x_col[0].upper()
+            
             rol_df = rolling_df_data.set_index("date")[["beta","beta_ci_upper","beta_ci_lower"]]
 
             # Confidence interval
@@ -675,7 +679,7 @@ if 'portfoliobeta_results' in st.session_state:
                 line=dict(width=0),
                 showlegend=False,
                 #hoverinfo='skip',
-                name=f'{ticker} 95% CI lower',
+                name=f'{x_name} 95% CI lower',
                 fillcolor='rgba(0, 0, 0, 0.1)',
             ))
 
@@ -687,13 +691,13 @@ if 'portfoliobeta_results' in st.session_state:
                 line= dict(width=0),
                 fill='tonexty',
                 fillcolor='rgba(0, 0, 0, 0.1)',  # Semi-transparent color for the band
-                name=f'{ticker} 95% CI upper',
+                name=f'{x_name} 95% CI upper',
                 showlegend=False,
             ))
 
             # Beta time series
             fig.add_trace(go.Scatter(
-                x=rol_df.index, y=rol_df["beta"], mode="lines", name=f"{ticker} beta",
+                x=rol_df.index, y=rol_df["beta"], mode="lines", name=f"{x_name} beta",
                 line=dict(width=2),
             ))
 
@@ -715,13 +719,13 @@ if 'portfoliobeta_results' in st.session_state:
                 df = rolling_df_data[["date","beta","beta_ci_upper","beta_ci_lower"]].copy()
                 df.dropna(ignore_index=True, inplace=True)
 
-                st.markdown(f"##### {x_col[0].upper()} Rolling Beta Stats ")
+                st.markdown(f"##### {x_name} Rolling Beta Stats ")
                 st.dataframe(df, width='stretch', hide_index=True)
 
                 
 
                 with st.container(horizontal=True, horizontal_alignment='right'):
-                    st.download_button("Download CSV", df.to_csv(index=False), f"{ticker}_rolling_stats.csv")
+                    st.download_button("Download CSV", df.to_csv(index=False), f"{x_name}_rolling_stats.csv")
 
                     rol_js_str = df.to_json(orient="records", indent=4, date_format='iso')
 
@@ -729,7 +733,7 @@ if 'portfoliobeta_results' in st.session_state:
                     st.download_button(
                         label="Download JSON",
                         data=rol_js_str,
-                        file_name=f"portfolio_{ticker}_{rolling_window}_rolling_beta_stats.json",
+                        file_name=f"portfolio_{x_name}_{rolling_window}_rolling_beta_stats.json",
                         mime="application/json"
                     )
 

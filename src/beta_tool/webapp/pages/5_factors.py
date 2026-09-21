@@ -4,6 +4,7 @@ import plotly.express as px
 import numpy as np
 import plotly.graph_objects as go
 from beta_tool.factor_research.factorsregression import EquityFactorsRegression
+from beta_tool.factor_research.factorresults import interpret_factor
 from beta_tool.webapp.tickers import get_tickers, find_tickers
 import time
 import json
@@ -179,7 +180,7 @@ if submitted:
             
             
         try:
-            with st.spinner("Fetching data and running regression..."):
+            with st.spinner("Fetching data and running regression...", show_time=True):
                 
                 if not hac:
                     with tiingo_key_override(st.session_state.get("tiingo_key")):
@@ -223,14 +224,13 @@ if submitted:
                     "results_dic": results_dic,
                     "returns_dic": returns_dic,
                     "assets": assets,
+                    "factor_source": factor_source,
                 }
 
 
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("factors_results", None)
-            #st.stop()
-            #time.sleep(5)
             if st.button("try again", icon="😭"):
                 st.rerun()
 
@@ -242,11 +242,11 @@ if 'factors_results' in st.session_state:
     
     st.space('medium')
     
-    if st.session_state.factors_factor_source == 'french':
+    if r["factor_source"] == 'french':
         
         st.subheader(f"Fama-French 5 Factors Regression Results")
         
-    elif st.session_state.factors_factor_source == 'etf':
+    elif r["factor_source"] == 'etf':
         
         st.subheader(f"ETF-proxy Factors Regression Results")
     
@@ -258,7 +258,7 @@ if 'factors_results' in st.session_state:
         st.markdown(f"##### {ticker.upper()} Factors")
         
         
-        with st.expander(f"Details", expanded=False):
+        with st.expander(f"Details", expanded=True):
             
             col1, col2 = st.columns(2)
             col1.markdown(f"Start date: {dict['model']["start_date"]}")
@@ -275,31 +275,17 @@ if 'factors_results' in st.session_state:
             for exposure, exp_dic in dict['exposures'].items():
                 beta_val = float(exp_dic['beta'])
                 pval = float(exp_dic['p-value'])
-                sig = "statistically significant" if pval < 0.05 else "**not** statistically significant at the 5% level"
                 
-                if beta_val > 2:
-                    qualifier = 'strong positive'
-                elif beta_val > 0.4:
-                    qualifier = 'positive'
-                elif beta_val > 0:
-                    qualifier = 'slightly positive'
-                elif beta_val > -0.5:
-                    qualifier = 'slightly negative'
-                elif beta_val > -2:
-                    qualifier = 'negative'
-                else:
-                    qualifier = 'strong negative'
+                interpretation_str = interpret_factor(factor_name=exposure,beta=beta_val, p_value=pval)
                 
-                #st.space("xsmall")
+                
                 # Raw results metrics
                 with st.container():
                     st.markdown(f"##### {exposure.title()} Factor")
-                    st.caption(
-                        f"{ticker.upper()} has {qualifier} exposure to {exposure.title()} factor. "
-                        f"It is {sig}."
-                    )
+                    st.caption(interpretation_str)
+                    
                     col1, col2 = st.columns(2)
-                    col1.metric("Beta", f"{beta_val:.3f}", delta=f"{beta_val - 1:.3f} vs 1.0", delta_color="off", border=True)     
+                    col1.metric("Beta", f"{beta_val:.3f}", border=True)     
                     col2.metric("P-value", f"{float(pval):.2e}", border=True, height='stretch')
     
     st.space('xxsmall')
@@ -307,7 +293,7 @@ if 'factors_results' in st.session_state:
     st.markdown("##### Full JSON data")
     with st.expander("Full JSON data"):
         
-        with st.expander("JSON code"):
+        with st.expander("JSON code", expanded=True):
             st.code(json.dumps(results_dic, indent=4), language="json")
         
         with st.container(horizontal_alignment='right'):

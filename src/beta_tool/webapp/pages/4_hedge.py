@@ -308,7 +308,7 @@ if submitted:
         
         
         try:
-            with st.spinner("Fetching data and running hedge sim..."):
+            with st.spinner("Fetching data and running hedge sim...", show_time=True):
                 
                 if hedge_type == 'static':
                     
@@ -339,7 +339,7 @@ if submitted:
                             rebalance_freq=rebalance_freq
                         )
                 
-                beta_obj.backtest(plot=False)
+                beta_obj.backtest(plot=False, print_report=False)
                 
                 unhedged_port_return_series = beta_obj.unhedged_port_return_series.copy()
                 
@@ -389,8 +389,6 @@ if submitted:
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("hedge_results", None)
-            # time.sleep(5)
-            # st.rerun()
             if st.button("try again", icon="😭"):
                 st.rerun()
 
