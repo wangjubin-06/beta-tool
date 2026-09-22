@@ -1,12 +1,20 @@
 import streamlit as st
-from beta_tool.webapp import theme
+# from beta_tool.webapp import theme
 from beta_tool.webapp.tickers import get_tickers
+from beta_tool.webapp import theme_terminal as theme
 
 theme.apply_theme()
 
 @st.cache_data
 def tickers():
     return get_tickers()
+
+st.markdown("""
+    <style>
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
 
 
 

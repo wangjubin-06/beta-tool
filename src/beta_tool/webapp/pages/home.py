@@ -4,7 +4,7 @@ from beta_tool.webapp.tickers import is_valid_tiingo_key
 
 st.set_page_config(
     page_title="Home",
-    page_icon="🚀", # Can be an emoji or a path to an image file
+    page_icon=":material/query_stats:",
     layout="centered"
 )
 

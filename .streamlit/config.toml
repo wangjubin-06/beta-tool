@@ -11,11 +11,17 @@
 # or `base` (the one thing that doesn't hot-reload).
 
 [theme]
-base = "light"
+# base = "light"
+base = "dark"
+font = "monospace"
 
-font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap, sans-serif"
-headingFont = "Source Serif 4:https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap, serif"
-codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap, monospace"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap, sans-serif"
+headingFont = "Space Grotesk:https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap, sans-serif"
+codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap, monospace"
+
+# font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap, sans-serif"
+# headingFont = "Source Serif 4:https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap, serif"
+# codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap, monospace"
 
 baseFontSize = 16
 headingFontWeights = [600, 600, 550, 550, 500, 500]
@@ -29,30 +35,37 @@ showSidebarBorder = true
 # Light — warm paper background, ink text, clay accent.
 # ---------------------------------------------------------------------------
 [theme.light]
-primaryColor = "#D9663A"
-backgroundColor = "#F7F5F0"
-secondaryBackgroundColor = "#EDEAE1"
-textColor = "#22201C"
-borderColor = "#DDD9CE"
-linkColor = "#2B4570"
+# primaryColor = "#D9663A"
+# backgroundColor = "#F7F5F0"
+# secondaryBackgroundColor = "#EDEAE1"
+# textColor = "#22201C"
+# borderColor = "#DDD9CE"
+# linkColor = "#2B4570"
 
-greenColor = "#1F6F50"
-redColor = "#A23B2E"
+# greenColor = "#1F6F50"
+# redColor = "#A23B2E"
 
-chartCategoricalColors = [
-    "#2B4570", # navy
-    "#D9663A", # clay
-    "#1F6F50", # positive
-    "#A23B2E", # negative
-    "#6B6659", # ink-muted
-    "#7C9CC9", # soft navy
-]
+#chartCategoricalColors = [
+#    "#2B4570", # navy
+#    "#D9663A", # clay
+#    "#1F6F50", # positive
+#    "#A23B2E", # negative
+#    "#6B6659", # ink-muted
+#    "#7C9CC9", # soft navy
+#]
 
-[theme.light.sidebar]
-backgroundColor = "#EDEAE1"
-borderColor = "#DDD9CE"
-primaryColor = "#D9663A"
-textColor = "#22201C"
+primaryColor = "#C77D0A"
+backgroundColor = "#F4F6F8"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#12161C"
+borderColor = "#D7DCE3"
+font = "monospace"
+
+#[theme.light.sidebar]
+#backgroundColor = "#EDEAE1"
+#borderColor = "#DDD9CE"
+#primaryColor = "#D9663A"
+#textColor = "#22201C"
 
 # ---------------------------------------------------------------------------
 # Dark — near-black instead of warm-charcoal, with a brighter, more
@@ -60,27 +73,34 @@ textColor = "#22201C"
 # rather than a dimmed-down light one.
 # ---------------------------------------------------------------------------
 [theme.dark]
-primaryColor = "#F2794D"
-backgroundColor = "#131211"
-secondaryBackgroundColor = "#1D1B18"
-textColor = "#F5F2EA"
-borderColor = "#3D372C"
-linkColor = "#8FB4E3"
+primaryColor = "#FFB020"
+backgroundColor = "#0B0D10"
+secondaryBackgroundColor = "#15181D"
+textColor = "#E8EAED"
+borderColor = "#262B33"
+font = "monospace"
 
-greenColor = "#35D68E"
-redColor = "#FF6B5B"
+#primaryColor = "#F2794D"
+#backgroundColor = "#131211"
+#secondaryBackgroundColor = "#1D1B18"
+#textColor = "#F5F2EA"
+#borderColor = "#3D372C"
+#linkColor = "#8FB4E3"
 
-chartCategoricalColors = [
-    "#8FB4E3", # periwinkle
-    "#F2794D", # clay
-    "#35D68E", # positive
-    "#FF6B5B", # negative
-    "#9A9284", # ink-muted
-    "#6D8FC4", # navy
-]
+#greenColor = "#35D68E"
+#redColor = "#FF6B5B"
 
-[theme.dark.sidebar]
-backgroundColor = "#0B0A09"
-borderColor = "#3D372C"
-primaryColor = "#F2794D"
-textColor = "#F5F2EA"
+#chartCategoricalColors = [
+#    "#8FB4E3", # periwinkle
+#    "#F2794D", # clay
+#    "#35D68E", # positive
+#    "#FF6B5B", # negative
+#    "#9A9284", # ink-muted
+#    "#6D8FC4", # navy
+#]
+
+#[theme.dark.sidebar]
+#backgroundColor = "#0B0A09"
+#borderColor = "#3D372C"
+#primaryColor = "#F2794D"
+#textColor = "#F5F2EA"
