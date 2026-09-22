@@ -11,8 +11,8 @@ WINDOW_FLOORS   = {'daily': 30,  'weekly': 20, 'monthly': 12}
 
 
 st.set_page_config(
-    page_title="Portfolio Beta",
-    page_icon="💹",
+    page_title="Portfolio Hedge",
+    page_icon=":material/finance_mode:",
     layout="wide",
 )
 
@@ -389,7 +389,7 @@ if submitted:
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("hedge_results", None)
-            if st.button("try again", icon="😭"):
+            if st.button("Try again"):
                 st.rerun()
 
 

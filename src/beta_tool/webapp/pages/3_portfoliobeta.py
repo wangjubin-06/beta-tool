@@ -12,7 +12,7 @@ from beta_tool.data_collection.tiingo_api import tiingo_key_override
 st.set_page_config(
     page_title="Portfolio Beta",
     layout="wide",
-    page_icon="😈"
+    page_icon=":material/finance:"
 )
 
 
@@ -383,7 +383,7 @@ if submitted:
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("portfoliobeta_results", None)
-            if st.button("try again", icon="😭"):
+            if st.button("Try again"):
                 st.rerun()
 
 

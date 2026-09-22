@@ -10,7 +10,7 @@ import time
 
 st.set_page_config(
     page_title="Single Asset Beta",
-    page_icon="📈",
+    page_icon=":material/trending_up:",
     layout="wide",
 )
 
@@ -285,7 +285,7 @@ if submitted:
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("beta_results", None)
-            if st.button("try again", icon="😭"):
+            if st.button("Try again"):
                 st.rerun()
 
 

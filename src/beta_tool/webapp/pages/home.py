@@ -12,8 +12,8 @@ st.set_page_config(
 with st.container(height='content'):
     st.title("beta_tool")
     st.markdown(
-        "##### :rainbow[A quantitative finance toolkit for beta estimation, portfolio hedging, "
-        "and factor analysis. Select a tool from the sidebar.]"
+        "##### A quantitative finance toolkit for beta estimation, portfolio hedging, "
+        "and factor analysis. Select a tool from the sidebar."
     )
     st.space("xxsmall")
     st.subheader("Available tools", divider="gray")
@@ -78,9 +78,9 @@ with st.container(height='content'):
     
     st.space('xsmall')
     
-    #st.markdown("😎😂🤣🤨😐😶‍🌫️😮😪🫩😭😨🥵🤪🤕🤡👹👺😈💩😹😻😿🧟‍♂️👨‍🌾🙇‍♂️🤦‍♂️")
+    
     st.markdown("jubin wang")
     with st.container(width='content', gap='xsmall', horizontal=True):
         st.link_button("GitHub", "https://github.com/wangjubin-06", type='secondary', width='stretch')
         st.link_button("LinkedIn", "https://linkedin.com/in/jubin-wang", type='secondary', width='stretch')
-        st.link_button("Instagram", "https://instagram.com/jubin.w", type='secondary', width='stretch')
+        #st.link_button("Instagram", "https://instagram.com/jubin.w", type='secondary', width='stretch')

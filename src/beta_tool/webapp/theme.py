@@ -168,21 +168,6 @@ hr {{
     margin: 1.25rem 0;
 }}
 
-/* card-style metrics with a soft hover lift — the "modern SaaS" bit */
-
-/* [data-testid="stMetric"] {{
-    background: {surface};
-    border: 1px solid {border};
-    border-radius: 12px;
-    padding: 0.9rem 1.1rem;
-    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-}} */
-
-[data-testid="stMetric"]:hover {{
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px {shadow};
-    border-color: {primary};
-}}
 [data-testid="baseButton-primary"],
 [data-testid="stBaseButton-primary"] {{
     transition: transform 120ms ease, box-shadow 120ms ease;
@@ -209,7 +194,6 @@ def apply_theme() -> None:
             body=FONT_BODY,
             surface=p["surface"],
             border=p["border"],
-            primary=p["clay"],
             shadow=p["shadow"],
         ),
         unsafe_allow_html=True,

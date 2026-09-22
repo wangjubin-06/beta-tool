@@ -13,7 +13,7 @@ from beta_tool.data_collection.tiingo_api import tiingo_key_override
 
 st.set_page_config(
     page_title="Factor Analysis",
-    page_icon="🔥",
+    page_icon=":material/analytics:",
     layout="wide",
 )
 
@@ -231,7 +231,7 @@ if submitted:
         except Exception as e:
             st.error(f"Regression failed: {e}")
             st.session_state.pop("factors_results", None)
-            if st.button("try again", icon="😭"):
+            if st.button("Try again"):
                 st.rerun()
 
 
