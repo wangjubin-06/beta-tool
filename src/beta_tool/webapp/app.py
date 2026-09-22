@@ -9,13 +9,6 @@ theme.apply_theme()
 def tickers():
     return get_tickers()
 
-st.markdown("""
-    <style>
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-    """, unsafe_allow_html=True)
-
 
 
 home = st.Page("pages/home.py", title="Home", default=True)
