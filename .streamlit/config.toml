@@ -42,17 +42,17 @@ showSidebarBorder = true
 # borderColor = "#DDD9CE"
 # linkColor = "#2B4570"
 
-# greenColor = "#1F6F50"
-# redColor = "#A23B2E"
+greenColor = "#15803D"
+redColor = "#B91C1C"
 
-#chartCategoricalColors = [
-#    "#2B4570", # navy
-#    "#D9663A", # clay
-#    "#1F6F50", # positive
-#    "#A23B2E", # negative
-#    "#6B6659", # ink-muted
-#    "#7C9CC9", # soft navy
-#]
+chartCategoricalColors = [
+    "#C77D0A", # navy
+    "#0F766E", # clay
+    "#15803D", # positive
+    "#B91C1C", # negative
+    "#5B6472", # muted
+    "#12161C", # ink
+]
 
 primaryColor = "#C77D0A"
 backgroundColor = "#F4F6F8"
@@ -61,11 +61,11 @@ textColor = "#12161C"
 borderColor = "#D7DCE3"
 font = "monospace"
 
-#[theme.light.sidebar]
-#backgroundColor = "#EDEAE1"
-#borderColor = "#DDD9CE"
-#primaryColor = "#D9663A"
-#textColor = "#22201C"
+[theme.light.sidebar]
+backgroundColor = "#FFFFFF"
+borderColor = "#D7DCE3"
+primaryColor = "#C77D0A"
+textColor = "#12161C"
 
 # ---------------------------------------------------------------------------
 # Dark — near-black instead of warm-charcoal, with a brighter, more
@@ -87,20 +87,19 @@ font = "monospace"
 #borderColor = "#3D372C"
 #linkColor = "#8FB4E3"
 
-#greenColor = "#35D68E"
-#redColor = "#FF6B5B"
+greenColor = "#22C55E"
+redColor = "#EF4444"
 
-#chartCategoricalColors = [
-#    "#8FB4E3", # periwinkle
-#    "#F2794D", # clay
-#    "#35D68E", # positive
-#    "#FF6B5B", # negative
-#    "#9A9284", # ink-muted
-#    "#6D8FC4", # navy
-#]
+chartCategoricalColors = [
+    "#2DD4BF", # clay
+    "#22C55E", # positive
+    "#EF4444", # negative
+    "#8A93A3", # muted
+    "#FFB020", # navy
+]
 
-#[theme.dark.sidebar]
-#backgroundColor = "#0B0A09"
-#borderColor = "#3D372C"
-#primaryColor = "#F2794D"
-#textColor = "#F5F2EA"
+[theme.dark.sidebar]
+backgroundColor = "#15181D"
+borderColor = "#262B33"
+primaryColor = "#FFB020"
+textColor = "#E8EAED"
