@@ -282,6 +282,12 @@ if submitted:
         and start_date > end_date
     ):
         st.error("Start date must be earlier than end date.")
+    elif (
+        start_date is not None
+        and end_date is not None
+        and start_date == end_date
+    ):
+        st.error("End date cannot be same as start date.")
     else:
         # Convert dates
         start_date_str = (

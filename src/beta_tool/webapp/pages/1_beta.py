@@ -204,6 +204,13 @@ if submitted:
     ):
         st.error("Start date must be earlier than end date.")
 
+    elif (
+        start_date is not None
+        and end_date is not None
+        and start_date == end_date
+    ):
+        st.error("End date cannot be same as start date.")
+
     else:
 
         # Convert dates
@@ -361,7 +368,7 @@ if 'beta_results' in st.session_state:
     st.space('small')
     
     # Cumulative returns plot
-    #st.subheader("Cumulative returns")
+    
     cum_df = returns_df.set_index("date")[[x_col, y_col]].rename(
         columns={x_col: asset2.upper(), y_col: asset1.upper()}
     )
