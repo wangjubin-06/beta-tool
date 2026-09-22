@@ -1,5 +1,4 @@
 import streamlit as st
-# from beta_tool.webapp import theme
 from beta_tool.webapp.tickers import get_tickers
 from beta_tool.webapp import theme_terminal as theme
 

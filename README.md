@@ -9,9 +9,14 @@
 
 License: MIT
 
+## Preview
 <!-- Add a screenshot or GIF of the web app and CLI output here, e.g. ![Web app](docs/webapp.png) -->
-<img src="docs/webapp.png" alt="Webapp" width="300">
-<img src="docs/cli.png" alt="CLI tool" width="620">
+<div>
+<img src="docs/drawdown.png" alt="Drawdowns" height="220">
+<img src="docs/returns.png" alt="Returns" height="220">
+<img src="docs/metrics.png" alt="Metrics" height="220">
+</div>
+<img src="docs/cli.png" alt="CLI tool" height="200">
 
 
 ## Contents
