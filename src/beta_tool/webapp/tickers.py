@@ -57,7 +57,7 @@ def get_tickers():
 def find_tickers(tickers, query, limit=10):
     query = query.strip().upper()
 
-    if len(query) < 2:
+    if len(query) < 1:
         return []
 
     # First ticker >= query

@@ -40,7 +40,7 @@ with st.container(border=True):
         st.session_state.factors_assets = []
 
     # Search
-    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='factors_search_box', icon="🔍")
+    search_query = st.text_input("Search for tickers", placeholder="enter 1 character to start", key='factors_search_box', icon="🔍")
 
     dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 

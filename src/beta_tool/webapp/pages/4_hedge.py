@@ -47,7 +47,7 @@ with st.container(border=True):
         
 
     # Search
-    search_query = st.text_input("Search for tickers", placeholder="enter 2 characters to start", key='hedge_search_box', icon="🔍")
+    search_query = st.text_input("Search for tickers", placeholder="enter 1 character to start", key='hedge_search_box', icon="🔍")
 
     dropdown_options = find_tickers(st.session_state.ticker_list,search_query,limit=20)
 
