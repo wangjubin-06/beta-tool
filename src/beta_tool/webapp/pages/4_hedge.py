@@ -428,7 +428,10 @@ if 'hedge_results' in st.session_state:
     elif hedge_type == 'rolling':
         st.markdown(f"{hedge_type.title()} hedge with a lookback window of {rolling_window} {freq} observations and a rebalance frequency of every {rebalance_freq} observations. Backtest is from {start} to {end}.")
     
-    st.markdown(f"The portfolio is hedged by shorting {", ".join(ticker for ticker in assets)}.")
+    if isinstance(assets,list):
+        st.markdown(f"The portfolio is hedged by shorting {", ".join(ticker for ticker in assets)}.")
+    elif isinstance(assets,str):
+        st.markdown(f"The portfolio is hedged by shorting {assets}.")
     
     
     # Portfolio cumulative returns plot
