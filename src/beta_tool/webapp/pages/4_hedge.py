@@ -424,9 +424,9 @@ if 'hedge_results' in st.session_state:
     st.subheader('Hedge Results')
     
     if hedge_type == 'static':
-        st.markdown(f"{hedge_type.title()} hedge with a lookback window of {static_window} {freq} observations. Backtest is from {start} to {end}.")
+        st.markdown(f"{hedge_type.title()} beta-hedged long-short relative-value strategy with a lookback window of {static_window} {freq} observations. Backtest is from {start} to {end}.")
     elif hedge_type == 'rolling':
-        st.markdown(f"{hedge_type.title()} hedge with a lookback window of {rolling_window} {freq} observations and a rebalance frequency of every {rebalance_freq} observations. Backtest is from {start} to {end}.")
+        st.markdown(f"{hedge_type.title()} beta-hedged long-short relative-value strategy with a lookback window of {rolling_window} {freq} observations and a rebalance frequency of every {rebalance_freq} observations. Backtest is from {start} to {end}.")
     
     if isinstance(assets,list):
         st.markdown(f"The portfolio is hedged by shorting {", ".join(ticker for ticker in assets)}.")
