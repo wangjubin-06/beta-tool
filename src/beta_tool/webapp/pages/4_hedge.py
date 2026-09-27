@@ -539,8 +539,8 @@ if 'hedge_results' in st.session_state:
         "Annualized Volatility",
         f"{ann_vol_h:.2%}",
         border=True,
-        delta=f"{ann_vol_d:.2%} vs unhedged",
-        #delta_color="inverse",
+        delta=f"{-ann_vol_d:.2%} vs unhedged",
+        delta_color="inverse",
         #delta_arrow = 'off'
     
     )
