@@ -192,7 +192,7 @@ Here $\Sigma_{HH}$ is the covariance matrix of the hedge instruments and $\Sigma
 
 ## 5. Worked examples (hypothetical numbers)
 
-Setup: a single stock with daily volatility $\sigma_a = 1.8\%$. Position size $V = \$100{,}000$.
+Setup: a single stock with daily volatility $\sigma_a = 1.8\%$. Position size $V$ = &#36;100,000.
 
 ### Example A: Hedging with SPY
 
@@ -202,13 +202,13 @@ $$
 \beta_{SPY} = 0.75 \times \frac{1.8}{1.0} = 1.35, \qquad R^2 = 0.75^2 = 0.5625
 $$
 
-**Hedge size:** short $1.35 \times \$100{,}000 = \$135{,}000$ of SPY.
+**Hedge size:** short &#36;1.35 $\times$ &#36;100,000 = &#36;135,000 of SPY.
 
 **One-day check.** Suppose the stock returns $+2.0\%$ and SPY returns $+1.0\%$:
 
-- Stock P&L: $+\$2{,}000$
-- SPY short P&L: $-\$135{,}000 \times 1.0\% = -\$1{,}350$
-- Net: $+\$650$, i.e. $h = 2.0\% - 1.35\times 1.0\% = 0.65\%$ of $V$
+- Stock P&L: $+$ &#36;$2{,}000$
+- SPY short P&L: $-$ &#36;$135{,}000 \times 1.0\% =$ $-$ &#36;$1{,}350$
+- Net: $+$ &#36;$650$, i.e. $h = 2.0\% - 1.35\times 1.0\% = 0.65\%$ of $V$
 
 **Risk after hedging:**
 
@@ -216,7 +216,7 @@ $$
 \sigma_h = \sigma_a\sqrt{1-R^2} = 1.8\%\times\sqrt{0.4375} \approx 1.19\% \text{ per day}
 $$
 
-Annualised ($\times\sqrt{252}$): about $28.6\% \to 18.9\%$. The hedge removed 56% of the variance.
+Annualised ($\times\sqrt{252}$): about $28.6\% \to 18.9\%$. The hedge removed $56\%$ of the variance.
 
 ### Example B: Hedging the same stock with its sector ETF
 
@@ -226,7 +226,7 @@ $$
 \beta_{sector} = 0.90\times\frac{1.8}{1.6} = 1.0125, \qquad R^2 = 0.81
 $$
 
-**Hedge size:** short about $\$101{,}250$ of the sector ETF.
+**Hedge size:** short about &#36;$101{,}250$ of the sector ETF.
 
 $$
 \sigma_h = 1.8\%\times\sqrt{0.19} \approx 0.78\% \text{ per day} \;\;(\approx 12.5\% \text{ annualised})
@@ -244,7 +244,7 @@ $$
 
 ### Example C: Rolling vs static
 
-Say $W = 126$ trading days, rebalanced every 21 days. On rebalance date $k$ the tool uses the rolling beta that was available the *day before*, so $\beta_k = 1.35$ might become $\beta_{k+1} = 1.50$ after a volatile stretch, and the short SPY notional is adjusted from $\$135{,}000$ to $\$150{,}000$ at that date and then held constant until the next rebalance. A static hedge would stay at $1.35$ throughout, which is better if the true beta is stable and worse if it drifts.
+Say $W = 126$ trading days, rebalanced every 21 days. On rebalance date $k$ the tool uses the rolling beta that was available the *day before*, so $\beta_k = 1.35$ might become $\beta_{k+1} = 1.50$ after a volatile stretch, and the short SPY notional is adjusted from &#36;$135{,}000$ to &#36;$150{,}000$ at that date and then held constant until the next rebalance. A static hedge would stay at $1.35$ throughout, which is better if the true beta is stable and worse if it drifts.
 
 ### Example D: Rate beta (fixed-income flavour)
 
