@@ -8,6 +8,11 @@ theme.apply_theme()
 def tickers():
     return get_tickers()
 
+st.set_page_config(
+    page_title="beta-tool",
+    page_icon=":material/query_stats:",
+)
+
 
 
 home = st.Page("pages/home.py", title="Home", default=True)
