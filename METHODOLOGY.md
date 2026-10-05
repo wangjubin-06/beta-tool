@@ -32,7 +32,7 @@ $$
 The OLS slope is
 
 $$
-\hat\beta = \frac{\operatorname{Cov}(r_a, r_m)}{\operatorname{Var}(r_m)} = \rho \,\frac{\sigma_a}{\sigma_m}
+\hat\beta = \frac{\mathrm{Cov}(r_a, r_m)}{\mathrm{Var}(r_m)} = \rho \,\frac{\sigma_a}{\sigma_m}
 $$
 
 **Interpretation.** A beta of 1.35 means: on average, when the reference moves by 1%, the target moves by about 1.35% in the same direction (plus noise).
@@ -44,13 +44,13 @@ Nothing in this maths is specific to SPY. "Market beta" is just the special case
 Taking the variance of the regression equation (and using the fact that $\varepsilon$ is uncorrelated with $r_m$ by construction):
 
 $$
-\underbrace{\operatorname{Var}(r_a)}_{\text{total risk}} = \underbrace{\beta^2 \operatorname{Var}(r_m)}_{\text{systematic (explained by reference)}} + \underbrace{\operatorname{Var}(\varepsilon)}_{\text{residual}}
+\underbrace{\mathrm{Var}(r_a)}_{\text{total risk}} = \underbrace{\beta^2 \mathrm{Var}(r_m)}_{\text{systematic (explained by reference)}} + \underbrace{\mathrm{Var}(\varepsilon)}_{\text{residual}}
 $$
 
 and therefore
 
 $$
-R^2 = \frac{\beta^2 \sigma_m^2}{\sigma_a^2} = \rho^2, \qquad \operatorname{Var}(\varepsilon) = (1-R^2)\,\sigma_a^2
+R^2 = \frac{\beta^2 \sigma_m^2}{\sigma_a^2} = \rho^2, \qquad \mathrm{Var}(\varepsilon) = (1-R^2)\,\sigma_a^2
 $$
 
 This decomposition is the key to understanding both "which reference should I use?" and "how good can the hedge be?".
@@ -81,7 +81,7 @@ Three practical points:
 With $K$ references, the regression becomes
 
 $$
-r_{a,t} = \alpha + \sum_{k=1}^{K}\beta_k\, r_{k,t} + \varepsilon_t, \qquad \hat{\boldsymbol\beta} = (X^\top X)^{-1}X^\top y
+r_{a,t} = \alpha + \sum_{k=1}^{K}\beta_k\, r_{k,t} + \varepsilon_t, \qquad \hat{\beta} = (X^\top X)^{-1}X^\top y
 $$
 
 Each $\beta_k$ is now a **partial** effect: the sensitivity to reference $k$ *holding the others fixed*. When references are correlated, partial betas differ from single-reference betas.
@@ -121,35 +121,35 @@ of the hedge instrument. The combined daily P&L is $V\,r_a - N_H\, r_H = V\,(r_a
 The covariance of the hedged series with the hedge instrument is
 
 $$
-\operatorname{Cov}(h, r_H) = \operatorname{Cov}(r_a, r_H) - \beta \operatorname{Var}(r_H) = 0
+\mathrm{Cov}(h, r_H) = \mathrm{Cov}(r_a, r_H) - \beta \mathrm{Var}(r_H) = 0
 $$
 
-when $\beta = \operatorname{Cov}(r_a, r_H)/\operatorname{Var}(r_H)$. So the hedged position has zero regression-beta to the hedge instrument.
+when $\beta = \mathrm{Cov}(r_a, r_H)/\mathrm{Var}(r_H)$. So the hedged position has zero regression-beta to the hedge instrument.
 
 ### 4.3 It is also the minimum-variance hedge
 
 Let the hedge ratio be a free number $b$. Then
 
 $$
-\operatorname{Var}(r_a - b\,r_H) = \sigma_a^2 - 2b\operatorname{Cov}(r_a,r_H) + b^2\sigma_H^2
+\mathrm{Var}(r_a - b\,r_H) = \sigma_a^2 - 2b\mathrm{Cov}(r_a,r_H) + b^2\sigma_H^2
 $$
 
 Setting the derivative with respect to $b$ to zero:
 
 $$
-\frac{d}{db}\operatorname{Var}(r_a - b\,r_H) = -2\operatorname{Cov}(r_a, r_H) + 2b\,\sigma_H^2 = 0
+\frac{d}{db}\mathrm{Var}(r_a - b\,r_H) = -2\mathrm{Cov}(r_a, r_H) + 2b\,\sigma_H^2 = 0
 $$
 
 which gives the optimal hedge ratio
 
 $$
-b_{\text{opt}} = \frac{\operatorname{Cov}(r_a, r_H)}{\sigma_H^2} = \beta
+b_{\text{opt}} = \frac{\mathrm{Cov}(r_a, r_H)}{\sigma_H^2} = \beta
 $$
 
 So for a single hedge instrument, **beta-neutral and minimum-variance coincide**, and the remaining variance is
 
 $$
-\operatorname{Var}(h) = (1 - R^2)\,\sigma_a^2
+\mathrm{Var}(h) = (1 - R^2)\,\sigma_a^2
 $$
 
 i.e. the hedge removes a fraction $R^2$ of the target's variance and the rest is residual risk.
@@ -174,10 +174,10 @@ For a portfolio, the target return is derived from the portfolio value series, $
 
 ### 4.5 Hedging with several instruments
 
-With $K$ hedge instruments, the minimum-variance hedge vector is the multiple-regression coefficient vector:
+With $K$ hedge instruments, the minimum-variance hedge vector is the multiple-regression coefficient vector (the same estimate `MultiBeta` produces):
 
 $$
-\mathbf{b}_{\text{opt}} = \Sigma_{HH}^{-1}\,\Sigma_{Ha} = \hat{\boldsymbol{\beta}}_{\text{MultiBeta}}
+\mathbf{b}_{\text{opt}} = \Sigma_{HH}^{-1}\,\Sigma_{Ha} = \hat{\beta}_{\text{MultiBeta}}
 $$
 
 and the hedged series is
@@ -192,7 +192,7 @@ Here $\Sigma_{HH}$ is the covariance matrix of the hedge instruments and $\Sigma
 
 ## 5. Worked examples (hypothetical numbers)
 
-Setup: a single stock with daily volatility $\sigma_a = 1.8\%$. Position size $V$ = &#36;100,000.
+Setup: a single stock with daily volatility $\sigma_a = 1.8\%$. Position size $V = 100{,}000$ USD.
 
 ### Example A: Hedging with SPY
 
@@ -202,13 +202,13 @@ $$
 \beta_{SPY} = 0.75 \times \frac{1.8}{1.0} = 1.35, \qquad R^2 = 0.75^2 = 0.5625
 $$
 
-**Hedge size:** short &#36;1.35 $\times$ &#36;100,000 = &#36;135,000 of SPY.
+**Hedge size:** short $1.35 \times 100{,}000 = 135{,}000$ USD of SPY.
 
 **One-day check.** Suppose the stock returns $+2.0\%$ and SPY returns $+1.0\%$:
 
-- Stock P&L: $+$ &#36;$2{,}000$
-- SPY short P&L: $-$ &#36;$135{,}000 \times 1.0\% =$ $-$ &#36;$1{,}350$
-- Net: $+$ &#36;$650$, i.e. $h = 2.0\% - 1.35\times 1.0\% = 0.65\%$ of $V$
+- Stock P&L: $+2{,}000$ USD
+- SPY short P&L: $-135{,}000 \times 1.0\% = -1{,}350$ USD
+- Net: $+650$ USD, i.e. $h = 2.0\% - 1.35\times 1.0\% = 0.65\%$ of $V$
 
 **Risk after hedging:**
 
@@ -216,7 +216,7 @@ $$
 \sigma_h = \sigma_a\sqrt{1-R^2} = 1.8\%\times\sqrt{0.4375} \approx 1.19\% \text{ per day}
 $$
 
-Annualised ($\times\sqrt{252}$): about $28.6\% \to 18.9\%$. The hedge removed $56\%$ of the variance.
+Annualised ($\times\sqrt{252}$): about $28.6\% \to 18.9\%$. The hedge removed 56% of the variance.
 
 ### Example B: Hedging the same stock with its sector ETF
 
@@ -226,7 +226,7 @@ $$
 \beta_{sector} = 0.90\times\frac{1.8}{1.6} = 1.0125, \qquad R^2 = 0.81
 $$
 
-**Hedge size:** short about &#36;$101{,}250$ of the sector ETF.
+**Hedge size:** short about $101{,}250$ USD of the sector ETF.
 
 $$
 \sigma_h = 1.8\%\times\sqrt{0.19} \approx 0.78\% \text{ per day} \;\;(\approx 12.5\% \text{ annualised})
@@ -244,7 +244,7 @@ $$
 
 ### Example C: Rolling vs static
 
-Say $W = 126$ trading days, rebalanced every 21 days. On rebalance date $k$ the tool uses the rolling beta that was available the *day before*, so $\beta_k = 1.35$ might become $\beta_{k+1} = 1.50$ after a volatile stretch, and the short SPY notional is adjusted from &#36;$135{,}000$ to &#36;$150{,}000$ at that date and then held constant until the next rebalance. A static hedge would stay at $1.35$ throughout, which is better if the true beta is stable and worse if it drifts.
+Say $W = 126$ trading days, rebalanced every 21 days. On rebalance date $k$ the tool uses the rolling beta that was available the *day before*, so $\beta_k = 1.35$ might become $\beta_{k+1} = 1.50$ after a volatile stretch, and the short SPY notional is adjusted from $135{,}000$ USD to $150{,}000$ USD at that date and then held constant until the next rebalance. A static hedge would stay at $1.35$ throughout, which is better if the true beta is stable and worse if it drifts.
 
 ### Example D: Rate beta (fixed-income flavour)
 
@@ -276,3 +276,4 @@ Regress a corporate bond fund's returns on an intermediate Treasury ETF (e.g. IE
 | `PortfolioHedge` | Builds hedged vs unhedged series using static or rolling beta, and backtests the result |
 
 Data comes from Tiingo (requires `TIINGO_API_KEY`) with full history cached as parquet files.
+
