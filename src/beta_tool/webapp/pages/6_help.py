@@ -12,18 +12,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Reset font family to Streamlit's default for this page only
-st.markdown(
-    """
-    <style>
-    html, body, [class*="css"] {
-        font-family: "Source Sans Pro", sans-serif, sans-serif !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 
 st.markdown(
     mdstr,
