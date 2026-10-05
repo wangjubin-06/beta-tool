@@ -11,7 +11,7 @@ from beta_tool.data_collection.tiingo_api import tiingo_key_override
 
 
 st.set_page_config(
-    page_title="Beta Tool",
+    page_title="MultiBeta Tool",
     layout="wide",
     page_icon=":material/line_axis:"
 )

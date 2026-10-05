@@ -12,12 +12,13 @@ def tickers():
 
 home = st.Page("pages/home.py", title="Home", default=True)
 beta = st.Page("pages/1_beta.py", title="Single Asset Beta")
-multibeta = st.Page("pages/2_multibeta.py", title="Beta Tool")
+multibeta = st.Page("pages/2_multibeta.py", title="MultiBeta Tool")
 portfolio_beta = st.Page("pages/3_portfoliobeta.py", title="Portfolio Beta")
-hedge = st.Page("pages/4_hedge.py", title="Hedge")
+hedge = st.Page("pages/4_hedge.py", title="Portfolio Hedge")
 factors = st.Page("pages/5_factors.py", title="Factor Analysis")
+helppage = st.Page("pages/6_help.py", title="About")
 
-pg = st.navigation([home, beta, multibeta, portfolio_beta, hedge, factors], position='sidebar')
+pg = st.navigation([home, helppage, beta, multibeta, portfolio_beta, hedge, factors], position='sidebar')
 
 try:
     tickers_df, ticker_list = tickers()

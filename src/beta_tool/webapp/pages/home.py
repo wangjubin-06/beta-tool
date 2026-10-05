@@ -18,10 +18,11 @@ with st.container(height='content'):
     st.space("xxsmall")
     st.subheader("Available tools", divider="gray")
     st.page_link("pages/1_beta.py", label="**Single Asset Beta** — two-asset return regression", icon=":material/trending_up:")
-    st.page_link("pages/2_multibeta.py", label="**Beta Tool** — multi-asset regression", icon=":material/line_axis:")
+    st.page_link("pages/2_multibeta.py", label="**MultiBeta Tool** — multi-asset regression", icon=":material/line_axis:")
     st.page_link("pages/3_portfoliobeta.py", label="**Portfolio Beta** — weighted portfolio vs benchmark asset(s)", icon=":material/finance:")
-    st.page_link("pages/4_hedge.py", label="**Hedge** — beta-weighted hedge construction and backtesting", icon=":material/finance_mode:")
+    st.page_link("pages/4_hedge.py", label="**Portfolio Hedge** — beta-weighted hedge construction and backtesting", icon=":material/finance_mode:")
     st.page_link("pages/5_factors.py", label="**Factor Analysis** — equity vs factor regression", icon=":material/analytics:")
+    st.page_link("pages/6_help.py", label="**About this tool**", icon=":material/info:")
     
 
     st.space('large')
