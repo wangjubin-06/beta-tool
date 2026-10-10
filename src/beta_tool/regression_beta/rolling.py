@@ -482,6 +482,7 @@ class SingleFactorRollingOLS:
             'beta_tstat': beta_tstat,
             'beta_pvalue': beta_pvalue,
             'r_squared': np.asarray(roll_results.rsquared),
+            'correlation': np.sign(beta) * np.sqrt(np.asarray(roll_results.rsquared)),
             'residual_volatility': np.sqrt(np.asarray(roll_results.mse_resid)),
         })
 
@@ -575,6 +576,7 @@ class SingleFactorRollingOLS:
         )
         print(f"  Alpha:              {float(latest['alpha'].item()):.6f}")
         print(f"  R-squared:          {float(latest['r_squared'].item()):.3f}")
+        print(f"  Correlation:          {float(latest['correlation'].item()):.3f}")
         print(f"  Residual volatility: {float(latest['residual_volatility'].item()):.6f}")
 
         print(f"\nBeta significance")
@@ -593,6 +595,12 @@ class SingleFactorRollingOLS:
         print(f"  Mean:               {float(self.rolling_df['r_squared'].mean()):.3f}")
         print(f"  Minimum:            {float(self.rolling_df['r_squared'].min()):.3f}")
         print(f"  Maximum:            {float(self.rolling_df['r_squared'].max()):.3f}")
+        
+        
+        print(f"\nCorrelation history")
+        print(f"  Mean:               {float(self.rolling_df['correlation'].mean()):.3f}")
+        print(f"  Minimum:            {float(self.rolling_df['correlation'].min()):.3f}")
+        print(f"  Maximum:            {float(self.rolling_df['correlation'].max()):.3f}")
 
         print("=" * 60)
 
@@ -624,7 +632,10 @@ class SingleFactorRollingOLS:
             'beta_std_dev': self.rolling_df['beta'].std(),
             'beta_rs_mean': self.rolling_df['r_squared'].mean(),
             'beta_rs_min': self.rolling_df['r_squared'].min(),
-            'beta_rs_max': self.rolling_df['r_squared'].max()
+            'beta_rs_max': self.rolling_df['r_squared'].max(),
+            'correlation_mean': self.rolling_df['correlation'].mean(),
+            'correlation_min': self.rolling_df['correlation'].min(),
+            'correlation_max': self.rolling_df['correlation'].max(),
             
         }
         

@@ -75,6 +75,7 @@ def beta(
         table1.add_row("Beta", f"{result['beta']:.5f}")
         table1.add_row("Alpha", f"{result['alpha']:.5f}")
         table1.add_row("R-squared", f"{result['r_squared']:.5f}")
+        table1.add_row("Correlation", f"{result['correlation']:.5f}")
         table1.add_row("Beta p-value", f"{result['beta_pvalue']:.2e}")
         table1.add_row("Beta t-stat", f"{result['beta_tstat']:.5f}")
         table1.add_row("Beta Standard Error", f"{result['beta_std_error']:.5f}")
@@ -121,9 +122,12 @@ def beta(
             table2.add_row("Beta Minimum", f"{rolling_results['beta_min']:.5f}")
             table2.add_row("Beta Maximum", f"{rolling_results['beta_max']:.5f}")
             table2.add_row("Beta Standard Deviation", f"{rolling_results['beta_std_dev']:.5f}")
-            table2.add_row("Beta R-sqaured Mean", f"{rolling_results['beta_rs_mean']:.5f}")
-            table2.add_row("Beta R-sqaured Minimum", f"{rolling_results['beta_rs_min']:.5f}")
-            table2.add_row("Beta R-sqaured Maximum", f"{rolling_results['beta_rs_max']:.5f}")
+            table2.add_row("Beta R-squared Mean", f"{rolling_results['beta_rs_mean']:.5f}")
+            table2.add_row("Beta R-squared Minimum", f"{rolling_results['beta_rs_min']:.5f}")
+            table2.add_row("Beta R-squared Maximum", f"{rolling_results['beta_rs_max']:.5f}")
+            table2.add_row("Correlation Mean", f"{rolling_results['correlation_mean']:.5f}")
+            table2.add_row("Correlation Minimum", f"{rolling_results['correlation_min']:.5f}")
+            table2.add_row("Correlation Maximum", f"{rolling_results['correlation_max']:.5f}")
         
         console.print(table2)
     

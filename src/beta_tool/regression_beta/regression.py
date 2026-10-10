@@ -118,6 +118,7 @@ class OLSRegression:
                 "beta_ci_low": self.results.conf_int().loc[self.x_col, 0],
                 "beta_ci_high": self.results.conf_int().loc[self.x_col, 1],
                 'r_squared': self.results.rsquared,
+                'correlation': np.sign(self.results.params[self.x_col]) * np.sqrt(self.results.rsquared),
                 'residual_volatility': np.sqrt(self.results.mse_resid),
             },
             index = [0]
@@ -158,6 +159,7 @@ class OLSRegression:
                 "beta_ci_low": float(self.results.conf_int().loc[self.x_col, 0]),
                 "beta_ci_high": float(self.results.conf_int().loc[self.x_col, 1]),
                 'r_squared': float(self.results.rsquared),
+                'correlation': np.sign(float(self.results.params[self.x_col])) * np.sqrt(float(self.results.rsquared)),
                 'residual_volatility': float(np.sqrt(self.results.mse_resid)),
             }
         
@@ -204,6 +206,7 @@ class OLSRegression:
         print(f"  Annualized Alpha    {float(self.ols_df['annualized_alpha'].item()):.3f}")
         print(f"  Alpha p-value       {float(self.ols_df['alpha_p_value'].item()):.4g}")
         print(f"  R-squared:          {float(self.ols_df['r_squared'].item()):.3f}")
+        print(f"  Correlation:          {float(self.ols_df['correlation'].item()):.3f}")
         print(f"  Residual volatility: {float(self.ols_df['residual_volatility'].item()):.6f}")
 
         print(f"\nBeta significance")
