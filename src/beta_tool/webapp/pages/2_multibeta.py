@@ -19,7 +19,7 @@ st.set_page_config(
 
 
 
-st.title("Beta Tool")
+st.title("Multibeta Tool")
 
 st.markdown(
     """
@@ -44,6 +44,10 @@ with st.container(border=True):
 
     if "multibeta_asset1" not in st.session_state:
         st.session_state.multibeta_asset1 = ""
+
+    if "ticker_history" not in st.session_state:
+        st.session_state.ticker_history = set()
+        
 
 
     # Search
@@ -71,6 +75,16 @@ with st.container(border=True):
             options_pool_x.append(ticker)
 
 
+    # Historical tickers
+    if not dropdown_options:
+        if st.session_state.ticker_history:
+            for ticker in st.session_state.ticker_history:
+                if ticker not in options_pool_x:
+                    options_pool_x.append(ticker)
+                if ticker not in options_pool_y:
+                    options_pool_y.append(ticker)
+    
+
     # Ticker Entry fields
     col1, col2 = st.columns(2)
 
@@ -79,15 +93,24 @@ with st.container(border=True):
             "Dependent (y) ticker:",
             options=options_pool_y,
             key='multibeta_asset1',
-            placeholder="select a ticker from search"
+            placeholder="select a ticker from search/dropdown",
+            index=None,
+            persist_state='session',
         )
     with col2:
         assets = st.multiselect(
             "Independent (x) ticker(s):",
             options=options_pool_x,
             key='multibeta_assets',
-            placeholder="select one or many tickers from search"
+            placeholder="select one or more tickers from search/dropdown",
+            persist_state='session',
         )
+    
+    if asset1:
+        st.session_state.ticker_history.add(asset1)
+    if assets:
+        for asset in assets:
+            st.session_state.ticker_history.add(asset)
 
 
     # Rest of form
@@ -189,7 +212,10 @@ if submitted:
     # Basic validation
     if not asset1 or not assets:
         st.error("Please enter both asset ticker fields.")
-
+    
+    if asset1 in set(assets):
+        st.error("Cannot have same tickers in (y) and (x) tickers")
+    
     elif (
         start_date is not None
         and end_date is not None
@@ -316,7 +342,7 @@ if 'multibeta_results' in st.session_state:
     # One line summary for each asset
 
     for col in x_col:
-        st.markdown(f"##### Beta - {col}")
+        st.markdown(f"##### Beta - {col.upper()}")
         beta_val = float(r_dic[col]['beta'])
         pval = float(r_dic[col]['beta_pvalue'])
         sig = "statistically significant" if pval < 0.05 else "**not** statistically significant at the 5% level"
@@ -334,42 +360,52 @@ if 'multibeta_results' in st.session_state:
 
         
 
-    st.markdown("")
-    st.markdown("")
+    st.space('small')
 
-    with st.expander("Full regression stats"):
-
-        st.markdown(f"###### Basic stats")
-        basic_stats = dict(list(r_dic.items())[:12])
-        basics_df = pd.DataFrame(basic_stats, index=[0])
-        st.dataframe(basics_df, hide_index=True)
+    with st.expander("Full regression stats", expanded=True):
+        
+        
+        
+        with st.container():
+            st.markdown(f"###### Basic stats")
+            basic_stats = dict(list(r_dic.items())[:12])
+            basics_df = pd.DataFrame(basic_stats, index=[0])
+            bs_md_str = "| Metric | Value |\n| :--- | :--- |\n"
+            for col, col_data in basics_df.items():
+                bs_md_str += f"|**{col}:**| {col_data.iloc[0]} |\n"
+            st.markdown(bs_md_str, width="content")
+            #st.dataframe(basics_df, hide_index=True)
 
         
-        with st.container(horizontal=True, horizontal_alignment='right'):
-            st.download_button("Download CSV", basics_df.to_csv(index=False), "basic_regression_stats.csv", key="multibeta_basic_csv_download")
+            with st.container(horizontal=True, horizontal_alignment='left'):
+                st.download_button("Download CSV", basics_df.to_csv(index=False), "basic_regression_stats.csv", key="multibeta_basic_csv_download")
 
-            df_js_str = basics_df.to_json(orient="records", indent=4,date_format='iso')
+                df_js_str = basics_df.to_json(orient="records", indent=4,date_format='iso')
+
+            
+                st.download_button(
+                    label="Download JSON",
+                    data=df_js_str,
+                    file_name="basic_regression_stats.json",
+                    mime="application/json",
+                    key="multibeta_basic_json_download"
+                )
+
 
         
-            st.download_button(
-                label="Download JSON",
-                data=df_js_str,
-                file_name="basic_regression_stats.json",
-                mime="application/json",
-                key="multibeta_basic_json_download"
-            )
-
-
         
-
         for i in range(len(x_col)):
             
             st.markdown(f"###### Beta w.r.t {x_col[i].upper()}")
+            md_str = "| Metric | Value |\n| :--- | :--- |\n"
             df = pd.DataFrame(r_dic[x_col[i]], index=[0])
-            st.dataframe(df,width='stretch', hide_index=True)
+            for col, col_data in df.items():
+                md_str += f"|**{col}:**| {col_data.iloc[0]} |\n"
+            st.markdown(md_str)
+            #st.dataframe(df,width='stretch', hide_index=True)
 
             
-            with st.container(horizontal=True, horizontal_alignment='right'):
+            with st.container(horizontal=True, horizontal_alignment='left'):
                 st.download_button("Download CSV", df.to_csv(index=False), f"{x_col[i]}_regression_stats.csv", key=f"{x_col[i]}-csv-download")
 
                 df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
@@ -383,10 +419,26 @@ if 'multibeta_results' in st.session_state:
                     key=f"{x_col[i]}-json-download"
                 )
 
-    st.markdown("")
+    st.space('small')
+    
+    rts = go.Figure()
+    for col in returns_df.columns[1:]:
+        rts.add_trace(go.Scatter(
+            x=returns_df['date'], y=returns_df[col], name=col,line=dict(width=1.5),
+        ))
+    rts.update_layout(
+        title = f"{return_type.title()} returns time series",
+        yaxis_tickformat = ".0000",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(t=60, l=10, r=10, b=10),
+        hovermode="x unified",
+    )
+    st.plotly_chart(rts, width='stretch')
+    
+    st.space('small')
     # Returns data
     with st.expander("Raw returns data"):
-        st.dataframe(returns_df, width='stretch')
+        st.dataframe(returns_df, width='stretch',hide_index=True)
 
         
         with st.container(horizontal=True, horizontal_alignment='right'):

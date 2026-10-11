@@ -16,6 +16,7 @@ st.set_page_config(
 
 
 
+
 st.title("Single Asset Beta")
 
 st.markdown(
@@ -43,6 +44,9 @@ with st.container(border=True):
     if "beta_asset1" not in st.session_state:
         st.session_state.beta_asset1 = ""
 
+    if "ticker_history" not in st.session_state:
+        st.session_state.ticker_history = set()
+    
 
     # Search
     search_query = st.text_input("Search for tickers", placeholder="enter 1 character to start", key='beta_search_box',icon="🔍")
@@ -67,6 +71,14 @@ with st.container(border=True):
             options_pool_x.append(st.session_state.beta_asset2)
     
     
+    # Historical tickers
+    if not dropdown_options:
+        if st.session_state.ticker_history:
+            for ticker in st.session_state.ticker_history:
+                if ticker not in options_pool_x:
+                    options_pool_x.append(ticker)
+                if ticker not in options_pool_y:
+                    options_pool_y.append(ticker)
 
     # Ticker Entry fields
     col1, col2 = st.columns(2)
@@ -76,17 +88,24 @@ with st.container(border=True):
             "Dependent (y) ticker:",
             options=options_pool_y,
             key='beta_asset1',
-            placeholder="select a ticker from search"
+            placeholder="select a ticker from search/dropdown",
+            index=None,
+            persist_state='session'
         )
     with col2:
         asset2 = st.selectbox(
             "Independent (x) ticker:",
             options=options_pool_x,
             key='beta_asset2',
-            placeholder="select a ticker from search"
+            placeholder="select a ticker from search/dropdown",
+            index=None,
+            persist_state='session',
         )
 
-    
+    if asset1:
+        st.session_state.ticker_history.add(asset1)
+    if asset2:
+        st.session_state.ticker_history.add(asset2)
     
 
 
@@ -230,7 +249,6 @@ if submitted:
         # Only pass HAC lag when HAC is enabled.
         selected_hac_lag = hac_lag if hac else None
 
-
         # -------------------------------------------------
         # Run regression
         # -------------------------------------------------
@@ -327,11 +345,19 @@ if 'beta_results' in st.session_state:
     col3.metric("P-value", f"{float(df["beta_pvalue"].iloc[0]):.2e}", border=True, height='stretch')
     col4.metric("N Obs", f"{int(df["n_obs"].iloc[0])}", border=True, height='stretch')
 
-    with st.expander("Full regression stats"):
-        st.dataframe(df, width='stretch', hide_index=True)
+    with st.expander("Full regression stats", expanded=True):
+        table_md = ""
+        table_md += "| Metric | Value |\n| :--- | :--- |\n"
+        
+        for col, col_data in df.items():
+            table_md += f"|**{col}:**| {col_data.iloc[0]} |\n"
+        st.markdown(table_md)
+        #st.dataframe(df, width='stretch', hide_index=True)
+        #st.table(df,hide_index=True,width = 'content')
+        
 
         
-        with st.container(horizontal=True, horizontal_alignment='right'):
+        with st.container(horizontal=True, horizontal_alignment='left'):
             st.download_button("Download CSV", df.to_csv(index=False), "regression_stats.csv")
 
             df_js_str = df.to_json(orient="records", indent=4,date_format='iso')
@@ -396,6 +422,21 @@ if 'beta_results' in st.session_state:
     
     st.space('small')
     
+    rts = go.Figure()
+    for col in returns_df.columns[1:]:
+        rts.add_trace(go.Scatter(
+            x=returns_df['date'], y=returns_df[col], name=col,line=dict(width=1.5),
+        ))
+    rts.update_layout(
+        title = f"{return_type.title()} returns time series",
+        yaxis_tickformat = ".0000",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(t=60, l=10, r=10, b=10),
+        hovermode="x unified",
+    )
+    st.plotly_chart(rts, width='stretch')
+    
+    st.space('small')
     # Raw returns series download
     with st.expander("Raw returns data"):
         st.dataframe(returns_df, width='stretch', hide_index=True)

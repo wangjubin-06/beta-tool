@@ -38,6 +38,9 @@ with st.container(border=True):
     # Session state
     if "factors_assets" not in st.session_state:
         st.session_state.factors_assets = []
+    
+    if "ticker_history" not in st.session_state:
+        st.session_state.ticker_history = set()
 
     # Search
     search_query = st.text_input("Search for tickers", placeholder="enter 1 character to start", key='factors_search_box', icon="🔍")
@@ -52,16 +55,27 @@ with st.container(border=True):
     for ticker in st.session_state.factors_assets:
         if ticker not in options_pool:
             options_pool.append(ticker)
+    
+    # Historical tickers
+    if not dropdown_options:
+        if st.session_state.ticker_history:
+            for ticker in st.session_state.ticker_history:
+                if ticker not in options_pool:
+                    options_pool.append(ticker)
+                
 
 
     assets = st.multiselect(
         "Ticker(s):",
         options=options_pool,
         key='factors_assets',
-        placeholder="select one or many tickers from search",
+        placeholder="select one or more tickers from search/dropdown",
         persist_state='session',
     )
     
+    if assets:
+        for asset in assets:
+            st.session_state.ticker_history.add(asset)
 
 
     with st.form("factors_form", border=False, enter_to_submit=False):

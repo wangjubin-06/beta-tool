@@ -44,7 +44,9 @@ with st.container(border=True):
 
     if "hedge_portdf" not in st.session_state:
         st.session_state.hedge_portdf = pd.DataFrame({"ticker": pd.Series(dtype="str"),"weight": pd.Series(dtype="float64"),})
-        
+    
+    if "ticker_history" not in st.session_state:
+        st.session_state.ticker_history = set()
 
     # Search
     search_query = st.text_input("Search for tickers", placeholder="enter 1 character to start", key='hedge_search_box', icon="🔍")
@@ -73,6 +75,18 @@ with st.container(border=True):
             options_pool_x.append(ticker)
 
 
+
+    # Historical tickers
+    if not dropdown_options:
+        if st.session_state.ticker_history:
+            for ticker in st.session_state.ticker_history:
+                if ticker not in options_pool_x:
+                    options_pool_x.append(ticker)
+                if ticker not in options_pool_y:
+                    options_pool_y.append(ticker)
+                    
+                    
+    
     with st.container(border=True):
         
         st.write("Portfolio holdings:")
@@ -81,10 +95,11 @@ with st.container(border=True):
         with add_col1:
             staged_ticker = st.selectbox(
                 "Select ticker to add",
-                options=dropdown_options,
+                options=options_pool_y,
                 key="hedge_staged_ticker",
                 label_visibility="collapsed",
-                placeholder="pick from search results",
+                placeholder="pick from search results/dropdown",
+                index=None,
             )
         with add_col2:
             staged_weight = st.number_input(
@@ -114,6 +129,8 @@ with st.container(border=True):
                 st.session_state.hedge_portdf = pd.concat(
                     [st.session_state.hedge_portdf, new_row], ignore_index=True
                 )
+                
+                st.session_state.ticker_history.add(staged_ticker)
 
 
 
@@ -166,7 +183,8 @@ with st.container(border=True):
             label_visibility='collapsed',
             options=options_pool_x,
             key='hedge_assets',
-            placeholder="select one or many tickers from search"
+            placeholder="select one or more tickers from search/dropdown",
+            persist_state='session',
         )
     
     
